@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   LayoutDashboard,
   Layers,
@@ -15,7 +16,37 @@ import {
   TrendingUp,
   Star,
   ChevronDown,
+  Upload,
+  X,
+  RefreshCw,
 } from "lucide-react";
+import {
+  loadRows,
+  saveRows,
+  resetToSeed,
+  parseXlsxFile,
+  formatUpdatedAt,
+  type Row,
+  type DataMeta,
+} from "@/lib/dashboard-data";
+import {
+  EMPTY_FILTERS,
+  applyAllFilters,
+  applyBaseFilters,
+  computeAgsByCanalMix,
+  computeByCluster,
+  computeDonutByCanal,
+  computeEvolution,
+  computeKpis,
+  computeRanking,
+  fmtBRL,
+  fmtMonth,
+  fmtPct,
+  latestMonth,
+  uniqueMonths,
+  uniqueSorted,
+  type Filters,
+} from "@/lib/dashboard-metrics";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -37,38 +68,158 @@ const ORANGE = "#EF9F27";
 const PURPLE = "#7F77DD";
 const RED = "#E24B4A";
 const LIGHT_BLUE = "#B5D4F4";
+const PALETTE = [GREEN, PURPLE, ORANGE, BLUE, RED, LIGHT_BLUE, "#5DCAA5", "#F1B257"];
 
 function Dashboard() {
+  const [rows, setRows] = useState<Row[]>([]);
+  const [meta, setMeta] = useState<DataMeta | null>(null);
+  const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
+
+  useEffect(() => {
+    const { rows, meta } = loadRows();
+    setRows(rows);
+    setMeta(meta);
+  }, []);
+
+  const months = useMemo(() => uniqueMonths(rows), [rows]);
+  const currentMonth = filters.mes ?? latestMonth(rows);
+
+  const baseRows = useMemo(() => applyBaseFilters(rows, filters), [rows, filters]);
+  const monthRows = useMemo(
+    () => baseRows.filter((r) => r.mes === currentMonth),
+    [baseRows, currentMonth],
+  );
+  const kpis = useMemo(
+    () => computeKpis(rows, baseRows, currentMonth),
+    [rows, baseRows, currentMonth],
+  );
+  const clusters = useMemo(() => computeByCluster(monthRows), [monthRows]);
+  const donut = useMemo(() => computeDonutByCanal(monthRows), [monthRows]);
+  const evolution = useMemo(() => computeEvolution(baseRows), [baseRows]);
+  const ranking = useMemo(() => computeRanking(monthRows, 5), [monthRows]);
+  const canalMix = useMemo(() => computeAgsByCanalMix(monthRows), [monthRows]);
+
+  // Filter options
+  const clusterOpts = useMemo(() => uniqueSorted(rows, "cluster"), [rows]);
+  const canalOpts = useMemo(() => uniqueSorted(rows, "canal"), [rows]);
+  const redeOpts = useMemo(() => uniqueSorted(rows, "rede"), [rows]);
+  const distribOpts = useMemo(() => uniqueSorted(rows, "distribuidor"), [rows]);
+
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const handleUpload = async (file: File) => {
+    setUploadError(null);
+    try {
+      const parsed = await parseXlsxFile(file);
+      const newMeta = saveRows(parsed);
+      setRows(parsed);
+      setMeta(newMeta);
+      setFilters(EMPTY_FILTERS);
+    } catch (e) {
+      setUploadError(e instanceof Error ? e.message : "Falha ao ler o arquivo");
+    }
+  };
+
+  const handleReset = () => {
+    const m = resetToSeed();
+    const { rows } = loadRows();
+    setRows(rows);
+    setMeta(m);
+    setFilters(EMPTY_FILTERS);
+  };
+
+  if (!meta) {
+    return <div className="min-h-screen bg-[#0f0f10]" />;
+  }
+
   return (
     <div className="min-h-screen bg-[#0f0f10] text-neutral-200 p-4">
       {/* Header */}
-      <div className="mb-3">
-        <h1 className="text-[15px] font-medium text-neutral-100 flex items-center gap-2">
-          <LayoutDashboard size={16} style={{ color: BLUE }} />
-          Store Platform — Painel de Resultados
-        </h1>
-        <p className="text-[11px] text-neutral-400 mt-1">
-          Histórico de performance das redes participantes
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+        <div>
+          <h1 className="text-[15px] font-medium text-neutral-100 flex items-center gap-2">
+            <LayoutDashboard size={16} style={{ color: BLUE }} />
+            Store Platform — Painel de Resultados
+          </h1>
+          <p className="text-[11px] text-neutral-400 mt-1">
+            Histórico de performance das redes participantes ·{" "}
+            <span className="text-neutral-300">{meta.rowCount}</span> linhas ·
+            {meta.source === "seed"
+              ? " dados de exemplo"
+              : ` atualizado em ${formatUpdatedAt(meta)}`}
+          </p>
+          {uploadError && (
+            <p className="text-[11px] text-red-400 mt-1">⚠ {uploadError}</p>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".xlsx"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) handleUpload(f);
+              e.target.value = "";
+            }}
+          />
+          {meta.source === "upload" && (
+            <button
+              onClick={handleReset}
+              className="rounded-full px-3 py-1.5 text-[11px] flex items-center gap-1.5 border bg-[#1a1a1c] border-neutral-800 text-neutral-400 hover:border-neutral-700"
+              title="Voltar para os dados de exemplo"
+            >
+              <RefreshCw size={12} /> Restaurar
+            </button>
+          )}
+          <button
+            onClick={() => fileRef.current?.click()}
+            className="rounded-full px-3 py-1.5 text-[11px] flex items-center gap-1.5 border bg-[#0E2E4D] border-[#378ADD] text-[#8BBEEC] font-medium hover:bg-[#13395f]"
+          >
+            <Upload size={12} /> Atualizar dados (.xlsx)
+          </button>
+        </div>
       </div>
 
       {/* Filtros */}
-      <FilterBar />
+      <FilterBar
+        filters={filters}
+        setFilters={setFilters}
+        clusterOpts={clusterOpts}
+        canalOpts={canalOpts}
+        redeOpts={redeOpts}
+        distribOpts={distribOpts}
+        monthOpts={months}
+      />
 
       {/* Indicadores */}
-      <SectionLabel>Indicadores principais</SectionLabel>
+      <SectionLabel>
+        Indicadores principais{currentMonth ? ` · ${fmtMonth(currentMonth)}` : ""}
+      </SectionLabel>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 mb-3">
         <KpiCard
           color={GREEN}
           icon={<Banknote size={13} style={{ color: GREEN }} />}
           label="Investimento gerado"
-          value="R$ 4,2M"
+          value={fmtBRL(kpis.gerado)}
           valueColor="#3DD9A4"
-          sub="Potencial: R$ 5,8M"
+          sub={`Potencial: ${fmtBRL(kpis.potencial)}`}
           progressLabel="Atingimento"
-          progressValue="72,4%"
-          progressPct={72}
-          badge={{ text: "+8,3% vs mês anterior", bg: "#11402F", fg: "#7DE5BD" }}
+          progressValue={fmtPct(kpis.atingimentoVerba)}
+          progressPct={Math.min(100, kpis.atingimentoVerba * 100)}
+          badge={
+            kpis.geradoDeltaPct == null
+              ? { text: "sem mês anterior", bg: "#1a1a1c", fg: "#888" }
+              : {
+                  text: `${kpis.geradoDeltaPct >= 0 ? "▲" : "▼"} ${(
+                    kpis.geradoDeltaPct * 100
+                  ).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% vs mês ant.`,
+                  bg: kpis.geradoDeltaPct >= 0 ? "#11402F" : "#3D1A1A",
+                  fg: kpis.geradoDeltaPct >= 0 ? "#7DE5BD" : "#F08A8A",
+                }
+          }
         />
         <KpiCard
           color={BLUE}
@@ -76,98 +227,259 @@ function Dashboard() {
           label="Redes com sortimento ≥ 90%"
           value={
             <>
-              38{" "}
+              {kpis.redesSortimentoOk}{" "}
               <span className="text-[14px] text-neutral-400 font-normal">
-                / 54
+                / {kpis.redesAtivas}
               </span>
             </>
           }
           valueColor="#5FA8E8"
-          sub="Redes ativas na plataforma"
+          sub="Redes ativas no período"
           progressLabel="Taxa de conversão"
-          progressValue="70,4%"
-          progressPct={70}
-          badge={{ text: "+5 redes vs mês anterior", bg: "#0E2E4D", fg: "#8BBEEC" }}
+          progressValue={fmtPct(kpis.taxaConversao)}
+          progressPct={kpis.taxaConversao * 100}
+          badge={
+            kpis.redesOkDelta == null
+              ? { text: "sem mês anterior", bg: "#1a1a1c", fg: "#888" }
+              : {
+                  text: `${kpis.redesOkDelta >= 0 ? "+" : ""}${kpis.redesOkDelta} redes vs mês ant.`,
+                  bg: "#0E2E4D",
+                  fg: "#8BBEEC",
+                }
+          }
         />
         <KpiCard
           color={ORANGE}
           icon={<Target size={13} style={{ color: ORANGE }} />}
           label="% Atingimento da verba"
-          value="72,4%"
+          value={fmtPct(kpis.atingimentoVerba)}
           valueColor="#F1B257"
           sub="Invest. Gerado / Potencial"
           progressLabel="Meta: 85%"
-          progressValue="-12,6 p.p."
-          progressPct={72}
-          badge={{ text: "▼ Abaixo da meta", bg: "#3D2A10", fg: "#F1B257" }}
+          progressValue={
+            kpis.atingimentoDeltaPP == null
+              ? "—"
+              : `${kpis.atingimentoDeltaPP >= 0 ? "+" : ""}${kpis.atingimentoDeltaPP.toFixed(1)} p.p.`
+          }
+          progressPct={Math.min(100, kpis.atingimentoVerba * 100)}
+          badge={
+            kpis.atingimentoVerba >= 0.85
+              ? { text: "▲ Meta atingida", bg: "#11402F", fg: "#7DE5BD" }
+              : { text: "▼ Abaixo da meta", bg: "#3D2A10", fg: "#F1B257" }
+          }
         />
         <KpiCard
           color={PURPLE}
           icon={<Receipt size={13} style={{ color: PURPLE }} />}
           label="Faturamento mês atual"
-          value="R$ 12,7M"
+          value={fmtBRL(kpis.faturamento)}
           valueColor="#A39DE5"
-          sub="AGs batidos: 312 / 420"
+          sub={`AGs batidos: ${kpis.agBatidos.toLocaleString("pt-BR")} / ${kpis.qtdAG.toLocaleString("pt-BR")}`}
           progressLabel="% AGs"
-          progressValue="74,3%"
-          progressPct={74}
-          badge={{ text: "54 CNPJs ativos", bg: "#241F4D", fg: "#A39DE5" }}
+          progressValue={fmtPct(kpis.pctAGs)}
+          progressPct={kpis.pctAGs * 100}
+          badge={{
+            text: `${kpis.cnpjsAtivos.toLocaleString("pt-BR")} CNPJs ativos`,
+            bg: "#241F4D",
+            fg: "#A39DE5",
+          }}
         />
       </div>
 
       {/* Linha intermediária */}
       <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-2.5 mb-3">
-        <ClusterCard />
-        <ChannelDonutCard />
+        <ClusterCard data={clusters} />
+        <ChannelDonutCard donut={donut} />
       </div>
 
       {/* Linha inferior */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-2.5">
-        <MonthlyEvolutionCard />
-        <RankingCard />
-        <ChannelMixCard />
+        <MonthlyEvolutionCard data={evolution} />
+        <RankingCard rows={ranking} />
+        <ChannelMixCard rows={canalMix} />
       </div>
     </div>
   );
 }
 
-/* ---------------- Components ---------------- */
+/* ---------------- Filter Bar with real dropdowns ---------------- */
+
+type FilterBarProps = {
+  filters: Filters;
+  setFilters: (f: Filters) => void;
+  clusterOpts: string[];
+  canalOpts: string[];
+  redeOpts: string[];
+  distribOpts: string[];
+  monthOpts: string[];
+};
+
+function FilterBar(p: FilterBarProps) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 mb-3">
+      <span className="text-[11px] font-medium text-neutral-400 mr-1">Filtros:</span>
+      <FilterChip
+        icon={<Layers size={12} />}
+        label="Cluster"
+        value={p.filters.cluster}
+        options={p.clusterOpts}
+        onChange={(v) => p.setFilters({ ...p.filters, cluster: v })}
+        allLabel="Todos os clusters"
+      />
+      <FilterChip
+        icon={<MapPin size={12} />}
+        label="Canal"
+        value={p.filters.canal}
+        options={p.canalOpts}
+        onChange={(v) => p.setFilters({ ...p.filters, canal: v })}
+      />
+      <FilterChip
+        icon={<Network size={12} />}
+        label="Rede"
+        value={p.filters.rede}
+        options={p.redeOpts}
+        onChange={(v) => p.setFilters({ ...p.filters, rede: v })}
+        searchable
+      />
+      <FilterChip
+        icon={<Building2 size={12} />}
+        label="Distribuidor"
+        value={p.filters.distribuidor}
+        options={p.distribOpts}
+        onChange={(v) => p.setFilters({ ...p.filters, distribuidor: v })}
+        searchable
+      />
+      <FilterChip
+        icon={<CalendarRange size={12} />}
+        label="Mês"
+        value={p.filters.mes}
+        formatValue={(v) => fmtMonth(v)}
+        options={p.monthOpts}
+        onChange={(v) => p.setFilters({ ...p.filters, mes: v })}
+        allLabel="Mês mais recente"
+      />
+      {(p.filters.cluster ||
+        p.filters.canal ||
+        p.filters.rede ||
+        p.filters.distribuidor ||
+        p.filters.mes) && (
+        <button
+          onClick={() => p.setFilters(EMPTY_FILTERS)}
+          className="text-[11px] text-neutral-400 hover:text-neutral-200 flex items-center gap-1 ml-1"
+        >
+          <X size={12} /> limpar
+        </button>
+      )}
+    </div>
+  );
+}
+
+function FilterChip({
+  icon,
+  label,
+  value,
+  options,
+  onChange,
+  allLabel,
+  formatValue,
+  searchable,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string | null;
+  options: string[];
+  onChange: (v: string | null) => void;
+  allLabel?: string;
+  formatValue?: (v: string) => string;
+  searchable?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+  const active = !!value;
+
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, [open]);
+
+  const filtered = searchable
+    ? options.filter((o) => o.toLowerCase().includes(query.toLowerCase()))
+    : options;
+
+  const display = value ? (formatValue ? formatValue(value) : value) : label;
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className={`rounded-full px-3 py-1 text-[11px] flex items-center gap-1.5 border transition-colors ${
+          active
+            ? "bg-[#0E2E4D] border-[#378ADD] text-[#8BBEEC] font-medium"
+            : "bg-[#1a1a1c] border-neutral-800 text-neutral-400 hover:border-neutral-700"
+        }`}
+      >
+        {icon}
+        {display}
+        <ChevronDown size={12} />
+      </button>
+      {open && (
+        <div className="absolute z-20 mt-1 min-w-[180px] max-h-[280px] overflow-auto bg-[#1a1a1c] border border-neutral-800 rounded-md shadow-lg py-1 text-[11px]">
+          {searchable && (
+            <input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Buscar..."
+              className="w-full px-2 py-1 mb-1 bg-[#0f0f10] border-b border-neutral-800 text-neutral-200 outline-none"
+            />
+          )}
+          <button
+            onClick={() => {
+              onChange(null);
+              setOpen(false);
+              setQuery("");
+            }}
+            className={`block w-full text-left px-3 py-1 hover:bg-neutral-800 ${
+              !value ? "text-[#8BBEEC]" : "text-neutral-400"
+            }`}
+          >
+            {allLabel ?? `Todos`}
+          </button>
+          {filtered.map((opt) => (
+            <button
+              key={opt}
+              onClick={() => {
+                onChange(opt);
+                setOpen(false);
+                setQuery("");
+              }}
+              className={`block w-full text-left px-3 py-1 hover:bg-neutral-800 ${
+                value === opt ? "text-[#8BBEEC] font-medium" : "text-neutral-200"
+              }`}
+            >
+              {formatValue ? formatValue(opt) : opt}
+            </button>
+          ))}
+          {filtered.length === 0 && (
+            <div className="px-3 py-2 text-neutral-500">Nenhum resultado</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------------- Reusable UI ---------------- */
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div className="text-[11px] font-medium text-neutral-400 mb-2 tracking-wider uppercase">
       {children}
-    </div>
-  );
-}
-
-function FilterBar() {
-  const filters = [
-    { label: "Todos os clusters", icon: <Layers size={12} />, active: true },
-    { label: "Canal", icon: <MapPin size={12} /> },
-    { label: "Rede", icon: <Network size={12} /> },
-    { label: "Distribuidor", icon: <Building2 size={12} /> },
-    { label: "Mês", icon: <CalendarRange size={12} /> },
-  ];
-  return (
-    <div className="flex flex-wrap items-center gap-1.5 mb-3">
-      <span className="text-[11px] font-medium text-neutral-400 mr-1">
-        Filtros:
-      </span>
-      {filters.map((f) => (
-        <button
-          key={f.label}
-          className={`rounded-full px-3 py-1 text-[11px] flex items-center gap-1.5 border transition-colors ${
-            f.active
-              ? "bg-[#0E2E4D] border-[#378ADD] text-[#8BBEEC] font-medium"
-              : "bg-[#1a1a1c] border-neutral-800 text-neutral-400 hover:border-neutral-700"
-          }`}
-        >
-          {f.icon}
-          {f.label}
-          <ChevronDown size={12} />
-        </button>
-      ))}
     </div>
   );
 }
@@ -253,7 +565,7 @@ function KpiCard({
       <div className="h-[5px] bg-neutral-800 rounded mt-1.5 overflow-hidden">
         <div
           className="h-full rounded"
-          style={{ width: `${progressPct}%`, background: color }}
+          style={{ width: `${Math.max(0, Math.min(100, progressPct))}%`, background: color }}
         />
       </div>
       <span
@@ -266,20 +578,16 @@ function KpiCard({
   );
 }
 
-function ClusterCard() {
-  const data = [
-    { name: "Cluster A", potPct: 92, potVal: "R$ 846k", genPct: 78, genVal: "R$ 718k", genColor: GREEN },
-    { name: "Cluster B", potPct: 80, potVal: "R$ 736k", genPct: 58, genVal: "R$ 533k", genColor: GREEN },
-    { name: "Cluster C", potPct: 72, potVal: "R$ 662k", genPct: 67, genVal: "R$ 616k", genColor: GREEN },
-    { name: "Cluster D", potPct: 60, potVal: "R$ 552k", genPct: 41, genVal: "R$ 377k", genColor: ORANGE },
-    { name: "Cluster E", potPct: 50, potVal: "R$ 460k", genPct: 48, genVal: "R$ 441k", genColor: GREEN },
-  ];
+/* ---------------- Cards ---------------- */
+
+function ClusterCard({ data }: { data: { cluster: string; potencial: number; gerado: number }[] }) {
+  const max = Math.max(1, ...data.map((d) => Math.max(d.potencial, d.gerado)));
   return (
     <Card>
       <CardTitle
         icon={<BarChart3 size={13} className="text-neutral-400" />}
         title="Investimento gerado vs potencial — por cluster"
-        sub="Comparativo entre potencial e valor gerado (R$ mil)"
+        sub="Comparativo entre potencial e valor gerado"
       />
       <div className="flex gap-3 mb-2.5 ml-[82px] text-[10px] text-neutral-400">
         <span className="flex items-center gap-1">
@@ -291,49 +599,53 @@ function ClusterCard() {
           Gerado
         </span>
       </div>
+      {data.length === 0 && <Empty />}
       <div className="flex flex-col gap-2.5">
-        {data.map((c) => (
-          <div key={c.name}>
-            <div className="flex items-center gap-2 mb-0.5">
-              <div className="text-[11px] text-neutral-400 w-[78px] text-right shrink-0">
-                {c.name}
+        {data.map((c) => {
+          const pPct = (c.potencial / max) * 100;
+          const gPct = (c.gerado / max) * 100;
+          const ratio = c.potencial > 0 ? c.gerado / c.potencial : 0;
+          const gColor = ratio >= 0.7 ? GREEN : ratio >= 0.5 ? ORANGE : RED;
+          return (
+            <div key={c.cluster}>
+              <div className="flex items-center gap-2 mb-0.5">
+                <div className="text-[11px] text-neutral-400 w-[78px] text-right shrink-0 truncate" title={c.cluster}>
+                  {c.cluster}
+                </div>
+                <div className="flex-1 h-[18px] bg-neutral-800 rounded overflow-hidden">
+                  <div
+                    className="h-full rounded flex items-center justify-end pr-1.5"
+                    style={{ width: `${pPct}%`, background: LIGHT_BLUE }}
+                  >
+                    <span className="text-[10px] font-medium text-[#0C447C]">{fmtBRL(c.potencial)}</span>
+                  </div>
+                </div>
               </div>
-              <div className="flex-1 h-[18px] bg-neutral-800 rounded overflow-hidden">
-                <div
-                  className="h-full rounded flex items-center justify-end pr-1.5"
-                  style={{ width: `${c.potPct}%`, background: LIGHT_BLUE }}
-                >
-                  <span className="text-[10px] font-medium text-[#0C447C]">{c.potVal}</span>
+              <div className="flex items-center gap-2">
+                <div className="w-[78px] shrink-0" />
+                <div className="flex-1 h-[13px] bg-neutral-800 rounded overflow-hidden">
+                  <div
+                    className="h-full rounded flex items-center justify-end pr-1.5"
+                    style={{ width: `${gPct}%`, background: gColor }}
+                  >
+                    <span className="text-[9px] font-medium text-white">{fmtBRL(c.gerado)}</span>
+                  </div>
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-[78px] shrink-0" />
-              <div className="flex-1 h-[13px] bg-neutral-800 rounded overflow-hidden">
-                <div
-                  className="h-full rounded flex items-center justify-end pr-1.5"
-                  style={{ width: `${c.genPct}%`, background: c.genColor }}
-                >
-                  <span className="text-[9px] font-medium text-white">{c.genVal}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </Card>
   );
 }
 
-function ChannelDonutCard() {
-  // Segments: 44, 24, 20, 12  -> total 100; circumference for r=46 ~ 289
+function ChannelDonutCard({
+  donut,
+}: {
+  donut: ReturnType<typeof computeDonutByCanal>;
+}) {
   const C = 2 * Math.PI * 46;
-  const segs = [
-    { pct: 44, color: GREEN, label: "Autosserviço" },
-    { pct: 24, color: PURPLE, label: "Atacado" },
-    { pct: 20, color: ORANGE, label: "Food Service" },
-    { pct: 12, color: LIGHT_BLUE, label: "Outros" },
-  ];
   let offset = 0;
   return (
     <Card className="flex flex-col">
@@ -342,89 +654,111 @@ function ChannelDonutCard() {
         title="Sortimento ≥ 90% por canal"
         sub="Distribuição das redes que atingiram o mix"
       />
-      <svg viewBox="0 0 160 140" width="100%" className="block mx-auto">
-        <circle cx="80" cy="68" r="46" fill="none" stroke="#2a2a2d" strokeWidth="24" />
-        {segs.map((s, i) => {
-          const len = (s.pct / 100) * C;
-          const dashOffset = -offset;
-          offset += len;
-          return (
-            <circle
-              key={i}
-              cx="80"
-              cy="68"
-              r="46"
-              fill="none"
-              stroke={s.color}
-              strokeWidth="24"
-              strokeDasharray={`${len} ${C - len}`}
-              strokeDashoffset={dashOffset}
-              transform="rotate(-90 80 68)"
-            />
-          );
-        })}
-        <text x="80" y="64" textAnchor="middle" fontSize="19" fontWeight="500" fill="#8BBEEC">
-          70%
-        </text>
-        <text x="80" y="78" textAnchor="middle" fontSize="9" fill="#888">
-          atingiram ≥90%
-        </text>
-      </svg>
-      <div className="mt-2">
-        {segs.map((s) => (
-          <div key={s.label} className="flex items-center gap-2 text-[11px] text-neutral-400 mb-1.5">
-            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: s.color }} />
-            {s.label}
-            <span className="ml-auto font-medium text-neutral-200">{s.pct}%</span>
+      {donut.total === 0 ? (
+        <Empty />
+      ) : (
+        <>
+          <svg viewBox="0 0 160 140" width="100%" className="block mx-auto">
+            <circle cx="80" cy="68" r="46" fill="none" stroke="#2a2a2d" strokeWidth="24" />
+            {donut.slices.map((s, i) => {
+              const len = s.pct * C;
+              const dashOffset = -offset;
+              offset += len;
+              return (
+                <circle
+                  key={s.canal}
+                  cx="80"
+                  cy="68"
+                  r="46"
+                  fill="none"
+                  stroke={PALETTE[i % PALETTE.length]}
+                  strokeWidth="24"
+                  strokeDasharray={`${len} ${C - len}`}
+                  strokeDashoffset={dashOffset}
+                  transform="rotate(-90 80 68)"
+                />
+              );
+            })}
+            <text x="80" y="64" textAnchor="middle" fontSize="19" fontWeight="500" fill="#8BBEEC">
+              {fmtPct(donut.pctAtingiram, 0)}
+            </text>
+            <text x="80" y="78" textAnchor="middle" fontSize="9" fill="#888">
+              atingiram ≥90%
+            </text>
+          </svg>
+          <div className="mt-2">
+            {donut.slices.map((s, i) => (
+              <div
+                key={s.canal}
+                className="flex items-center gap-2 text-[11px] text-neutral-400 mb-1.5"
+              >
+                <span
+                  className="w-2.5 h-2.5 rounded-full shrink-0"
+                  style={{ background: PALETTE[i % PALETTE.length] }}
+                />
+                {s.canal}
+                <span className="ml-auto font-medium text-neutral-200">
+                  {fmtPct(s.pct, 0)}
+                </span>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </>
+      )}
     </Card>
   );
 }
 
-function MonthlyEvolutionCard() {
-  const months = [
-    { m: "Jan", pct: 52, val: "R$ 2,4M", color: "#9FE1CB" },
-    { m: "Fev", pct: 62, val: "R$ 2,9M", color: "#5DCAA5" },
-    { m: "Mar", pct: 59, val: "R$ 2,7M", color: "#5DCAA5" },
-    { m: "Abr", pct: 75, val: "R$ 3,5M", color: GREEN },
-    { m: "Mai", pct: 90, val: "R$ 4,2M", color: "#0F6E56" },
-  ];
+function MonthlyEvolutionCard({ data }: { data: { mes: string; gerado: number }[] }) {
+  const max = Math.max(1, ...data.map((d) => d.gerado));
+  const first = data[0]?.gerado ?? 0;
+  const last = data[data.length - 1]?.gerado ?? 0;
+  const growth = first > 0 ? (last - first) / first : null;
   return (
     <Card>
       <CardTitle
         icon={<TrendingUp size={13} className="text-neutral-400" />}
         title="Evolução mensal"
-        sub="Investimento gerado (R$ M)"
+        sub="Investimento gerado por mês"
       />
+      {data.length === 0 && <Empty />}
       <div className="flex flex-col gap-2">
-        {months.map((m) => (
-          <div key={m.m} className="flex items-center gap-2 text-[11px]">
-            <span className="w-[30px] text-neutral-400">{m.m}</span>
-            <div className="flex-1 h-3.5 bg-neutral-800 rounded overflow-hidden">
-              <div className="h-full rounded" style={{ width: `${m.pct}%`, background: m.color }} />
+        {data.map((m, i) => {
+          const pct = (m.gerado / max) * 100;
+          const color = i === data.length - 1 ? "#0F6E56" : i >= data.length - 2 ? GREEN : "#5DCAA5";
+          return (
+            <div key={m.mes} className="flex items-center gap-2 text-[11px]">
+              <span className="w-[34px] text-neutral-400">{fmtMonth(m.mes)}</span>
+              <div className="flex-1 h-3.5 bg-neutral-800 rounded overflow-hidden">
+                <div className="h-full rounded" style={{ width: `${pct}%`, background: color }} />
+              </div>
+              <span className="w-[52px] text-right font-medium text-neutral-200">
+                {fmtBRL(m.gerado)}
+              </span>
             </div>
-            <span className="w-[42px] text-right font-medium text-neutral-200">{m.val}</span>
-          </div>
-        ))}
+          );
+        })}
       </div>
-      <div className="h-px bg-neutral-800 my-2" />
-      <span className="text-[10px] text-neutral-400">
-        <span className="text-[#3DD9A4] font-medium">+75%</span> crescimento Jan → Mai
-      </span>
+      {growth != null && data.length > 1 && (
+        <>
+          <div className="h-px bg-neutral-800 my-2" />
+          <span className="text-[10px] text-neutral-400">
+            <span
+              className="font-medium"
+              style={{ color: growth >= 0 ? "#3DD9A4" : "#F08A8A" }}
+            >
+              {growth >= 0 ? "+" : ""}
+              {(growth * 100).toFixed(0)}%
+            </span>{" "}
+            {fmtMonth(data[0].mes)} → {fmtMonth(data[data.length - 1].mes)}
+          </span>
+        </>
+      )}
     </Card>
   );
 }
 
-function RankingCard() {
-  const rows = [
-    { rank: 1, name: "Rede Alpha", sort: "97%", sortColor: "#3DD9A4", val: "R$ 820k" },
-    { rank: 2, name: "Rede Beta", sort: "94%", sortColor: "#3DD9A4", val: "R$ 710k" },
-    { rank: 3, name: "Rede Gama", sort: "91%", sortColor: GREEN, val: "R$ 630k" },
-    { rank: 4, name: "Rede Delta", sort: "89%", sortColor: ORANGE, val: "R$ 540k" },
-    { rank: 5, name: "Rede Sigma", sort: "84%", sortColor: RED, val: "R$ 410k" },
-  ];
+function RankingCard({ rows }: { rows: { rede: string; sortimento: number; gerado: number }[] }) {
   return (
     <Card>
       <CardTitle
@@ -432,28 +766,40 @@ function RankingCard() {
         title="Ranking de redes"
         sub="Top 5 por investimento gerado"
       />
-      <table className="w-full text-[11px]" style={{ tableLayout: "fixed" }}>
-        <thead>
-          <tr className="text-neutral-400 font-medium border-b border-neutral-800">
-            <th className="text-left pb-1.5 w-5 font-medium">#</th>
-            <th className="text-left pb-1.5 font-medium">Rede</th>
-            <th className="text-left pb-1.5 w-10 font-medium">Sort.</th>
-            <th className="text-right pb-1.5 w-14 font-medium">Invest.</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.rank} className="border-b border-neutral-800 last:border-0">
-              <td className="py-1 text-neutral-400 font-medium">{r.rank}</td>
-              <td className="py-1 text-neutral-200">{r.name}</td>
-              <td className="py-1 font-medium" style={{ color: r.sortColor }}>
-                {r.sort}
-              </td>
-              <td className="py-1 text-right font-medium text-neutral-200">{r.val}</td>
+      {rows.length === 0 ? (
+        <Empty />
+      ) : (
+        <table className="w-full text-[11px]" style={{ tableLayout: "fixed" }}>
+          <thead>
+            <tr className="text-neutral-400 font-medium border-b border-neutral-800">
+              <th className="text-left pb-1.5 w-5 font-medium">#</th>
+              <th className="text-left pb-1.5 font-medium">Rede</th>
+              <th className="text-left pb-1.5 w-10 font-medium">Sort.</th>
+              <th className="text-right pb-1.5 w-16 font-medium">Invest.</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => {
+              const color =
+                r.sortimento >= 0.9 ? GREEN : r.sortimento >= 0.85 ? ORANGE : RED;
+              return (
+                <tr key={r.rede} className="border-b border-neutral-800 last:border-0">
+                  <td className="py-1 text-neutral-400 font-medium">{i + 1}</td>
+                  <td className="py-1 text-neutral-200 truncate" title={r.rede}>
+                    {r.rede}
+                  </td>
+                  <td className="py-1 font-medium" style={{ color }}>
+                    {fmtPct(r.sortimento, 0)}
+                  </td>
+                  <td className="py-1 text-right font-medium text-neutral-200">
+                    {fmtBRL(r.gerado)}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
       <div className="h-px bg-neutral-800 my-2" />
       <div className="flex gap-2.5">
         <LegendDot color={GREEN} label="≥90%" />
@@ -464,35 +810,34 @@ function RankingCard() {
   );
 }
 
-function ChannelMixCard() {
-  const rows = [
-    { label: "Autosserviço", pct: 81, color: GREEN },
-    { label: "Atacado", pct: 74, color: GREEN },
-    { label: "Food Service", pct: 68, color: ORANGE },
-    { label: "Farma", pct: 55, color: ORANGE },
-    { label: "Outros", pct: 48, color: RED },
-  ];
+function ChannelMixCard({ rows }: { rows: { canal: string; pct: number }[] }) {
   return (
     <Card>
       <CardTitle
         icon={<Layers size={13} className="text-neutral-400" />}
-        title="AGs batidos por canal mix"
+        title="AGs batidos por canal"
         sub="% de atingimento do target por canal"
       />
+      {rows.length === 0 && <Empty />}
       <div className="flex flex-col gap-2">
-        {rows.map((r) => (
-          <div key={r.label} className="flex items-center gap-2">
-            <div className="text-[11px] text-neutral-400 w-[74px] text-right">{r.label}</div>
-            <div className="flex-1 h-[18px] bg-neutral-800 rounded overflow-hidden">
-              <div
-                className="h-full rounded flex items-center justify-end pr-1.5"
-                style={{ width: `${r.pct}%`, background: r.color }}
-              >
-                <span className="text-[10px] font-medium text-white">{r.pct}%</span>
+        {rows.map((r) => {
+          const color = r.pct >= 0.75 ? GREEN : r.pct >= 0.6 ? ORANGE : RED;
+          return (
+            <div key={r.canal} className="flex items-center gap-2">
+              <div className="text-[11px] text-neutral-400 w-[74px] text-right truncate" title={r.canal}>
+                {r.canal}
+              </div>
+              <div className="flex-1 h-[18px] bg-neutral-800 rounded overflow-hidden">
+                <div
+                  className="h-full rounded flex items-center justify-end pr-1.5"
+                  style={{ width: `${Math.min(100, r.pct * 100)}%`, background: color }}
+                >
+                  <span className="text-[10px] font-medium text-white">{fmtPct(r.pct, 0)}</span>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       <div className="h-px bg-neutral-800 my-2" />
       <div className="flex gap-2.5">
@@ -510,5 +855,13 @@ function LegendDot({ color, label }: { color: string; label: string }) {
       <span className="inline-block w-2 h-2 rounded-full" style={{ background: color }} />
       {label}
     </span>
+  );
+}
+
+function Empty() {
+  return (
+    <div className="text-[11px] text-neutral-500 text-center py-6">
+      Sem dados para os filtros selecionados.
+    </div>
   );
 }
