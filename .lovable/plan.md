@@ -1,48 +1,56 @@
 ## Objetivo
 
-Construir uma página de dashboard "Store Platform — Painel de Resultados" replicando fielmente o layout do HTML/imagem enviados, em tema escuro, com dados mock para demonstração. Sem os botões "Período" e "Exportar" no canto superior direito.
+Substituir os dados mock do dashboard pelos dados reais da aba **Dados** do Excel, e permitir que o usuário **atualize a planilha a qualquer momento** sem precisar de novo prompt.
 
-## Estrutura da página (`/`)
+A planilha tem 813 linhas, 15 colunas (Rede, Distribuidor, Cluster, Cluster Mix, Canal, Canal Mix, Nº de CNPJ's, Target de Unidades por AG, Qtd. AG, Ag. Batidos, % Sortimento, Faturamento Mês Atual, Potencial de Investimento, Investimento Gerado, Mês).
 
-Substituir o placeholder de `src/routes/index.tsx` por um dashboard composto por:
+## Abordagem
 
-1. **Header**
-   - Título: "Store Platform — Painel de Resultados" com ícone
-   - Subtítulo: "Histórico de performance das redes participantes"
-   - (sem chips "Jan–Mai 2025" e "Exportar" à direita, conforme pedido)
+**Upload do .xlsx direto no navegador** (sem backend). Mais simples, sem custo, e o usuário pode reenviar a planilha sempre que precisar:
 
-2. **Barra de filtros** (chips clicáveis, visuais apenas):
-   - Todos os clusters, Canal, Rede, Distribuidor, Mês
+- Adicionar dependência **SheetJS** (`xlsx`) para ler arquivos Excel no client.
+- Botão **"Atualizar dados"** no header do dashboard → abre seletor de arquivo (.xlsx).
+- Ao escolher o arquivo, parse da aba `Dados`, validação básica das colunas, e armazenamento em **localStorage** (persiste entre reloads).
+- Seed inicial: converto a planilha enviada agora em `src/data/historico-seed.json` para o dashboard já abrir com os dados reais; o upload sobrescreve esse seed.
+- Indicador no header mostrando "Dados atualizados em DD/MM/AAAA" e quantas linhas estão carregadas.
 
-3. **Indicadores principais (4 KPI cards)**
-   - Investimento Gerado — R$ 4,2M / Potencial R$ 5,8M (verde)
-   - Redes com sortimento ≥ 90% — 38/54 (azul)
-   - % Atingimento da verba — 72,4% (laranja, abaixo da meta 85%)
-   - Faturamento mês atual — R$ 12,7M, AGs 312/420 (roxo)
-   - Cada card com borda superior colorida, barra de progresso e badge
+## Cálculo dos indicadores (a partir das linhas)
 
-4. **Linha intermediária (2 cards lado a lado, 2fr / 1fr)**
-   - **Investimento gerado vs Potencial por Cluster** — barras agrupadas (Potencial x Gerado) para Clusters A–E
-   - **Sortimento ≥ 90% por Canal** — donut chart com legenda (Autosserviço, Atacado, Food Service, Outros)
+Aplicados sobre os dados filtrados pelos chips (Cluster, Canal, Rede, Distribuidor, Mês). Por padrão, mostro o **mês mais recente** disponível na planilha.
 
-5. **Linha inferior (3 cards)**
-   - **Evolução mensal** — barras Jan→Mai do investimento gerado, com nota de crescimento +75%
-   - **Ranking de redes** — tabela Top 5 (Rede, % Sort., Invest.) com legenda de faixas
-   - **AGs batidos por canal mix** — barras horizontais por canal (Autosserviço, Atacado, Food Service, etc.)
+KPIs:
+- **Investimento Gerado**: soma de `Investimento Gerado` no mês atual.
+- **Potencial**: soma de `Potencial de Investimento` no mês atual.
+- **% Atingimento da verba**: Gerado / Potencial.
+- **Redes ≥ 90% sortimento**: contagem distinta de `Rede` com `% Sortimento >= 0,9` / total de redes ativas.
+- **Faturamento mês atual**: soma de `Faturamento Mês Atual`.
+- **AGs batidos / Qtd. AG**: somas; **% AGs** = batidos/qtd.
+- **CNPJs ativos**: soma de `Nº de CNPJ's`.
+- **Comparações "vs mês anterior"**: comparam mês atual com o mês imediatamente anterior na planilha.
 
-## Implementação técnica
+Gráficos:
+- **Por Cluster**: agrupamento por `Cluster` somando Potencial e Gerado (substitui as barras hardcoded A–E).
+- **Donut "Sortimento ≥ 90% por canal"**: distribuição por `Canal` das redes que atingiram ≥90%.
+- **Evolução mensal**: soma de `Investimento Gerado` por `Mês` (todos os meses presentes).
+- **Ranking de redes**: Top 5 por `Investimento Gerado` no mês atual, com `% Sortimento`.
+- **AGs por canal mix**: agrupamento por `Canal Mix` (ou `Canal`) — % de `Ag. Batidos / Qtd. AG`.
 
-- **Stack:** TanStack Start + React + Tailwind v4. Página única em `src/routes/index.tsx`; componentes auxiliares em `src/components/dashboard/` (`KpiCard`, `ClusterBars`, `ChannelDonut`, `MonthlyEvolution`, `RankingTable`, `ChannelMixBars`, `FilterBar`).
-- **Tema escuro:** ativar classe `dark` no `<html>` em `__root.tsx` (o template já define variáveis `.dark` em `styles.css`). Adicionar tokens semânticos extras em `src/styles.css` para as cores de destaque do dashboard:
-  - `--chart-green` (#1D9E75), `--chart-blue` (#378ADD), `--chart-orange` (#EF9F27), `--chart-purple` (#7F77DD), variantes claras para fundos de badges e barras "potencial".
-- **Gráficos:** SVG inline (donut e barras) — sem dependências adicionais, replicando o HTML enviado.
-- **Dados:** objeto mock em `src/lib/dashboard-data.ts` espelhando os valores do HTML, pronto para ser trocado por dados reais depois.
-- **Sem backend** nesta etapa — apenas a UI estática com dados mock. A "quebra por Cluster/Canal" é representada pelos filtros visuais + gráfico por cluster e donut por canal já presentes.
-- **SEO:** `head()` da rota `/` com título e descrição do painel.
+## Filtros funcionais
 
-## Fora de escopo (pode ser feito depois)
+Os 5 chips no topo viram dropdowns reais (Cluster, Canal, Rede, Distribuidor, Mês), populados a partir dos valores únicos da planilha. Mudar um filtro recalcula todos os indicadores e gráficos.
 
-- Tornar os filtros funcionais (filtragem real dos dados)
-- Conectar a uma base real (Lovable Cloud)
-- Exportar para CSV/PDF
-- Detalhes por rede individual (drill-down)
+## Implementação
+
+- `bun add xlsx`
+- `src/lib/dashboard-data.ts` — tipos, parsing do arquivo (SheetJS), seed inicial, salvar/ler do localStorage.
+- `src/lib/dashboard-metrics.ts` — funções puras que recebem linhas + filtros e devolvem KPIs/séries para cada gráfico.
+- `src/components/dashboard/UploadButton.tsx` — botão "Atualizar dados" + input file oculto.
+- `src/components/dashboard/FilterBar.tsx` — refatorado com Popover/Select shadcn para filtros reais.
+- `src/routes/index.tsx` — usa `useState`/`useMemo` para reagir aos filtros e ao reupload.
+- `src/data/historico-seed.json` — gerado a partir do .xlsx enviado (813 linhas) para boot inicial.
+
+## Fora de escopo
+
+- Salvar a planilha no servidor (Lovable Cloud) — pode ser feito depois se quiser compartilhar entre dispositivos/usuários.
+- Edição inline dos dados pelo dashboard.
+- Exportar para CSV/PDF.
