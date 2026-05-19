@@ -72,14 +72,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
+      { title: "Store Platform DashBoard" },
+      { name: "description", content: "Sales Platform Insights provides a dashboard for analyzing sales network performance and investment generation." },
       { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { property: "og:title", content: "Store Platform DashBoard" },
+      { property: "og:description", content: "Sales Platform Insights provides a dashboard for analyzing sales network performance and investment generation." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "Store Platform DashBoard" },
+      { name: "twitter:description", content: "Sales Platform Insights provides a dashboard for analyzing sales network performance and investment generation." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/39807adb-2371-40e6-80d9-61774530057d/id-preview-c09be0a0--a3e1df5c-97ab-43c2-a6a8-d12ebcef787d.lovable.app-1779195334133.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/39807adb-2371-40e6-80d9-61774530057d/id-preview-c09be0a0--a3e1df5c-97ab-43c2-a6a8-d12ebcef787d.lovable.app-1779195334133.png" },
     ],
     links: [
       {
