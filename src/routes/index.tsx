@@ -47,8 +47,8 @@ import {
   reduceSumFaturamento,
   reduceSumGerado,
   reduceSumPotencial,
+  optionsFor,
   uniqueMonths,
-  uniqueSorted,
   type Filters,
 } from "@/lib/dashboard-metrics";
 
