@@ -12,13 +12,13 @@ import {
   Target,
   Receipt,
   BarChart3,
-  PieChart,
   TrendingUp,
   Star,
   ChevronDown,
   Upload,
   X,
   RefreshCw,
+  Lock,
 } from "lucide-react";
 import {
   loadRows,
@@ -35,7 +35,6 @@ import {
   applyBaseFilters,
   computeAgsByCanalMix,
   computeByCluster,
-  computeDonutByCanal,
   computeEvolution,
   computeKpis,
   computeRanking,
@@ -94,7 +93,19 @@ function Dashboard() {
     [rows, baseRows, currentMonth],
   );
   const clusters = useMemo(() => computeByCluster(monthRows), [monthRows]);
-  const donut = useMemo(() => computeDonutByCanal(monthRows), [monthRows]);
+  const sortimentoByCanal = useMemo(() => {
+    const map = new Map<string, { ok: Set<string>; all: Set<string> }>();
+    for (const r of monthRows) {
+      const k = r.canal || "—";
+      const cur = map.get(k) ?? { ok: new Set<string>(), all: new Set<string>() };
+      cur.all.add(r.rede);
+      if (r.sortimento >= 0.9) cur.ok.add(r.rede);
+      map.set(k, cur);
+    }
+    return [...map.entries()]
+      .map(([canal, v]) => ({ canal, pct: v.all.size > 0 ? v.ok.size / v.all.size : 0 }))
+      .sort((a, b) => b.pct - a.pct);
+  }, [monthRows]);
   const evolution = useMemo(() => computeEvolution(baseRows), [baseRows]);
   const ranking = useMemo(() => computeRanking(monthRows, 5), [monthRows]);
   const canalMix = useMemo(() => computeAgsByCanalMix(monthRows), [monthRows]);
@@ -107,6 +118,7 @@ function Dashboard() {
 
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [loginOpen, setLoginOpen] = useState(false);
 
   const handleUpload = async (file: File) => {
     setUploadError(null);
@@ -175,13 +187,23 @@ function Dashboard() {
             </button>
           )}
           <button
-            onClick={() => fileRef.current?.click()}
+            onClick={() => setLoginOpen(true)}
             className="rounded-full px-3 py-1.5 text-[11px] flex items-center gap-1.5 border bg-[#0E2E4D] border-[#378ADD] text-[#8BBEEC] font-medium hover:bg-[#13395f]"
           >
             <Upload size={12} /> Atualizar dados (.xlsx)
           </button>
         </div>
       </div>
+
+      {loginOpen && (
+        <LoginModal
+          onClose={() => setLoginOpen(false)}
+          onSuccess={() => {
+            setLoginOpen(false);
+            fileRef.current?.click();
+          }}
+        />
+      )}
 
       {/* Filtros */}
       <FilterBar
@@ -289,7 +311,7 @@ function Dashboard() {
       {/* Linha intermediária */}
       <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-2.5 mb-3">
         <ClusterCard data={clusters} />
-        <ChannelDonutCard donut={donut} />
+        <ChannelSortimentoCard rows={sortimentoByCanal} />
       </div>
 
       {/* Linha inferior */}
@@ -640,71 +662,44 @@ function ClusterCard({ data }: { data: { cluster: string; potencial: number; ger
   );
 }
 
-function ChannelDonutCard({
-  donut,
-}: {
-  donut: ReturnType<typeof computeDonutByCanal>;
-}) {
-  const C = 2 * Math.PI * 46;
-  let offset = 0;
+function ChannelSortimentoCard({ rows }: { rows: { canal: string; pct: number }[] }) {
   return (
-    <Card className="flex flex-col">
+    <Card>
       <CardTitle
-        icon={<PieChart size={13} className="text-neutral-400" />}
-        title="Sortimento ≥ 90% por canal"
-        sub="Distribuição das redes que atingiram o mix"
+        icon={<BarChart3 size={13} className="text-neutral-400" />}
+        title="Sortimento ≥ 90% — por canal"
+        sub="% de redes que atingiram o mix por canal"
       />
-      {donut.total === 0 ? (
-        <Empty />
-      ) : (
-        <>
-          <svg viewBox="0 0 160 140" width="100%" className="block mx-auto">
-            <circle cx="80" cy="68" r="46" fill="none" stroke="#2a2a2d" strokeWidth="24" />
-            {donut.slices.map((s, i) => {
-              const len = s.pct * C;
-              const dashOffset = -offset;
-              offset += len;
-              return (
-                <circle
-                  key={s.canal}
-                  cx="80"
-                  cy="68"
-                  r="46"
-                  fill="none"
-                  stroke={PALETTE[i % PALETTE.length]}
-                  strokeWidth="24"
-                  strokeDasharray={`${len} ${C - len}`}
-                  strokeDashoffset={dashOffset}
-                  transform="rotate(-90 80 68)"
-                />
-              );
-            })}
-            <text x="80" y="64" textAnchor="middle" fontSize="19" fontWeight="500" fill="#8BBEEC">
-              {fmtPct(donut.pctAtingiram, 0)}
-            </text>
-            <text x="80" y="78" textAnchor="middle" fontSize="9" fill="#888">
-              atingiram ≥90%
-            </text>
-          </svg>
-          <div className="mt-2">
-            {donut.slices.map((s, i) => (
+      {rows.length === 0 && <Empty />}
+      <div className="flex flex-col gap-2">
+        {rows.map((r) => {
+          const color = r.pct >= 0.75 ? GREEN : r.pct >= 0.6 ? ORANGE : RED;
+          return (
+            <div key={r.canal} className="flex items-center gap-2">
               <div
-                key={s.canal}
-                className="flex items-center gap-2 text-[11px] text-neutral-400 mb-1.5"
+                className="text-[11px] text-neutral-400 w-[88px] text-right truncate"
+                title={r.canal}
               >
-                <span
-                  className="w-2.5 h-2.5 rounded-full shrink-0"
-                  style={{ background: PALETTE[i % PALETTE.length] }}
-                />
-                {s.canal}
-                <span className="ml-auto font-medium text-neutral-200">
-                  {fmtPct(s.pct, 0)}
-                </span>
+                {r.canal}
               </div>
-            ))}
-          </div>
-        </>
-      )}
+              <div className="flex-1 h-[18px] bg-neutral-800 rounded overflow-hidden">
+                <div
+                  className="h-full rounded flex items-center justify-end pr-1.5"
+                  style={{ width: `${Math.max(6, Math.min(100, r.pct * 100))}%`, background: color }}
+                >
+                  <span className="text-[10px] font-medium text-white">{fmtPct(r.pct, 0)}</span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="h-px bg-neutral-800 my-2" />
+      <div className="flex gap-2.5">
+        <LegendDot color={GREEN} label="≥75%" />
+        <LegendDot color={ORANGE} label="60–74%" />
+        <LegendDot color={RED} label="<60%" />
+      </div>
     </Card>
   );
 }
@@ -862,6 +857,78 @@ function Empty() {
   return (
     <div className="text-[11px] text-neutral-500 text-center py-6">
       Sem dados para os filtros selecionados.
+    </div>
+  );
+}
+
+function LoginModal({
+  onClose,
+  onSuccess,
+}: {
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (email.trim().toLowerCase() === "filipe.pedroso@oniz.com.br" && password === "402139") {
+      onSuccess();
+    } else {
+      setError("Credenciais inválidas");
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <form
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={submit}
+        className="bg-[#1a1a1c] border border-neutral-800 rounded-xl p-5 w-full max-w-sm"
+      >
+        <div className="flex items-center gap-2 mb-3">
+          <Lock size={14} style={{ color: BLUE }} />
+          <h2 className="text-[13px] font-medium text-neutral-100">Acesso restrito</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="ml-auto text-neutral-500 hover:text-neutral-200"
+            aria-label="Fechar"
+          >
+            <X size={14} />
+          </button>
+        </div>
+        <p className="text-[11px] text-neutral-400 mb-4">
+          Informe suas credenciais para atualizar os dados.
+        </p>
+        <label className="block text-[11px] text-neutral-400 mb-1">E-mail</label>
+        <input
+          type="email"
+          autoFocus
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full bg-[#0f0f10] border border-neutral-800 rounded px-2 py-1.5 text-[12px] text-neutral-100 outline-none focus:border-[#378ADD] mb-3"
+        />
+        <label className="block text-[11px] text-neutral-400 mb-1">Senha</label>
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="w-full bg-[#0f0f10] border border-neutral-800 rounded px-2 py-1.5 text-[12px] text-neutral-100 outline-none focus:border-[#378ADD] mb-3"
+        />
+        {error && <p className="text-[11px] text-red-400 mb-2">⚠ {error}</p>}
+        <button
+          type="submit"
+          className="w-full rounded-md px-3 py-1.5 text-[12px] bg-[#0E2E4D] border border-[#378ADD] text-[#8BBEEC] font-medium hover:bg-[#13395f]"
+        >
+          Entrar
+        </button>
+      </form>
     </div>
   );
 }
