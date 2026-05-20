@@ -1095,6 +1095,12 @@ type LineHistoryProps = {
   deltaMode?: "pct" | "pp";
   badgeBg: string;
   badgeFg: string;
+  pointSubLabel?: {
+    values: number[];
+    format: (n: number) => string;
+    threshold: number;
+    activeColor: string;
+  };
 };
 
 function LineHistoryCard(p: LineHistoryProps) {
