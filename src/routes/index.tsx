@@ -442,13 +442,19 @@ type FilterBarProps = {
 };
 
 function FilterBar(p: FilterBarProps) {
+  const hasAny =
+    p.filters.cluster.length ||
+    p.filters.canal.length ||
+    p.filters.rede.length ||
+    p.filters.distribuidor.length ||
+    p.filters.mes.length;
   return (
     <div className="flex flex-wrap items-center gap-1.5 mb-3">
       <span className="text-[11px] font-medium text-neutral-400 mr-1">Filtros:</span>
       <FilterChip
         icon={<Layers size={12} />}
         label="Cluster"
-        value={p.filters.cluster}
+        values={p.filters.cluster}
         options={p.clusterOpts}
         onChange={(v) => p.setFilters({ ...p.filters, cluster: v })}
         allLabel="Todos os clusters"
@@ -456,14 +462,14 @@ function FilterBar(p: FilterBarProps) {
       <FilterChip
         icon={<MapPin size={12} />}
         label="Canal"
-        value={p.filters.canal}
+        values={p.filters.canal}
         options={p.canalOpts}
         onChange={(v) => p.setFilters({ ...p.filters, canal: v })}
       />
       <FilterChip
         icon={<Network size={12} />}
         label="Rede"
-        value={p.filters.rede}
+        values={p.filters.rede}
         options={p.redeOpts}
         onChange={(v) => p.setFilters({ ...p.filters, rede: v })}
         searchable
@@ -471,7 +477,7 @@ function FilterBar(p: FilterBarProps) {
       <FilterChip
         icon={<Building2 size={12} />}
         label="Distribuidor"
-        value={p.filters.distribuidor}
+        values={p.filters.distribuidor}
         options={p.distribOpts}
         onChange={(v) => p.setFilters({ ...p.filters, distribuidor: v })}
         searchable
@@ -479,24 +485,21 @@ function FilterBar(p: FilterBarProps) {
       <FilterChip
         icon={<CalendarRange size={12} />}
         label="Mês"
-        value={p.filters.mes}
+        values={p.filters.mes}
         formatValue={(v) => fmtMonth(v)}
         options={p.monthOpts}
         onChange={(v) => p.setFilters({ ...p.filters, mes: v })}
         allLabel="Mês mais recente"
+        accumulatedLabel="Acumulado (todos os meses)"
       />
-      {(p.filters.cluster ||
-        p.filters.canal ||
-        p.filters.rede ||
-        p.filters.distribuidor ||
-        p.filters.mes) && (
+      {hasAny ? (
         <button
           onClick={() => p.setFilters(EMPTY_FILTERS)}
           className="text-[11px] text-neutral-400 hover:text-neutral-200 flex items-center gap-1 ml-1"
         >
           <X size={12} /> limpar
         </button>
-      )}
+      ) : null}
     </div>
   );
 }
