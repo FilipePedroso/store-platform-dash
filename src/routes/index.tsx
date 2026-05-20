@@ -122,6 +122,31 @@ function Dashboard() {
       .map(([canal, v]) => ({ canal, pct: v.all.size > 0 ? v.ok.size / v.all.size : 0 }))
       .sort((a, b) => b.pct - a.pct);
   }, [monthRows]);
+  const sortimentoByCluster = useMemo(() => {
+    const order = ["Diamante", "Ouro", "Prata"] as const;
+    const colors: Record<string, string> = {
+      Diamante: PURPLE,
+      Ouro: "#F1C40F",
+      Prata: "#9CA3AF",
+    };
+    const map = new Map<string, { ok: Set<string>; all: Set<string> }>();
+    for (const r of monthRows) {
+      const k = r.cluster || "—";
+      const cur = map.get(k) ?? { ok: new Set<string>(), all: new Set<string>() };
+      cur.all.add(r.rede);
+      if (r.sortimento >= 0.9) cur.ok.add(r.rede);
+      map.set(k, cur);
+    }
+    return order.map((name) => {
+      const v = map.get(name);
+      return {
+        label: name,
+        ok: v ? v.ok.size : 0,
+        total: v ? v.all.size : 0,
+        color: colors[name],
+      };
+    });
+  }, [monthRows]);
   const evolution = useMemo(() => computeEvolution(baseRows), [baseRows]);
   const ranking = useMemo(() => computeRanking(monthRows, 9999), [monthRows]);
   const canalMix = useMemo(() => computeAgsByCanalMix(monthRows), [monthRows]);
