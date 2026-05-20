@@ -157,11 +157,12 @@ function Dashboard() {
   );
 
 
-  // Filter options
-  const clusterOpts = useMemo(() => uniqueSorted(rows, "cluster"), [rows]);
-  const canalOpts = useMemo(() => uniqueSorted(rows, "canal"), [rows]);
-  const redeOpts = useMemo(() => uniqueSorted(rows, "rede"), [rows]);
-  const distribOpts = useMemo(() => uniqueSorted(rows, "distribuidor"), [rows]);
+  // Filter options — each filter adapts to the other selected filters
+  const clusterOpts = useMemo(() => optionsFor(rows, filters, "cluster"), [rows, filters]);
+  const canalOpts = useMemo(() => optionsFor(rows, filters, "canal"), [rows, filters]);
+  const redeOpts = useMemo(() => optionsFor(rows, filters, "rede"), [rows, filters]);
+  const distribOpts = useMemo(() => optionsFor(rows, filters, "distribuidor"), [rows, filters]);
+  const monthOpts = useMemo(() => optionsFor(rows, filters, "mes"), [rows, filters]);
 
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
