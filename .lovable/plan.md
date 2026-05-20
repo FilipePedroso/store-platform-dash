@@ -1,25 +1,29 @@
 ## Objetivo
 
-Tornar os filtros do dashboard **dependentes entre si**: as opções listadas em cada filtro passam a refletir apenas valores que existem nas linhas restantes após aplicar os outros filtros selecionados.
+Adicionar, no card de KPI **"Redes com sortimento ≥ 90%"**, uma coluna no canto superior direito intitulada **POR CATEGORIA** com a contagem `redes OK / redes ativas` para os 3 clusters (Diamante, Ouro, Prata), conforme o print.
 
-Exemplo: ao escolher o distribuidor **Oniz RS**, o filtro **Rede** mostra somente as redes atendidas por esse distribuidor. O mesmo vale para Cluster, Canal, Distribuidor e Mês.
+Nenhum outro card, KPI, filtro, gráfico ou estilo é alterado.
 
 ## Comportamento
 
-- Cada filtro calcula suas opções a partir das linhas filtradas por **todos os outros filtros** (exceto ele mesmo). Isso evita travar a própria seleção do usuário.
-- Se uma opção já selecionada deixar de existir após aplicar outro filtro, ela continua visível e marcada (para o usuário poder removê-la), mas aparece como “sem dados” — sem quebrar o filtro.
-- O filtro de **Mês** segue a mesma lógica (opções limitadas aos meses presentes nas linhas filtradas pelos demais).
-- Nenhuma mudança nos KPIs, gráficos, tabelas ou estilos.
+- A coluna aparece **apenas** no card de "Redes com sortimento ≥ 90%". Os demais KPIs (Investimento, Atingimento, Faturamento) seguem idênticos.
+- Para cada cluster (Diamante, Ouro, Prata):
+  - **Numerador**: nº de redes únicas no mês filtrado com `sortimento >= 0.9`.
+  - **Denominador**: nº de redes únicas no mês filtrado (independente do sortimento).
+  - Bolinha colorida ao lado do nome: Diamante (roxo), Ouro (amarelo), Prata (cinza).
+- A coluna fica posicionada no topo direito do card, **alinhada com o rótulo/valor principal**. A barra de progresso de "Taxa de conversão" continua ocupando **100% da largura** do card (mesma largura atual).
+- Se um cluster não existir no recorte filtrado, mostra `0 / 0`.
 
 ## Implementação (técnico)
 
-- `src/lib/dashboard-metrics.ts`: adicionar helper `optionsFor(rows, filters, key)` que aplica todos os filtros **menos** `key` e devolve `uniqueSorted` da coluna correspondente. Para `mes`, usar `uniqueMonths`.
 - `src/routes/index.tsx`:
-  - Substituir os 4 `useMemo` atuais (`clusterOpts`, `canalOpts`, `redeOpts`, `distribOpts`) por chamadas a `optionsFor(rows, filters, …)`, agora dependentes também de `filters`.
-  - Fazer o mesmo para as opções do filtro de Mês (hoje calculadas a partir de `rows`).
-  - Garantir que valores já selecionados que sumirem das opções continuem renderizados no `FilterChip` (merge entre `selected` e `options`).
+  - Calcular `sortimentoByCluster` num `useMemo` (a partir de `monthData`), retornando `[{ cluster: "Diamante", ok, total }, ...]` na ordem Diamante → Ouro → Prata.
+  - Estender o componente `KpiCard` com prop opcional `categoryBreakdown?: { label: string; ok: number; total: number; color: string }[]` e prop opcional `categoryTitle?: string`.
+  - Quando `categoryBreakdown` está presente, transformar o topo do card num layout flex de duas colunas: à esquerda o bloco existente (label + valor + sub), à direita a coluna "POR CATEGORIA" com as 3 linhas. O bloco da barra de progresso (label, valor, barra, meta, badge) permanece **fora** dessa divisão, ocupando a largura total do card.
+  - Passar `categoryBreakdown` somente no card de sortimento; cores: Diamante `PURPLE`, Ouro `ORANGE`/amarelo (`#F1C40F` se houver token existente, caso contrário usar `ORANGE`), Prata `#9CA3AF`.
 
 ## Fora de escopo
 
-- Mudar visual dos filtros, KPIs ou gráficos.
-- Alterar a lógica de cálculo dos indicadores.
+- Mudar lógica/threshold do "sortimento ≥ 90%".
+- Alterar visual ou dados dos outros KPIs e cards.
+- Filtros, KPIs e gráficos.
