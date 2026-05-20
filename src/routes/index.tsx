@@ -1327,10 +1327,23 @@ function LineHistoryCard(p: LineHistoryProps) {
                       ? p.pointSubLabel.activeColor
                       : "#fff"
                     : "#fff";
-                const mainY = p.pointSubLabel ? yAt(v) - 18 : yAt(v) - 7;
+                const mainY = p.pointSubLabel ? yAt(v) - 7 : yAt(v) - 7;
+                const subY = yAt(v) - 18;
                 return (
                   <g key={`t-${i}`}>
                     <circle cx={xAt(i)} cy={yAt(v)} r="4" fill={p.color} />
+                    {p.pointSubLabel && subVal !== undefined && (
+                      <text
+                        x={xAt(i)}
+                        y={subY}
+                        textAnchor="middle"
+                        fontSize="9"
+                        fontWeight="700"
+                        fill={subColor}
+                      >
+                        {p.pointSubLabel.format(subVal)}
+                      </text>
+                    )}
                     <text
                       x={xAt(i)}
                       y={mainY}
@@ -1341,18 +1354,6 @@ function LineHistoryCard(p: LineHistoryProps) {
                     >
                       {p.pointFormat(v)}
                     </text>
-                    {p.pointSubLabel && subVal !== undefined && (
-                      <text
-                        x={xAt(i)}
-                        y={yAt(v) - 7}
-                        textAnchor="middle"
-                        fontSize="9"
-                        fontWeight="600"
-                        fill={subColor}
-                      >
-                        {p.pointSubLabel.format(subVal)}
-                      </text>
-                    )}
                   </g>
                 );
               })}
