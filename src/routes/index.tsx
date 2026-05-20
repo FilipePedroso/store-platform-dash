@@ -507,26 +507,28 @@ function FilterBar(p: FilterBarProps) {
 function FilterChip({
   icon,
   label,
-  value,
+  values,
   options,
   onChange,
   allLabel,
+  accumulatedLabel,
   formatValue,
   searchable,
 }: {
   icon: React.ReactNode;
   label: string;
-  value: string | null;
+  values: string[];
   options: string[];
-  onChange: (v: string | null) => void;
+  onChange: (v: string[]) => void;
   allLabel?: string;
+  accumulatedLabel?: string;
   formatValue?: (v: string) => string;
   searchable?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const ref = useRef<HTMLDivElement>(null);
-  const active = !!value;
+  const active = values.length > 0;
 
   useEffect(() => {
     if (!open) return;
@@ -541,7 +543,17 @@ function FilterChip({
     ? options.filter((o) => o.toLowerCase().includes(query.toLowerCase()))
     : options;
 
-  const display = value ? (formatValue ? formatValue(value) : value) : label;
+  const fmt = (v: string) => (formatValue ? formatValue(v) : v);
+  const display = !active
+    ? label
+    : values.length === 1
+      ? fmt(values[0])
+      : `${label}: ${values.length}`;
+
+  const toggle = (opt: string) => {
+    if (values.includes(opt)) onChange(values.filter((v) => v !== opt));
+    else onChange([...values, opt]);
+  };
 
   return (
     <div className="relative" ref={ref}>
@@ -558,7 +570,7 @@ function FilterChip({
         <ChevronDown size={12} />
       </button>
       {open && (
-        <div className="absolute z-20 mt-1 min-w-[180px] max-h-[280px] overflow-auto bg-[#1a1a1c] border border-neutral-800 rounded-md shadow-lg py-1 text-[11px]">
+        <div className="absolute z-20 mt-1 min-w-[200px] max-h-[300px] overflow-auto bg-[#1a1a1c] border border-neutral-800 rounded-md shadow-lg py-1 text-[11px]">
           {searchable && (
             <input
               autoFocus
@@ -570,31 +582,47 @@ function FilterChip({
           )}
           <button
             onClick={() => {
-              onChange(null);
-              setOpen(false);
+              onChange([]);
               setQuery("");
             }}
             className={`block w-full text-left px-3 py-1 hover:bg-neutral-800 ${
-              !value ? "text-[#8BBEEC]" : "text-neutral-400"
+              !active ? "text-[#8BBEEC]" : "text-neutral-400"
             }`}
           >
             {allLabel ?? `Todos`}
           </button>
-          {filtered.map((opt) => (
+          {accumulatedLabel && options.length > 0 && (
             <button
-              key={opt}
-              onClick={() => {
-                onChange(opt);
-                setOpen(false);
-                setQuery("");
-              }}
+              onClick={() => onChange([...options])}
               className={`block w-full text-left px-3 py-1 hover:bg-neutral-800 ${
-                value === opt ? "text-[#8BBEEC] font-medium" : "text-neutral-200"
+                values.length === options.length ? "text-[#8BBEEC] font-medium" : "text-neutral-300"
               }`}
             >
-              {formatValue ? formatValue(opt) : opt}
+              {accumulatedLabel}
             </button>
-          ))}
+          )}
+          <div className="h-px bg-neutral-800 my-1" />
+          {filtered.map((opt) => {
+            const checked = values.includes(opt);
+            return (
+              <button
+                key={opt}
+                onClick={() => toggle(opt)}
+                className={`flex items-center gap-2 w-full text-left px-3 py-1 hover:bg-neutral-800 ${
+                  checked ? "text-[#8BBEEC] font-medium" : "text-neutral-200"
+                }`}
+              >
+                <span
+                  className={`inline-flex items-center justify-center w-3 h-3 rounded-sm border ${
+                    checked ? "bg-[#378ADD] border-[#378ADD]" : "border-neutral-600"
+                  }`}
+                >
+                  {checked && <Check size={9} className="text-white" />}
+                </span>
+                {fmt(opt)}
+              </button>
+            );
+          })}
           {filtered.length === 0 && (
             <div className="px-3 py-2 text-neutral-500">Nenhum resultado</div>
           )}
