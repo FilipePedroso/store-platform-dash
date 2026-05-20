@@ -651,71 +651,44 @@ function ClusterCard({ data }: { data: { cluster: string; potencial: number; ger
   );
 }
 
-function ChannelDonutCard({
-  donut,
-}: {
-  donut: ReturnType<typeof computeDonutByCanal>;
-}) {
-  const C = 2 * Math.PI * 46;
-  let offset = 0;
+function ChannelSortimentoCard({ rows }: { rows: { canal: string; pct: number }[] }) {
   return (
-    <Card className="flex flex-col">
+    <Card>
       <CardTitle
-        icon={<PieChart size={13} className="text-neutral-400" />}
-        title="Sortimento ≥ 90% por canal"
-        sub="Distribuição das redes que atingiram o mix"
+        icon={<BarChart3 size={13} className="text-neutral-400" />}
+        title="Sortimento ≥ 90% — por canal"
+        sub="% de redes que atingiram o mix por canal"
       />
-      {donut.total === 0 ? (
-        <Empty />
-      ) : (
-        <>
-          <svg viewBox="0 0 160 140" width="100%" className="block mx-auto">
-            <circle cx="80" cy="68" r="46" fill="none" stroke="#2a2a2d" strokeWidth="24" />
-            {donut.slices.map((s, i) => {
-              const len = s.pct * C;
-              const dashOffset = -offset;
-              offset += len;
-              return (
-                <circle
-                  key={s.canal}
-                  cx="80"
-                  cy="68"
-                  r="46"
-                  fill="none"
-                  stroke={PALETTE[i % PALETTE.length]}
-                  strokeWidth="24"
-                  strokeDasharray={`${len} ${C - len}`}
-                  strokeDashoffset={dashOffset}
-                  transform="rotate(-90 80 68)"
-                />
-              );
-            })}
-            <text x="80" y="64" textAnchor="middle" fontSize="19" fontWeight="500" fill="#8BBEEC">
-              {fmtPct(donut.pctAtingiram, 0)}
-            </text>
-            <text x="80" y="78" textAnchor="middle" fontSize="9" fill="#888">
-              atingiram ≥90%
-            </text>
-          </svg>
-          <div className="mt-2">
-            {donut.slices.map((s, i) => (
+      {rows.length === 0 && <Empty />}
+      <div className="flex flex-col gap-2">
+        {rows.map((r) => {
+          const color = r.pct >= 0.75 ? GREEN : r.pct >= 0.6 ? ORANGE : RED;
+          return (
+            <div key={r.canal} className="flex items-center gap-2">
               <div
-                key={s.canal}
-                className="flex items-center gap-2 text-[11px] text-neutral-400 mb-1.5"
+                className="text-[11px] text-neutral-400 w-[88px] text-right truncate"
+                title={r.canal}
               >
-                <span
-                  className="w-2.5 h-2.5 rounded-full shrink-0"
-                  style={{ background: PALETTE[i % PALETTE.length] }}
-                />
-                {s.canal}
-                <span className="ml-auto font-medium text-neutral-200">
-                  {fmtPct(s.pct, 0)}
-                </span>
+                {r.canal}
               </div>
-            ))}
-          </div>
-        </>
-      )}
+              <div className="flex-1 h-[18px] bg-neutral-800 rounded overflow-hidden">
+                <div
+                  className="h-full rounded flex items-center justify-end pr-1.5"
+                  style={{ width: `${Math.max(6, Math.min(100, r.pct * 100))}%`, background: color }}
+                >
+                  <span className="text-[10px] font-medium text-white">{fmtPct(r.pct, 0)}</span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="h-px bg-neutral-800 my-2" />
+      <div className="flex gap-2.5">
+        <LegendDot color={GREEN} label="≥75%" />
+        <LegendDot color={ORANGE} label="60–74%" />
+        <LegendDot color={RED} label="<60%" />
+      </div>
     </Card>
   );
 }
