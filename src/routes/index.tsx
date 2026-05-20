@@ -962,7 +962,7 @@ function LoginModal({
   onSuccess,
 }: {
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (email: string, password: string) => void;
 }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -971,7 +971,7 @@ function LoginModal({
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (email.trim().toLowerCase() === "filipe.pedroso@oniz.com.br" && password === "402139") {
-      onSuccess();
+      onSuccess(email.trim(), password);
     } else {
       setError("Credenciais inválidas");
     }
