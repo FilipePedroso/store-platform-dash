@@ -122,6 +122,31 @@ function Dashboard() {
       .map(([canal, v]) => ({ canal, pct: v.all.size > 0 ? v.ok.size / v.all.size : 0 }))
       .sort((a, b) => b.pct - a.pct);
   }, [monthRows]);
+  const sortimentoByCluster = useMemo(() => {
+    const order = ["Diamante", "Ouro", "Prata"] as const;
+    const colors: Record<string, string> = {
+      Diamante: PURPLE,
+      Ouro: "#F1C40F",
+      Prata: "#9CA3AF",
+    };
+    const map = new Map<string, { ok: Set<string>; all: Set<string> }>();
+    for (const r of monthRows) {
+      const k = r.cluster || "—";
+      const cur = map.get(k) ?? { ok: new Set<string>(), all: new Set<string>() };
+      cur.all.add(r.rede);
+      if (r.sortimento >= 0.9) cur.ok.add(r.rede);
+      map.set(k, cur);
+    }
+    return order.map((name) => {
+      const v = map.get(name);
+      return {
+        label: name,
+        ok: v ? v.ok.size : 0,
+        total: v ? v.all.size : 0,
+        color: colors[name],
+      };
+    });
+  }, [monthRows]);
   const evolution = useMemo(() => computeEvolution(baseRows), [baseRows]);
   const ranking = useMemo(() => computeRanking(monthRows, 9999), [monthRows]);
   const canalMix = useMemo(() => computeAgsByCanalMix(monthRows), [monthRows]);
@@ -269,6 +294,8 @@ function Dashboard() {
       </SectionLabel>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 mb-3">
         <KpiCard
+          categoryTitle="POR CATEGORIA"
+          categoryBreakdown={sortimentoByCluster}
           color={GREEN}
           icon={<Banknote size={13} style={{ color: GREEN }} />}
           label="Investimento gerado"
@@ -723,6 +750,8 @@ function KpiCard({
   progressPct,
   progressTarget,
   badge,
+  categoryTitle,
+  categoryBreakdown,
 }: {
   color: string;
   icon: React.ReactNode;
@@ -735,20 +764,52 @@ function KpiCard({
   progressPct: number;
   progressTarget?: number;
   badge: { text: string; bg: string; fg: string };
+  categoryTitle?: string;
+  categoryBreakdown?: { label: string; ok: number; total: number; color: string }[];
 }) {
   return (
     <div
       className="bg-[#1a1a1c] rounded-b-xl border border-neutral-800/80 p-3.5"
       style={{ borderTop: `3px solid ${color}` }}
     >
-      <div className="text-[11px] text-neutral-400 mb-1.5 flex items-center gap-1.5">
-        {icon}
-        {label}
+      <div className="flex items-start gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="text-[11px] text-neutral-400 mb-1.5 flex items-center gap-1.5">
+            {icon}
+            {label}
+          </div>
+          <div className="text-[22px] font-medium leading-none" style={{ color: valueColor }}>
+            {value}
+          </div>
+          <div className="text-[11px] text-neutral-400 mt-1.5">{sub}</div>
+        </div>
+        {categoryBreakdown && categoryBreakdown.length > 0 && (
+          <div className="shrink-0 border-l border-neutral-800 pl-3 -my-0.5">
+            {categoryTitle && (
+              <div className="text-[10px] text-neutral-400 mb-1 tracking-wide">
+                {categoryTitle}
+              </div>
+            )}
+            <div className="flex flex-col gap-1">
+              {categoryBreakdown.map((c) => (
+                <div key={c.label} className="flex items-center gap-2 text-[11px]">
+                  <span
+                    className="inline-block w-2 h-2 rounded-full shrink-0"
+                    style={{ background: c.color }}
+                  />
+                  <span className="text-neutral-200 font-medium">{c.label}</span>
+                  <span className="ml-auto tabular-nums text-neutral-300">
+                    <span className="font-semibold" style={{ color: c.color }}>
+                      {c.ok}
+                    </span>
+                    <span className="text-neutral-500"> / {c.total}</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
-      <div className="text-[22px] font-medium leading-none" style={{ color: valueColor }}>
-        {value}
-      </div>
-      <div className="text-[11px] text-neutral-400 mt-1.5">{sub}</div>
       <div className="flex justify-between text-[10px] text-neutral-400 mt-2">
         <span>{progressLabel}</span>
         <span className="font-medium" style={{ color: valueColor }}>
