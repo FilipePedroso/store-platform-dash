@@ -1,5 +1,6 @@
 import * as XLSX from "xlsx";
 import seed from "@/data/historico-seed.json";
+import { supabase } from "@/integrations/supabase/client";
 
 export type Row = {
   rede: string;
@@ -19,44 +20,30 @@ export type Row = {
   mes: string; // YYYY-MM-DD
 };
 
-const STORAGE_KEY = "store-platform:dados";
-const STORAGE_META = "store-platform:meta";
+export type DataMeta = { updatedAt: string; rowCount: number };
 
-export type DataMeta = { updatedAt: string; rowCount: number; source: "seed" | "upload" };
+const SEED_META: DataMeta = { updatedAt: "2025-01-01T00:00:00Z", rowCount: (seed as Row[]).length };
 
-export function loadRows(): { rows: Row[]; meta: DataMeta } {
-  if (typeof window !== "undefined") {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      const metaRaw = localStorage.getItem(STORAGE_META);
-      if (raw && metaRaw) {
-        return { rows: JSON.parse(raw) as Row[], meta: JSON.parse(metaRaw) as DataMeta };
-      }
-    } catch {
-      // ignore
+/** Carrega o dataset compartilhado da Cloud. Se ainda não houver upload, usa o seed embarcado. */
+export async function loadRowsFromCloud(): Promise<{ rows: Row[]; meta: DataMeta }> {
+  try {
+    const { data, error } = await supabase
+      .from("dataset")
+      .select("rows, row_count, updated_at")
+      .eq("id", "main")
+      .maybeSingle();
+    if (error) throw error;
+    const rows = (data?.rows as Row[] | null) ?? [];
+    if (rows.length === 0) {
+      return { rows: seed as Row[], meta: SEED_META };
     }
+    return {
+      rows,
+      meta: { updatedAt: data!.updated_at, rowCount: data!.row_count ?? rows.length },
+    };
+  } catch {
+    return { rows: seed as Row[], meta: SEED_META };
   }
-  return {
-    rows: seed as Row[],
-    meta: { updatedAt: "2025-01-01", rowCount: (seed as Row[]).length, source: "seed" },
-  };
-}
-
-export function saveRows(rows: Row[]): DataMeta {
-  const meta: DataMeta = {
-    updatedAt: new Date().toISOString(),
-    rowCount: rows.length,
-    source: "upload",
-  };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
-  localStorage.setItem(STORAGE_META, JSON.stringify(meta));
-  return meta;
-}
-
-export function resetToSeed(): DataMeta {
-  localStorage.removeItem(STORAGE_KEY);
-  localStorage.removeItem(STORAGE_META);
-  return { updatedAt: "2025-01-01", rowCount: (seed as Row[]).length, source: "seed" };
 }
 
 const COL_MAP: Record<string, keyof Row> = {
@@ -81,7 +68,6 @@ const COL_MAP: Record<string, keyof Row> = {
 function excelDateToISO(v: unknown): string {
   if (v instanceof Date) return v.toISOString().slice(0, 10);
   if (typeof v === "number") {
-    // Excel serial date
     const d = XLSX.SSF.parse_date_code(v);
     if (d) {
       const pad = (n: number) => String(n).padStart(2, "0");
