@@ -306,6 +306,7 @@ function Dashboard() {
           progressLabel="Taxa de conversão"
           progressValue={fmtPct(kpis.taxaConversao)}
           progressPct={kpis.taxaConversao * 100}
+          progressTarget={80}
           badge={
             kpis.redesOkDelta == null
               ? { text: "sem mês anterior", bg: "#1a1a1c", fg: "#888" }
@@ -390,7 +391,7 @@ function Dashboard() {
             values: histConversao,
             format: (n) => fmtPct(n, 0),
             threshold: 0.6,
-            activeColor: GREEN,
+            activeColor: "#22ff88",
           }}
           badgeBg="#0E2E4D"
           badgeFg="#8BBEEC"
@@ -702,6 +703,7 @@ function KpiCard({
   progressLabel,
   progressValue,
   progressPct,
+  progressTarget,
   badge,
 }: {
   color: string;
@@ -713,6 +715,7 @@ function KpiCard({
   progressLabel: string;
   progressValue: string;
   progressPct: number;
+  progressTarget?: number;
   badge: { text: string; bg: string; fg: string };
 }) {
   return (
@@ -734,12 +737,31 @@ function KpiCard({
           {progressValue}
         </span>
       </div>
-      <div className="h-[5px] bg-neutral-800 rounded mt-1.5 overflow-hidden">
+      <div className="h-[5px] bg-neutral-800 rounded mt-1.5 overflow-hidden relative">
         <div
           className="h-full rounded"
           style={{ width: `${Math.max(0, Math.min(100, progressPct))}%`, background: color }}
         />
+        {progressTarget != null && (
+          <>
+            <div
+              className="absolute top-[-2px] bottom-[-2px] w-[2px] bg-white/90 rounded-sm"
+              style={{ left: `calc(${Math.max(0, Math.min(100, progressTarget))}% - 1px)` }}
+              title={`Meta ${progressTarget}%`}
+            />
+          </>
+        )}
       </div>
+      {progressTarget != null && (
+        <div className="text-[9px] text-neutral-400 mt-0.5 relative h-[10px]">
+          <span
+            className="absolute -translate-x-1/2 whitespace-nowrap"
+            style={{ left: `${Math.max(0, Math.min(100, progressTarget))}%` }}
+          >
+            Meta {progressTarget}%
+          </span>
+        </div>
+      )}
       <span
         className="inline-block text-[10px] px-2 py-0.5 rounded-full font-medium mt-2"
         style={{ background: badge.bg, color: badge.fg }}
@@ -1327,10 +1349,23 @@ function LineHistoryCard(p: LineHistoryProps) {
                       ? p.pointSubLabel.activeColor
                       : "#fff"
                     : "#fff";
-                const mainY = p.pointSubLabel ? yAt(v) - 18 : yAt(v) - 7;
+                const mainY = p.pointSubLabel ? yAt(v) - 7 : yAt(v) - 7;
+                const subY = yAt(v) - 18;
                 return (
                   <g key={`t-${i}`}>
                     <circle cx={xAt(i)} cy={yAt(v)} r="4" fill={p.color} />
+                    {p.pointSubLabel && subVal !== undefined && (
+                      <text
+                        x={xAt(i)}
+                        y={subY}
+                        textAnchor="middle"
+                        fontSize="9"
+                        fontWeight="700"
+                        fill={subColor}
+                      >
+                        {p.pointSubLabel.format(subVal)}
+                      </text>
+                    )}
                     <text
                       x={xAt(i)}
                       y={mainY}
@@ -1341,18 +1376,6 @@ function LineHistoryCard(p: LineHistoryProps) {
                     >
                       {p.pointFormat(v)}
                     </text>
-                    {p.pointSubLabel && subVal !== undefined && (
-                      <text
-                        x={xAt(i)}
-                        y={yAt(v) - 7}
-                        textAnchor="middle"
-                        fontSize="9"
-                        fontWeight="600"
-                        fill={subColor}
-                      >
-                        {p.pointSubLabel.format(subVal)}
-                      </text>
-                    )}
                   </g>
                 );
               })}
