@@ -750,6 +750,8 @@ function KpiCard({
   progressPct,
   progressTarget,
   badge,
+  categoryTitle,
+  categoryBreakdown,
 }: {
   color: string;
   icon: React.ReactNode;
@@ -762,20 +764,52 @@ function KpiCard({
   progressPct: number;
   progressTarget?: number;
   badge: { text: string; bg: string; fg: string };
+  categoryTitle?: string;
+  categoryBreakdown?: { label: string; ok: number; total: number; color: string }[];
 }) {
   return (
     <div
       className="bg-[#1a1a1c] rounded-b-xl border border-neutral-800/80 p-3.5"
       style={{ borderTop: `3px solid ${color}` }}
     >
-      <div className="text-[11px] text-neutral-400 mb-1.5 flex items-center gap-1.5">
-        {icon}
-        {label}
+      <div className="flex items-start gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="text-[11px] text-neutral-400 mb-1.5 flex items-center gap-1.5">
+            {icon}
+            {label}
+          </div>
+          <div className="text-[22px] font-medium leading-none" style={{ color: valueColor }}>
+            {value}
+          </div>
+          <div className="text-[11px] text-neutral-400 mt-1.5">{sub}</div>
+        </div>
+        {categoryBreakdown && categoryBreakdown.length > 0 && (
+          <div className="shrink-0 border-l border-neutral-800 pl-3 -my-0.5">
+            {categoryTitle && (
+              <div className="text-[10px] text-neutral-400 mb-1 tracking-wide">
+                {categoryTitle}
+              </div>
+            )}
+            <div className="flex flex-col gap-1">
+              {categoryBreakdown.map((c) => (
+                <div key={c.label} className="flex items-center gap-2 text-[11px]">
+                  <span
+                    className="inline-block w-2 h-2 rounded-full shrink-0"
+                    style={{ background: c.color }}
+                  />
+                  <span className="text-neutral-200 font-medium">{c.label}</span>
+                  <span className="ml-auto tabular-nums text-neutral-300">
+                    <span className="font-semibold" style={{ color: c.color }}>
+                      {c.ok}
+                    </span>
+                    <span className="text-neutral-500"> / {c.total}</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
-      <div className="text-[22px] font-medium leading-none" style={{ color: valueColor }}>
-        {value}
-      </div>
-      <div className="text-[11px] text-neutral-400 mt-1.5">{sub}</div>
       <div className="flex justify-between text-[10px] text-neutral-400 mt-2">
         <span>{progressLabel}</span>
         <span className="font-medium" style={{ color: valueColor }}>
