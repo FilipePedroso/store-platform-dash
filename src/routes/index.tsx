@@ -306,7 +306,7 @@ function Dashboard() {
           progressLabel="Taxa de conversão"
           progressValue={fmtPct(kpis.taxaConversao)}
           progressPct={kpis.taxaConversao * 100}
-          progressTarget={80}
+          progressTarget={60}
           badge={
             kpis.redesOkDelta == null
               ? { text: "sem mês anterior", bg: "#1a1a1c", fg: "#888" }
