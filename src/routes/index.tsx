@@ -92,16 +92,21 @@ function Dashboard() {
   }, []);
 
   const months = useMemo(() => uniqueMonths(rows), [rows]);
-  const currentMonth = filters.mes ?? latestMonth(rows);
+  const selectedMonths = useMemo(() => {
+    if (filters.mes.length > 0) return filters.mes;
+    const latest = latestMonth(rows);
+    return latest ? [latest] : [];
+  }, [filters.mes, rows]);
+  const isAccumulated = filters.mes.length > 1 || filters.mes.length === months.length;
 
   const baseRows = useMemo(() => applyBaseFilters(rows, filters), [rows, filters]);
-  const monthRows = useMemo(
-    () => baseRows.filter((r) => r.mes === currentMonth),
-    [baseRows, currentMonth],
-  );
+  const monthRows = useMemo(() => {
+    const set = new Set(selectedMonths);
+    return baseRows.filter((r) => set.has(r.mes));
+  }, [baseRows, selectedMonths]);
   const kpis = useMemo(
-    () => computeKpis(rows, baseRows, currentMonth),
-    [rows, baseRows, currentMonth],
+    () => computeKpis(rows, baseRows, selectedMonths),
+    [rows, baseRows, selectedMonths],
   );
   const clusters = useMemo(() => computeByCluster(monthRows), [monthRows]);
   const sortimentoByCanal = useMemo(() => {
@@ -246,7 +251,12 @@ function Dashboard() {
 
       {/* Indicadores */}
       <SectionLabel>
-        Indicadores principais{currentMonth ? ` · ${fmtMonth(currentMonth)}` : ""}
+        Indicadores principais
+        {isAccumulated
+          ? ` · Acumulado (${selectedMonths.length} meses)`
+          : selectedMonths.length === 1
+            ? ` · ${fmtMonth(selectedMonths[0])}`
+            : ""}
       </SectionLabel>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 mb-3">
         <KpiCard
@@ -432,13 +442,19 @@ type FilterBarProps = {
 };
 
 function FilterBar(p: FilterBarProps) {
+  const hasAny =
+    p.filters.cluster.length ||
+    p.filters.canal.length ||
+    p.filters.rede.length ||
+    p.filters.distribuidor.length ||
+    p.filters.mes.length;
   return (
     <div className="flex flex-wrap items-center gap-1.5 mb-3">
       <span className="text-[11px] font-medium text-neutral-400 mr-1">Filtros:</span>
       <FilterChip
         icon={<Layers size={12} />}
         label="Cluster"
-        value={p.filters.cluster}
+        values={p.filters.cluster}
         options={p.clusterOpts}
         onChange={(v) => p.setFilters({ ...p.filters, cluster: v })}
         allLabel="Todos os clusters"
@@ -446,14 +462,14 @@ function FilterBar(p: FilterBarProps) {
       <FilterChip
         icon={<MapPin size={12} />}
         label="Canal"
-        value={p.filters.canal}
+        values={p.filters.canal}
         options={p.canalOpts}
         onChange={(v) => p.setFilters({ ...p.filters, canal: v })}
       />
       <FilterChip
         icon={<Network size={12} />}
         label="Rede"
-        value={p.filters.rede}
+        values={p.filters.rede}
         options={p.redeOpts}
         onChange={(v) => p.setFilters({ ...p.filters, rede: v })}
         searchable
@@ -461,7 +477,7 @@ function FilterBar(p: FilterBarProps) {
       <FilterChip
         icon={<Building2 size={12} />}
         label="Distribuidor"
-        value={p.filters.distribuidor}
+        values={p.filters.distribuidor}
         options={p.distribOpts}
         onChange={(v) => p.setFilters({ ...p.filters, distribuidor: v })}
         searchable
@@ -469,24 +485,21 @@ function FilterBar(p: FilterBarProps) {
       <FilterChip
         icon={<CalendarRange size={12} />}
         label="Mês"
-        value={p.filters.mes}
+        values={p.filters.mes}
         formatValue={(v) => fmtMonth(v)}
         options={p.monthOpts}
         onChange={(v) => p.setFilters({ ...p.filters, mes: v })}
         allLabel="Mês mais recente"
+        accumulatedLabel="Acumulado (todos os meses)"
       />
-      {(p.filters.cluster ||
-        p.filters.canal ||
-        p.filters.rede ||
-        p.filters.distribuidor ||
-        p.filters.mes) && (
+      {hasAny ? (
         <button
           onClick={() => p.setFilters(EMPTY_FILTERS)}
           className="text-[11px] text-neutral-400 hover:text-neutral-200 flex items-center gap-1 ml-1"
         >
           <X size={12} /> limpar
         </button>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -494,26 +507,28 @@ function FilterBar(p: FilterBarProps) {
 function FilterChip({
   icon,
   label,
-  value,
+  values,
   options,
   onChange,
   allLabel,
+  accumulatedLabel,
   formatValue,
   searchable,
 }: {
   icon: React.ReactNode;
   label: string;
-  value: string | null;
+  values: string[];
   options: string[];
-  onChange: (v: string | null) => void;
+  onChange: (v: string[]) => void;
   allLabel?: string;
+  accumulatedLabel?: string;
   formatValue?: (v: string) => string;
   searchable?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const ref = useRef<HTMLDivElement>(null);
-  const active = !!value;
+  const active = values.length > 0;
 
   useEffect(() => {
     if (!open) return;
@@ -528,7 +543,17 @@ function FilterChip({
     ? options.filter((o) => o.toLowerCase().includes(query.toLowerCase()))
     : options;
 
-  const display = value ? (formatValue ? formatValue(value) : value) : label;
+  const fmt = (v: string) => (formatValue ? formatValue(v) : v);
+  const display = !active
+    ? label
+    : values.length === 1
+      ? fmt(values[0])
+      : `${label}: ${values.length}`;
+
+  const toggle = (opt: string) => {
+    if (values.includes(opt)) onChange(values.filter((v) => v !== opt));
+    else onChange([...values, opt]);
+  };
 
   return (
     <div className="relative" ref={ref}>
@@ -545,7 +570,7 @@ function FilterChip({
         <ChevronDown size={12} />
       </button>
       {open && (
-        <div className="absolute z-20 mt-1 min-w-[180px] max-h-[280px] overflow-auto bg-[#1a1a1c] border border-neutral-800 rounded-md shadow-lg py-1 text-[11px]">
+        <div className="absolute z-20 mt-1 min-w-[200px] max-h-[300px] overflow-auto bg-[#1a1a1c] border border-neutral-800 rounded-md shadow-lg py-1 text-[11px]">
           {searchable && (
             <input
               autoFocus
@@ -557,31 +582,47 @@ function FilterChip({
           )}
           <button
             onClick={() => {
-              onChange(null);
-              setOpen(false);
+              onChange([]);
               setQuery("");
             }}
             className={`block w-full text-left px-3 py-1 hover:bg-neutral-800 ${
-              !value ? "text-[#8BBEEC]" : "text-neutral-400"
+              !active ? "text-[#8BBEEC]" : "text-neutral-400"
             }`}
           >
             {allLabel ?? `Todos`}
           </button>
-          {filtered.map((opt) => (
+          {accumulatedLabel && options.length > 0 && (
             <button
-              key={opt}
-              onClick={() => {
-                onChange(opt);
-                setOpen(false);
-                setQuery("");
-              }}
+              onClick={() => onChange([...options])}
               className={`block w-full text-left px-3 py-1 hover:bg-neutral-800 ${
-                value === opt ? "text-[#8BBEEC] font-medium" : "text-neutral-200"
+                values.length === options.length ? "text-[#8BBEEC] font-medium" : "text-neutral-300"
               }`}
             >
-              {formatValue ? formatValue(opt) : opt}
+              {accumulatedLabel}
             </button>
-          ))}
+          )}
+          <div className="h-px bg-neutral-800 my-1" />
+          {filtered.map((opt) => {
+            const checked = values.includes(opt);
+            return (
+              <button
+                key={opt}
+                onClick={() => toggle(opt)}
+                className={`flex items-center gap-2 w-full text-left px-3 py-1 hover:bg-neutral-800 ${
+                  checked ? "text-[#8BBEEC] font-medium" : "text-neutral-200"
+                }`}
+              >
+                <span
+                  className={`inline-flex items-center justify-center w-3 h-3 rounded-sm border ${
+                    checked ? "bg-[#378ADD] border-[#378ADD]" : "border-neutral-600"
+                  }`}
+                >
+                  {checked && <Check size={9} className="text-white" />}
+                </span>
+                {fmt(opt)}
+              </button>
+            );
+          })}
           {filtered.length === 0 && (
             <div className="px-3 py-2 text-neutral-500">Nenhum resultado</div>
           )}

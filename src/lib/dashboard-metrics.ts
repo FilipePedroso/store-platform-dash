@@ -1,20 +1,30 @@
 import type { Row } from "./dashboard-data";
 
 export type Filters = {
-  cluster: string | null;
-  canal: string | null;
-  rede: string | null;
-  distribuidor: string | null;
-  mes: string | null; // YYYY-MM-DD
+  cluster: string[];
+  canal: string[];
+  rede: string[];
+  distribuidor: string[];
+  mes: string[]; // empty = latest month
 };
 
 export const EMPTY_FILTERS: Filters = {
-  cluster: null,
-  canal: null,
-  rede: null,
-  distribuidor: null,
-  mes: null,
+  cluster: [],
+  canal: [],
+  rede: [],
+  distribuidor: [],
+  mes: [],
 };
+
+export function hasAnyFilter(f: Filters): boolean {
+  return (
+    f.cluster.length > 0 ||
+    f.canal.length > 0 ||
+    f.rede.length > 0 ||
+    f.distribuidor.length > 0 ||
+    f.mes.length > 0
+  );
+}
 
 export function uniqueSorted(rows: Row[], key: keyof Row): string[] {
   const set = new Set<string>();
@@ -40,19 +50,21 @@ export function previousMonth(rows: Row[], current: string): string | null {
   return idx > 0 ? months[idx - 1] : null;
 }
 
+const inList = (v: string, list: string[]) => list.length === 0 || list.includes(v);
+
 /** Apply non-month filters. Month is applied separately for KPI MoM comparisons. */
 export function applyBaseFilters(rows: Row[], f: Filters): Row[] {
   return rows.filter(
     (r) =>
-      (!f.cluster || r.cluster === f.cluster) &&
-      (!f.canal || r.canal === f.canal) &&
-      (!f.rede || r.rede === f.rede) &&
-      (!f.distribuidor || r.distribuidor === f.distribuidor),
+      inList(r.cluster, f.cluster) &&
+      inList(r.canal, f.canal) &&
+      inList(r.rede, f.rede) &&
+      inList(r.distribuidor, f.distribuidor),
   );
 }
 
 export function applyAllFilters(rows: Row[], f: Filters): Row[] {
-  return applyBaseFilters(rows, f).filter((r) => !f.mes || r.mes === f.mes);
+  return applyBaseFilters(rows, f).filter((r) => inList(r.mes, f.mes));
 }
 
 function sum(rows: Row[], key: keyof Row): number {
@@ -83,8 +95,13 @@ export type Kpis = {
   agsDeltaPP: number | null;
 };
 
-export function computeKpis(allRows: Row[], baseRows: Row[], currentMonth: string | null): Kpis {
-  const monthRows = baseRows.filter((r) => r.mes === currentMonth);
+export function computeKpis(
+  allRows: Row[],
+  baseRows: Row[],
+  selectedMonths: string[],
+): Kpis {
+  const monthSet = new Set(selectedMonths);
+  const monthRows = baseRows.filter((r) => monthSet.has(r.mes));
   const gerado = sum(monthRows, "gerado");
   const potencial = sum(monthRows, "potencial");
   const faturamento = sum(monthRows, "faturamento");
@@ -97,9 +114,10 @@ export function computeKpis(allRows: Row[], baseRows: Row[], currentMonth: strin
     monthRows.filter((r) => r.sortimento >= 0.9).map((r) => r.rede),
   ).size;
 
-  // Previous month using same base filters
-  const prevMonth = currentMonth ? previousMonth(allRows, currentMonth) : null;
-  const prevRows = baseRows.filter((r) => r.mes === prevMonth);
+  // Previous month comparison only when exactly one month is selected
+  const singleMonth = selectedMonths.length === 1 ? selectedMonths[0] : null;
+  const prevMonth = singleMonth ? previousMonth(allRows, singleMonth) : null;
+  const prevRows = prevMonth ? baseRows.filter((r) => r.mes === prevMonth) : [];
   const prevGerado = sum(prevRows, "gerado");
   const prevPotencial = sum(prevRows, "potencial");
   const prevAg = sum(prevRows, "agBatidos");
