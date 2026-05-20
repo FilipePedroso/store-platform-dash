@@ -80,11 +80,16 @@ function Dashboard() {
   const [rows, setRows] = useState<Row[]>([]);
   const [meta, setMeta] = useState<DataMeta | null>(null);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
+  const updateDatasetFn = useServerFn(updateDataset);
 
-  useEffect(() => {
-    const { rows, meta } = loadRows();
+  const refresh = async () => {
+    const { rows, meta } = await loadRowsFromCloud();
     setRows(rows);
     setMeta(meta);
+  };
+
+  useEffect(() => {
+    refresh();
   }, []);
 
   const months = useMemo(() => uniqueMonths(rows), [rows]);
@@ -148,27 +153,29 @@ function Dashboard() {
 
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
+  const credsRef = useRef<{ email: string; password: string } | null>(null);
 
   const handleUpload = async (file: File) => {
     setUploadError(null);
+    const creds = credsRef.current;
+    if (!creds) {
+      setUploadError("Faça login novamente para atualizar");
+      return;
+    }
+    setUploading(true);
     try {
       const parsed = await parseXlsxFile(file);
-      const newMeta = saveRows(parsed);
-      setRows(parsed);
-      setMeta(newMeta);
+      await updateDatasetFn({ data: { ...creds, rows: parsed } });
+      await refresh();
       setFilters(EMPTY_FILTERS);
     } catch (e) {
-      setUploadError(e instanceof Error ? e.message : "Falha ao ler o arquivo");
+      setUploadError(e instanceof Error ? e.message : "Falha ao atualizar os dados");
+    } finally {
+      setUploading(false);
+      credsRef.current = null;
     }
-  };
-
-  const handleReset = () => {
-    const m = resetToSeed();
-    const { rows } = loadRows();
-    setRows(rows);
-    setMeta(m);
-    setFilters(EMPTY_FILTERS);
   };
 
   if (!meta) {
