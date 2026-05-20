@@ -294,6 +294,8 @@ function Dashboard() {
       </SectionLabel>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 mb-3">
         <KpiCard
+          categoryTitle="POR CATEGORIA"
+          categoryBreakdown={sortimentoByCluster}
           color={GREEN}
           icon={<Banknote size={13} style={{ color: GREEN }} />}
           label="Investimento gerado"
