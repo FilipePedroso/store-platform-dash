@@ -139,6 +139,14 @@ function Dashboard() {
     () => computeMonthlySeries(baseRows, reduceRedesOk, "cluster"),
     [baseRows],
   );
+  const histConversao = useMemo(() => {
+    return histRedesOk.months.map((m) => {
+      const monthData = baseRows.filter((r) => r.mes === m);
+      const ativas = new Set(monthData.map((r) => r.rede)).size;
+      const ok = new Set(monthData.filter((r) => r.sortimento >= 0.9).map((r) => r.rede)).size;
+      return ativas > 0 ? ok / ativas : 0;
+    });
+  }, [baseRows, histRedesOk.months]);
   const histAtingimento = useMemo(
     () => computeMonthlySeries(baseRows, reduceAtingimento, "cluster"),
     [baseRows],
