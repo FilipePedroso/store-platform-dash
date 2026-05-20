@@ -193,10 +193,8 @@ function Dashboard() {
           </h1>
           <p className="text-[11px] text-neutral-400 mt-1">
             Histórico de performance das redes participantes ·{" "}
-            <span className="text-neutral-300">{meta.rowCount}</span> linhas ·
-            {meta.source === "seed"
-              ? " dados de exemplo"
-              : ` atualizado em ${formatUpdatedAt(meta)}`}
+            <span className="text-neutral-300">{meta.rowCount}</span> linhas · atualizado em{" "}
+            {formatUpdatedAt(meta)}
           </p>
           {uploadError && (
             <p className="text-[11px] text-red-400 mt-1">⚠ {uploadError}</p>
@@ -214,20 +212,12 @@ function Dashboard() {
               e.target.value = "";
             }}
           />
-          {meta.source === "upload" && (
-            <button
-              onClick={handleReset}
-              className="rounded-full px-3 py-1.5 text-[11px] flex items-center gap-1.5 border bg-[#1a1a1c] border-neutral-800 text-neutral-400 hover:border-neutral-700"
-              title="Voltar para os dados de exemplo"
-            >
-              <RefreshCw size={12} /> Restaurar
-            </button>
-          )}
           <button
             onClick={() => setLoginOpen(true)}
-            className="rounded-full px-3 py-1.5 text-[11px] flex items-center gap-1.5 border bg-[#0E2E4D] border-[#378ADD] text-[#8BBEEC] font-medium hover:bg-[#13395f]"
+            disabled={uploading}
+            className="rounded-full px-3 py-1.5 text-[11px] flex items-center gap-1.5 border bg-[#0E2E4D] border-[#378ADD] text-[#8BBEEC] font-medium hover:bg-[#13395f] disabled:opacity-50"
           >
-            <Upload size={12} /> Atualizar dados (.xlsx)
+            <Upload size={12} /> {uploading ? "Enviando..." : "Atualizar dados (.xlsx)"}
           </button>
         </div>
       </div>
@@ -235,12 +225,14 @@ function Dashboard() {
       {loginOpen && (
         <LoginModal
           onClose={() => setLoginOpen(false)}
-          onSuccess={() => {
+          onSuccess={(email, password) => {
+            credsRef.current = { email, password };
             setLoginOpen(false);
             fileRef.current?.click();
           }}
         />
       )}
+
 
       {/* Filtros */}
       <FilterBar
