@@ -1308,21 +1308,43 @@ function LineHistoryCard(p: LineHistoryProps) {
                 strokeWidth="2"
               />
 
-              {p.total.map((v, i) => (
-                <g key={`t-${i}`}>
-                  <circle cx={xAt(i)} cy={yAt(v)} r="4" fill={p.color} />
-                  <text
-                    x={xAt(i)}
-                    y={yAt(v) - 7}
-                    textAnchor="middle"
-                    fontSize="9"
-                    fontWeight="500"
-                    fill="#fff"
-                  >
-                    {p.pointFormat(v)}
-                  </text>
-                </g>
-              ))}
+              {p.total.map((v, i) => {
+                const subVal = p.pointSubLabel?.values[i];
+                const subColor =
+                  p.pointSubLabel && subVal !== undefined
+                    ? subVal > p.pointSubLabel.threshold
+                      ? p.pointSubLabel.activeColor
+                      : "#fff"
+                    : "#fff";
+                const mainY = p.pointSubLabel ? yAt(v) - 18 : yAt(v) - 7;
+                return (
+                  <g key={`t-${i}`}>
+                    <circle cx={xAt(i)} cy={yAt(v)} r="4" fill={p.color} />
+                    <text
+                      x={xAt(i)}
+                      y={mainY}
+                      textAnchor="middle"
+                      fontSize="9"
+                      fontWeight="500"
+                      fill="#fff"
+                    >
+                      {p.pointFormat(v)}
+                    </text>
+                    {p.pointSubLabel && subVal !== undefined && (
+                      <text
+                        x={xAt(i)}
+                        y={yAt(v) - 7}
+                        textAnchor="middle"
+                        fontSize="9"
+                        fontWeight="600"
+                        fill={subColor}
+                      >
+                        {p.pointSubLabel.format(subVal)}
+                      </text>
+                    )}
+                  </g>
+                );
+              })}
             </>
           )}
         </svg>
