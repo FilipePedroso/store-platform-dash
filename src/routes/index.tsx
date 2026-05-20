@@ -338,6 +338,73 @@ function Dashboard() {
         />
       </div>
 
+      {/* Histórico mês a mês */}
+      <SectionLabel>
+        Histórico mês a mês
+        {histGerado.months.length > 0
+          ? ` · ${fmtMonth(histGerado.months[0])} → ${fmtMonth(histGerado.months[histGerado.months.length - 1])}`
+          : ""}
+      </SectionLabel>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 mb-3">
+        <LineHistoryCard
+          icon={<Banknote size={13} style={{ color: GREEN }} />}
+          title="Investimento gerado vs potencial"
+          sub="Valores acumulados mensais (R$)"
+          color={GREEN}
+          months={histGerado.months}
+          total={histGerado.total}
+          groups={histGerado.groups}
+          extra={{ name: "Potencial", values: histPotencial.total, color: LIGHT_BLUE, dashed: true }}
+          yFormat={(n) => fmtBRL(n)}
+          pointFormat={(n) => fmtBRL(n)}
+          badgeBg="#11402F"
+          badgeFg="#7DE5BD"
+        />
+        <LineHistoryCard
+          icon={<Check size={13} style={{ color: BLUE }} />}
+          title="Redes com sortimento ≥ 90%"
+          sub="Qtd. de redes atingindo o mix mínimo"
+          color={BLUE}
+          months={histRedesOk.months}
+          total={histRedesOk.total}
+          groups={histRedesOk.groups}
+          yFormat={(n) => n.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
+          pointFormat={(n) => n.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
+          badgeBg="#0E2E4D"
+          badgeFg="#8BBEEC"
+        />
+        <LineHistoryCard
+          icon={<Target size={13} style={{ color: ORANGE }} />}
+          title="% Atingimento da verba"
+          sub="Investimento gerado / Potencial (%)"
+          color={ORANGE}
+          months={histAtingimento.months}
+          total={histAtingimento.total}
+          groups={histAtingimento.groups}
+          yFormat={(n) => fmtPct(n, 0)}
+          pointFormat={(n) => fmtPct(n, 1)}
+          reference={{ value: 0.85, label: "Meta 85%" }}
+          forceMax={1}
+          deltaMode="pp"
+          badgeBg="#3D2A10"
+          badgeFg="#F1B257"
+        />
+        <LineHistoryCard
+          icon={<Receipt size={13} style={{ color: PURPLE }} />}
+          title="Faturamento mensal"
+          sub="Valores acumulados mensais (R$)"
+          color={PURPLE}
+          months={histFaturamento.months}
+          total={histFaturamento.total}
+          groups={histFaturamento.groups}
+          yFormat={(n) => fmtBRL(n)}
+          pointFormat={(n) => fmtBRL(n)}
+          badgeBg="#241F4D"
+          badgeFg="#A39DE5"
+        />
+      </div>
+
+
       {/* Linha intermediária */}
       <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-2.5 mb-3">
         <ClusterCard data={clusters} />
