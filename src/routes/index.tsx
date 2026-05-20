@@ -1235,6 +1235,7 @@ function LineHistoryCard(p: LineHistoryProps) {
               const c = PALETTE[idx % PALETTE.length];
               return (
                 <g key={g.name}>
+                  <path d={areaPath(g.values)} fill={`url(#${gradId}-${idx})`} />
                   <polyline points={polylinePoints(g.values)} fill="none" stroke={c} strokeWidth="1.8" />
                   {g.values.map((v, i) => (
                     <circle key={`${g.name}-${i}`} cx={xAt(i)} cy={yAt(v)} r="3" fill={c} />
@@ -1244,12 +1245,14 @@ function LineHistoryCard(p: LineHistoryProps) {
             })
           ) : (
             <>
+              <path d={areaPath(p.total)} fill={`url(#${gradId})`} />
               <polyline
                 points={polylinePoints(p.total)}
                 fill="none"
                 stroke={p.color}
                 strokeWidth="2"
               />
+
               {p.total.map((v, i) => (
                 <g key={`t-${i}`}>
                   <circle cx={xAt(i)} cy={yAt(v)} r="4" fill={p.color} />
