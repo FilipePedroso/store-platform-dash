@@ -117,6 +117,29 @@ function Dashboard() {
   const ranking = useMemo(() => computeRanking(monthRows, 5), [monthRows]);
   const canalMix = useMemo(() => computeAgsByCanalMix(monthRows), [monthRows]);
 
+  // Históricos mês a mês (gráficos de linha) — usam baseRows (sem filtro de mês)
+  const histGerado = useMemo(
+    () => computeMonthlySeries(baseRows, reduceSumGerado, "cluster"),
+    [baseRows],
+  );
+  const histPotencial = useMemo(
+    () => computeMonthlySeries(baseRows, reduceSumPotencial),
+    [baseRows],
+  );
+  const histRedesOk = useMemo(
+    () => computeMonthlySeries(baseRows, reduceRedesOk, "cluster"),
+    [baseRows],
+  );
+  const histAtingimento = useMemo(
+    () => computeMonthlySeries(baseRows, reduceAtingimento, "cluster"),
+    [baseRows],
+  );
+  const histFaturamento = useMemo(
+    () => computeMonthlySeries(baseRows, reduceSumFaturamento, "cluster"),
+    [baseRows],
+  );
+
+
   // Filter options
   const clusterOpts = useMemo(() => uniqueSorted(rows, "cluster"), [rows]);
   const canalOpts = useMemo(() => uniqueSorted(rows, "canal"), [rows]);
