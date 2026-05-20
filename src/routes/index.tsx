@@ -17,7 +17,6 @@ import {
   ChevronDown,
   Upload,
   X,
-  RefreshCw,
   Lock,
 } from "lucide-react";
 import {
