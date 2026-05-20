@@ -37,15 +37,22 @@ import {
   computeByCluster,
   computeEvolution,
   computeKpis,
+  computeMonthlySeries,
   computeRanking,
   fmtBRL,
   fmtMonth,
   fmtPct,
   latestMonth,
+  reduceAtingimento,
+  reduceRedesOk,
+  reduceSumFaturamento,
+  reduceSumGerado,
+  reduceSumPotencial,
   uniqueMonths,
   uniqueSorted,
   type Filters,
 } from "@/lib/dashboard-metrics";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
