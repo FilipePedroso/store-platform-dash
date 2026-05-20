@@ -914,36 +914,41 @@ function RankingCard({ rows }: { rows: { rede: string; sortimento: number; gerad
       {rows.length === 0 ? (
         <Empty />
       ) : (
-        <table className="w-full text-[11px]" style={{ tableLayout: "fixed" }}>
-          <thead>
-            <tr className="text-neutral-400 font-medium border-b border-neutral-800">
-              <th className="text-left pb-1.5 w-5 font-medium">#</th>
-              <th className="text-left pb-1.5 font-medium">Rede</th>
-              <th className="text-left pb-1.5 w-10 font-medium">Sort.</th>
-              <th className="text-right pb-1.5 w-16 font-medium">Invest.</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => {
-              const color =
-                r.sortimento >= 0.9 ? GREEN : r.sortimento >= 0.85 ? ORANGE : RED;
-              return (
-                <tr key={r.rede} className="border-b border-neutral-800 last:border-0">
-                  <td className="py-1 text-neutral-400 font-medium">{i + 1}</td>
-                  <td className="py-1 text-neutral-200 truncate" title={r.rede}>
-                    {r.rede}
-                  </td>
-                  <td className="py-1 font-medium" style={{ color }}>
-                    {fmtPct(r.sortimento, 0)}
-                  </td>
-                  <td className="py-1 text-right font-medium text-neutral-200">
-                    {fmtBRL(r.gerado)}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <div
+          className="max-h-[150px] overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-neutral-600"
+          style={{ scrollbarWidth: "thin", scrollbarColor: "#404040 transparent" }}
+        >
+          <table className="w-full text-[11px]" style={{ tableLayout: "fixed" }}>
+            <thead className="sticky top-0 bg-[#141416] z-10">
+              <tr className="text-neutral-400 font-medium border-b border-neutral-800">
+                <th className="text-left pb-1.5 w-5 font-medium">#</th>
+                <th className="text-left pb-1.5 font-medium">Rede</th>
+                <th className="text-left pb-1.5 w-10 font-medium">Sort.</th>
+                <th className="text-right pb-1.5 w-16 font-medium">Invest.</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, i) => {
+                const color =
+                  r.sortimento >= 0.9 ? GREEN : r.sortimento >= 0.85 ? ORANGE : RED;
+                return (
+                  <tr key={r.rede} className="border-b border-neutral-800 last:border-0">
+                    <td className="py-1 text-neutral-400 font-medium">{i + 1}</td>
+                    <td className="py-1 text-neutral-200 truncate" title={r.rede}>
+                      {r.rede}
+                    </td>
+                    <td className="py-1 font-medium" style={{ color }}>
+                      {fmtPct(r.sortimento, 0)}
+                    </td>
+                    <td className="py-1 text-right font-medium text-neutral-200">
+                      {fmtBRL(r.gerado)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
       <div className="h-px bg-neutral-800 my-2" />
       <div className="flex gap-2.5">
