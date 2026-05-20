@@ -82,8 +82,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:site", content: "@Lovable" },
       { name: "twitter:title", content: "Store Platform DashBoard" },
       { name: "twitter:description", content: "Sales Platform Insights provides a dashboard for analyzing sales network performance and investment generation." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/39807adb-2371-40e6-80d9-61774530057d/id-preview-c09be0a0--a3e1df5c-97ab-43c2-a6a8-d12ebcef787d.lovable.app-1779195334133.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/39807adb-2371-40e6-80d9-61774530057d/id-preview-c09be0a0--a3e1df5c-97ab-43c2-a6a8-d12ebcef787d.lovable.app-1779195334133.png" },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/b5edd283-7a19-45e8-b187-695e7c224498" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/b5edd283-7a19-45e8-b187-695e7c224498" },
     ],
     links: [
       {
