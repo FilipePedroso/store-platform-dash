@@ -386,6 +386,12 @@ function Dashboard() {
           groups={histRedesOk.groups}
           yFormat={(n) => n.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
           pointFormat={(n) => n.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
+          pointSubLabel={{
+            values: histConversao,
+            format: (n) => fmtPct(n, 0),
+            threshold: 0.6,
+            activeColor: GREEN,
+          }}
           badgeBg="#0E2E4D"
           badgeFg="#8BBEEC"
         />
