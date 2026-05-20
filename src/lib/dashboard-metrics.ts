@@ -241,3 +241,40 @@ export function fmtMonth(iso: string): string {
   const names = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
   return `${names[Number(m) - 1] ?? m}/${y.slice(2)}`;
 }
+
+/** Build monthly series, optionally broken by a group key (e.g. cluster). */
+export function computeMonthlySeries(
+  baseRows: Row[],
+  reducer: (rows: Row[]) => number,
+  groupKey?: keyof Row,
+): {
+  months: string[];
+  total: number[];
+  groups: { name: string; values: number[] }[];
+} {
+  const months = uniqueMonths(baseRows);
+  const total = months.map((m) => reducer(baseRows.filter((r) => r.mes === m)));
+  let groups: { name: string; values: number[] }[] = [];
+  if (groupKey) {
+    const names = uniqueSorted(baseRows, groupKey);
+    groups = names.map((name) => ({
+      name,
+      values: months.map((m) =>
+        reducer(baseRows.filter((r) => r.mes === m && String(r[groupKey]) === name)),
+      ),
+    }));
+  }
+  return { months, total, groups };
+}
+
+/** Reducers for the historical line cards. */
+export const reduceSumGerado = (rows: Row[]) => rows.reduce((a, r) => a + r.gerado, 0);
+export const reduceSumPotencial = (rows: Row[]) => rows.reduce((a, r) => a + r.potencial, 0);
+export const reduceSumFaturamento = (rows: Row[]) => rows.reduce((a, r) => a + r.faturamento, 0);
+export const reduceRedesOk = (rows: Row[]) =>
+  new Set(rows.filter((r) => r.sortimento >= 0.9).map((r) => r.rede)).size;
+export const reduceAtingimento = (rows: Row[]) => {
+  const p = rows.reduce((a, r) => a + r.potencial, 0);
+  const g = rows.reduce((a, r) => a + r.gerado, 0);
+  return p > 0 ? g / p : 0;
+};
