@@ -12,13 +12,13 @@ import {
   Target,
   Receipt,
   BarChart3,
-  PieChart,
   TrendingUp,
   Star,
   ChevronDown,
   Upload,
   X,
   RefreshCw,
+  Lock,
 } from "lucide-react";
 import {
   loadRows,
