@@ -300,7 +300,7 @@ function Dashboard() {
       {/* Linha intermediária */}
       <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-2.5 mb-3">
         <ClusterCard data={clusters} />
-        <ChannelDonutCard donut={donut} />
+        <ChannelSortimentoCard rows={sortimentoByCanal} />
       </div>
 
       {/* Linha inferior */}
