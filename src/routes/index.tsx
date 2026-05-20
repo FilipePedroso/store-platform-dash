@@ -37,15 +37,22 @@ import {
   computeByCluster,
   computeEvolution,
   computeKpis,
+  computeMonthlySeries,
   computeRanking,
   fmtBRL,
   fmtMonth,
   fmtPct,
   latestMonth,
+  reduceAtingimento,
+  reduceRedesOk,
+  reduceSumFaturamento,
+  reduceSumGerado,
+  reduceSumPotencial,
   uniqueMonths,
   uniqueSorted,
   type Filters,
 } from "@/lib/dashboard-metrics";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -109,6 +116,29 @@ function Dashboard() {
   const evolution = useMemo(() => computeEvolution(baseRows), [baseRows]);
   const ranking = useMemo(() => computeRanking(monthRows, 5), [monthRows]);
   const canalMix = useMemo(() => computeAgsByCanalMix(monthRows), [monthRows]);
+
+  // Históricos mês a mês (gráficos de linha) — usam baseRows (sem filtro de mês)
+  const histGerado = useMemo(
+    () => computeMonthlySeries(baseRows, reduceSumGerado, "cluster"),
+    [baseRows],
+  );
+  const histPotencial = useMemo(
+    () => computeMonthlySeries(baseRows, reduceSumPotencial),
+    [baseRows],
+  );
+  const histRedesOk = useMemo(
+    () => computeMonthlySeries(baseRows, reduceRedesOk, "cluster"),
+    [baseRows],
+  );
+  const histAtingimento = useMemo(
+    () => computeMonthlySeries(baseRows, reduceAtingimento, "cluster"),
+    [baseRows],
+  );
+  const histFaturamento = useMemo(
+    () => computeMonthlySeries(baseRows, reduceSumFaturamento, "cluster"),
+    [baseRows],
+  );
+
 
   // Filter options
   const clusterOpts = useMemo(() => uniqueSorted(rows, "cluster"), [rows]);
@@ -307,6 +337,73 @@ function Dashboard() {
           }}
         />
       </div>
+
+      {/* Histórico mês a mês */}
+      <SectionLabel>
+        Histórico mês a mês
+        {histGerado.months.length > 0
+          ? ` · ${fmtMonth(histGerado.months[0])} → ${fmtMonth(histGerado.months[histGerado.months.length - 1])}`
+          : ""}
+      </SectionLabel>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 mb-3">
+        <LineHistoryCard
+          icon={<Banknote size={13} style={{ color: GREEN }} />}
+          title="Investimento gerado vs potencial"
+          sub="Valores acumulados mensais (R$)"
+          color={GREEN}
+          months={histGerado.months}
+          total={histGerado.total}
+          groups={histGerado.groups}
+          extra={{ name: "Potencial", values: histPotencial.total, color: LIGHT_BLUE, dashed: true }}
+          yFormat={(n) => fmtBRL(n)}
+          pointFormat={(n) => fmtBRL(n)}
+          badgeBg="#11402F"
+          badgeFg="#7DE5BD"
+        />
+        <LineHistoryCard
+          icon={<Check size={13} style={{ color: BLUE }} />}
+          title="Redes com sortimento ≥ 90%"
+          sub="Qtd. de redes atingindo o mix mínimo"
+          color={BLUE}
+          months={histRedesOk.months}
+          total={histRedesOk.total}
+          groups={histRedesOk.groups}
+          yFormat={(n) => n.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
+          pointFormat={(n) => n.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
+          badgeBg="#0E2E4D"
+          badgeFg="#8BBEEC"
+        />
+        <LineHistoryCard
+          icon={<Target size={13} style={{ color: ORANGE }} />}
+          title="% Atingimento da verba"
+          sub="Investimento gerado / Potencial (%)"
+          color={ORANGE}
+          months={histAtingimento.months}
+          total={histAtingimento.total}
+          groups={histAtingimento.groups}
+          yFormat={(n) => fmtPct(n, 0)}
+          pointFormat={(n) => fmtPct(n, 1)}
+          reference={{ value: 0.85, label: "Meta 85%" }}
+          forceMax={1}
+          deltaMode="pp"
+          badgeBg="#3D2A10"
+          badgeFg="#F1B257"
+        />
+        <LineHistoryCard
+          icon={<Receipt size={13} style={{ color: PURPLE }} />}
+          title="Faturamento mensal"
+          sub="Valores acumulados mensais (R$)"
+          color={PURPLE}
+          months={histFaturamento.months}
+          total={histFaturamento.total}
+          groups={histFaturamento.groups}
+          yFormat={(n) => fmtBRL(n)}
+          pointFormat={(n) => fmtBRL(n)}
+          badgeBg="#241F4D"
+          badgeFg="#A39DE5"
+        />
+      </div>
+
 
       {/* Linha intermediária */}
       <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-2.5 mb-3">
@@ -932,3 +1029,267 @@ function LoginModal({
     </div>
   );
 }
+
+/* ---------------- Line History Card ---------------- */
+
+type LineHistoryProps = {
+  icon: React.ReactNode;
+  title: string;
+  sub: string;
+  color: string;
+  months: string[];
+  total: number[];
+  groups: { name: string; values: number[] }[];
+  extra?: { name: string; values: number[]; color: string; dashed?: boolean };
+  yFormat: (n: number) => string;
+  pointFormat: (n: number) => string;
+  reference?: { value: number; label: string };
+  forceMax?: number;
+  deltaMode?: "pct" | "pp";
+  badgeBg: string;
+  badgeFg: string;
+};
+
+function LineHistoryCard(p: LineHistoryProps) {
+  const [mode, setMode] = useState<"total" | "cluster">("total");
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, [open]);
+
+  const showCluster = mode === "cluster" && p.groups.length > 0;
+
+  // Compute global y-max across visible series
+  const allValues: number[] = [];
+  if (showCluster) {
+    p.groups.forEach((g) => g.values.forEach((v) => allValues.push(v)));
+  } else {
+    p.total.forEach((v) => allValues.push(v));
+  }
+  if (p.extra) p.extra.values.forEach((v) => allValues.push(v));
+  if (p.reference) allValues.push(p.reference.value);
+  const yMax = p.forceMax ?? Math.max(1, ...allValues) * 1.1;
+
+  // SVG layout
+  const W = 400;
+  const H = 170;
+  const padL = 44;
+  const padR = 16;
+  const padT = 10;
+  const padB = 30;
+  const innerW = W - padL - padR;
+  const innerH = H - padT - padB;
+  const n = p.months.length;
+  const xAt = (i: number) =>
+    n <= 1 ? padL + innerW / 2 : padL + (i * innerW) / (n - 1);
+  const yAt = (v: number) => padT + innerH - (v / yMax) * innerH;
+
+  const firstTotal = p.total[0] ?? 0;
+  const lastTotal = p.total[p.total.length - 1] ?? 0;
+  let deltaText = "—";
+  if (n > 1 && p.months.length > 0) {
+    if (p.deltaMode === "pp") {
+      deltaText = `${(lastTotal - firstTotal) >= 0 ? "+" : ""}${((lastTotal - firstTotal) * 100).toFixed(1)} p.p. ${fmtMonth(p.months[0])} → ${fmtMonth(p.months[n - 1])}`;
+    } else {
+      const pct = firstTotal > 0 ? (lastTotal - firstTotal) / firstTotal : 0;
+      deltaText = `${pct >= 0 ? "+" : ""}${(pct * 100).toFixed(0)}% ${fmtMonth(p.months[0])} → ${fmtMonth(p.months[n - 1])}`;
+    }
+  }
+
+  const polylinePoints = (vals: number[]) =>
+    vals.map((v, i) => `${xAt(i)},${yAt(v)}`).join(" ");
+
+  return (
+    <Card>
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <div>
+          <div className="text-[12px] font-medium text-neutral-100 flex items-center gap-1.5">
+            {p.icon}
+            {p.title}
+          </div>
+          <div className="text-[11px] text-neutral-400 mt-0.5">{p.sub}</div>
+        </div>
+        <div className="relative shrink-0" ref={ref}>
+          <button
+            onClick={() => setOpen((v) => !v)}
+            className={`rounded-full px-3 py-1 text-[11px] flex items-center gap-1.5 border transition-colors ${
+              mode === "cluster"
+                ? "bg-[#0E2E4D] border-[#378ADD] text-[#8BBEEC] font-medium"
+                : "bg-[#1a1a1c] border-neutral-800 text-neutral-400 hover:border-neutral-700"
+            }`}
+          >
+            <Layers size={12} />
+            {mode === "total" ? "Total" : "Por cluster"}
+            <ChevronDown size={12} />
+          </button>
+          {open && (
+            <div className="absolute right-0 z-20 mt-1 min-w-[140px] bg-[#1a1a1c] border border-neutral-800 rounded-md shadow-lg py-1 text-[11px]">
+              {(["total", "cluster"] as const).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => {
+                    setMode(m);
+                    setOpen(false);
+                  }}
+                  className={`block w-full text-left px-3 py-1 hover:bg-neutral-800 ${
+                    mode === m ? "text-[#8BBEEC] font-medium" : "text-neutral-200"
+                  }`}
+                  disabled={m === "cluster" && p.groups.length === 0}
+                >
+                  {m === "total" ? "Total" : "Por cluster"}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {n === 0 ? (
+        <Empty />
+      ) : (
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-[170px] overflow-visible">
+          {/* Eixos / grid */}
+          <line x1={padL} y1={padT} x2={padL} y2={padT + innerH} stroke="#2a2a2c" strokeWidth="0.5" />
+          <line x1={padL} y1={padT + innerH} x2={W - padR} y2={padT + innerH} stroke="#2a2a2c" strokeWidth="0.5" />
+          <line x1={padL} y1={padT} x2={W - padR} y2={padT} stroke="#2a2a2c" strokeWidth="0.5" strokeDasharray="3 3" />
+          <line x1={padL} y1={padT + innerH / 2} x2={W - padR} y2={padT + innerH / 2} stroke="#2a2a2c" strokeWidth="0.5" strokeDasharray="3 3" />
+          {/* Y labels */}
+          <text x={padL - 6} y={padT + 4} textAnchor="end" fontSize="9" fill="#888780">{p.yFormat(yMax)}</text>
+          <text x={padL - 6} y={padT + innerH / 2 + 3} textAnchor="end" fontSize="9" fill="#888780">{p.yFormat(yMax / 2)}</text>
+          <text x={padL - 6} y={padT + innerH + 3} textAnchor="end" fontSize="9" fill="#888780">{p.yFormat(0)}</text>
+          {/* X labels */}
+          {p.months.map((m, i) => (
+            <text key={m} x={xAt(i)} y={padT + innerH + 16} textAnchor="middle" fontSize="10" fill="#888780">
+              {fmtMonth(m)}
+            </text>
+          ))}
+          {/* Linha de referência */}
+          {p.reference && (
+            <>
+              <line
+                x1={padL}
+                y1={yAt(p.reference.value)}
+                x2={W - padR}
+                y2={yAt(p.reference.value)}
+                stroke={RED}
+                strokeWidth="1"
+                strokeDasharray="4 3"
+                opacity="0.7"
+              />
+              <text x={W - padR} y={yAt(p.reference.value) - 3} textAnchor="end" fontSize="9" fill={RED}>
+                {p.reference.label}
+              </text>
+            </>
+          )}
+          {/* Linha extra (potencial) — sempre como total */}
+          {p.extra && (
+            <>
+              <polyline
+                points={polylinePoints(p.extra.values)}
+                fill="none"
+                stroke={p.extra.color}
+                strokeWidth="1.5"
+                strokeDasharray={p.extra.dashed ? "5 3" : undefined}
+              />
+              {p.extra.values.map((v, i) => (
+                <circle key={`ex-${i}`} cx={xAt(i)} cy={yAt(v)} r="3" fill={p.extra!.color} />
+              ))}
+            </>
+          )}
+          {/* Linhas principais */}
+          {showCluster ? (
+            p.groups.map((g, idx) => {
+              const c = PALETTE[idx % PALETTE.length];
+              return (
+                <g key={g.name}>
+                  <polyline points={polylinePoints(g.values)} fill="none" stroke={c} strokeWidth="1.8" />
+                  {g.values.map((v, i) => (
+                    <circle key={`${g.name}-${i}`} cx={xAt(i)} cy={yAt(v)} r="3" fill={c} />
+                  ))}
+                </g>
+              );
+            })
+          ) : (
+            <>
+              <polyline
+                points={polylinePoints(p.total)}
+                fill="none"
+                stroke={p.color}
+                strokeWidth="2"
+              />
+              {p.total.map((v, i) => (
+                <g key={`t-${i}`}>
+                  <circle cx={xAt(i)} cy={yAt(v)} r="4" fill={p.color} />
+                  <text
+                    x={xAt(i)}
+                    y={yAt(v) - 7}
+                    textAnchor="middle"
+                    fontSize="9"
+                    fontWeight="500"
+                    fill="#fff"
+                  >
+                    {p.pointFormat(v)}
+                  </text>
+                </g>
+              ))}
+            </>
+          )}
+        </svg>
+      )}
+
+      {/* Legenda */}
+      <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
+        {showCluster ? (
+          <>
+            {p.groups.map((g, idx) => (
+              <LineLegend
+                key={g.name}
+                color={PALETTE[idx % PALETTE.length]}
+                label={g.name}
+              />
+            ))}
+            {p.extra && <LineLegend color={p.extra.color} label={p.extra.name} dashed={p.extra.dashed} />}
+          </>
+        ) : (
+          <>
+            <LineLegend color={p.color} label={p.title.split(" ")[0]} />
+            {p.extra && <LineLegend color={p.extra.color} label={p.extra.name} dashed={p.extra.dashed} />}
+          </>
+        )}
+      </div>
+
+      {n > 1 && (
+        <span
+          className="inline-block text-[10px] px-2 py-0.5 rounded-full font-medium mt-2"
+          style={{ background: p.badgeBg, color: p.badgeFg }}
+        >
+          {deltaText}
+        </span>
+      )}
+    </Card>
+  );
+}
+
+function LineLegend({ color, label, dashed }: { color: string; label: string; dashed?: boolean }) {
+  return (
+    <span className="text-[10px] flex items-center gap-1 text-neutral-400">
+      <span
+        className="inline-block w-3.5 h-[2px] rounded-sm"
+        style={{
+          background: dashed
+            ? `repeating-linear-gradient(to right, ${color} 0 3px, transparent 3px 6px)`
+            : color,
+        }}
+      />
+      {label}
+    </span>
+  );
+}
+
