@@ -255,7 +255,7 @@ function Dashboard() {
         canalOpts={canalOpts}
         redeOpts={redeOpts}
         distribOpts={distribOpts}
-        monthOpts={months}
+        monthOpts={monthOpts}
       />
 
       {/* Indicadores */}
