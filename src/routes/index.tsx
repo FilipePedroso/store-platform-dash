@@ -21,14 +21,14 @@ import {
   Lock,
 } from "lucide-react";
 import {
-  loadRows,
-  saveRows,
-  resetToSeed,
+  loadRowsFromCloud,
   parseXlsxFile,
   formatUpdatedAt,
   type Row,
   type DataMeta,
 } from "@/lib/dashboard-data";
+import { updateDataset } from "@/lib/dataset.functions";
+import { useServerFn } from "@tanstack/react-start";
 import {
   EMPTY_FILTERS,
   applyAllFilters,
