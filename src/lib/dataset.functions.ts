@@ -20,7 +20,7 @@ export const updateDataset = createServerFn({ method: "POST" })
     const updatedAt = new Date().toISOString();
     const { error } = await supabaseAdmin.from("dataset").upsert({
       id: "main",
-      rows: data.rows,
+      rows: data.rows as unknown as never,
       row_count: data.rows.length,
       updated_at: updatedAt,
     });
