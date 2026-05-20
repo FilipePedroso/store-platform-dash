@@ -123,7 +123,7 @@ function Dashboard() {
       .sort((a, b) => b.pct - a.pct);
   }, [monthRows]);
   const evolution = useMemo(() => computeEvolution(baseRows), [baseRows]);
-  const ranking = useMemo(() => computeRanking(monthRows, 5), [monthRows]);
+  const ranking = useMemo(() => computeRanking(monthRows, 9999), [monthRows]);
   const canalMix = useMemo(() => computeAgsByCanalMix(monthRows), [monthRows]);
 
   // Históricos mês a mês (gráficos de linha) — usam baseRows (sem filtro de mês)
