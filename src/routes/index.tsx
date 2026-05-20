@@ -736,12 +736,31 @@ function KpiCard({
           {progressValue}
         </span>
       </div>
-      <div className="h-[5px] bg-neutral-800 rounded mt-1.5 overflow-hidden">
+      <div className="h-[5px] bg-neutral-800 rounded mt-1.5 overflow-hidden relative">
         <div
           className="h-full rounded"
           style={{ width: `${Math.max(0, Math.min(100, progressPct))}%`, background: color }}
         />
+        {progressTarget != null && (
+          <>
+            <div
+              className="absolute top-[-2px] bottom-[-2px] w-[2px] bg-white/90 rounded-sm"
+              style={{ left: `calc(${Math.max(0, Math.min(100, progressTarget))}% - 1px)` }}
+              title={`Meta ${progressTarget}%`}
+            />
+          </>
+        )}
       </div>
+      {progressTarget != null && (
+        <div className="text-[9px] text-neutral-400 mt-0.5 relative h-[10px]">
+          <span
+            className="absolute -translate-x-1/2 whitespace-nowrap"
+            style={{ left: `${Math.max(0, Math.min(100, progressTarget))}%` }}
+          >
+            Meta {progressTarget}%
+          </span>
+        </div>
+      )}
       <span
         className="inline-block text-[10px] px-2 py-0.5 rounded-full font-medium mt-2"
         style={{ background: badge.bg, color: badge.fg }}
