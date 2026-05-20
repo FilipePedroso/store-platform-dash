@@ -17,18 +17,17 @@ import {
   ChevronDown,
   Upload,
   X,
-  RefreshCw,
   Lock,
 } from "lucide-react";
 import {
-  loadRows,
-  saveRows,
-  resetToSeed,
+  loadRowsFromCloud,
   parseXlsxFile,
   formatUpdatedAt,
   type Row,
   type DataMeta,
 } from "@/lib/dashboard-data";
+import { updateDataset } from "@/lib/dataset.functions";
+import { useServerFn } from "@tanstack/react-start";
 import {
   EMPTY_FILTERS,
   applyAllFilters,
@@ -80,11 +79,16 @@ function Dashboard() {
   const [rows, setRows] = useState<Row[]>([]);
   const [meta, setMeta] = useState<DataMeta | null>(null);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
+  const updateDatasetFn = useServerFn(updateDataset);
 
-  useEffect(() => {
-    const { rows, meta } = loadRows();
+  const refresh = async () => {
+    const { rows, meta } = await loadRowsFromCloud();
     setRows(rows);
     setMeta(meta);
+  };
+
+  useEffect(() => {
+    refresh();
   }, []);
 
   const months = useMemo(() => uniqueMonths(rows), [rows]);
@@ -148,27 +152,29 @@ function Dashboard() {
 
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
+  const credsRef = useRef<{ email: string; password: string } | null>(null);
 
   const handleUpload = async (file: File) => {
     setUploadError(null);
+    const creds = credsRef.current;
+    if (!creds) {
+      setUploadError("Faça login novamente para atualizar");
+      return;
+    }
+    setUploading(true);
     try {
       const parsed = await parseXlsxFile(file);
-      const newMeta = saveRows(parsed);
-      setRows(parsed);
-      setMeta(newMeta);
+      await updateDatasetFn({ data: { ...creds, rows: parsed } });
+      await refresh();
       setFilters(EMPTY_FILTERS);
     } catch (e) {
-      setUploadError(e instanceof Error ? e.message : "Falha ao ler o arquivo");
+      setUploadError(e instanceof Error ? e.message : "Falha ao atualizar os dados");
+    } finally {
+      setUploading(false);
+      credsRef.current = null;
     }
-  };
-
-  const handleReset = () => {
-    const m = resetToSeed();
-    const { rows } = loadRows();
-    setRows(rows);
-    setMeta(m);
-    setFilters(EMPTY_FILTERS);
   };
 
   if (!meta) {
@@ -186,10 +192,8 @@ function Dashboard() {
           </h1>
           <p className="text-[11px] text-neutral-400 mt-1">
             Histórico de performance das redes participantes ·{" "}
-            <span className="text-neutral-300">{meta.rowCount}</span> linhas ·
-            {meta.source === "seed"
-              ? " dados de exemplo"
-              : ` atualizado em ${formatUpdatedAt(meta)}`}
+            <span className="text-neutral-300">{meta.rowCount}</span> linhas · atualizado em{" "}
+            {formatUpdatedAt(meta)}
           </p>
           {uploadError && (
             <p className="text-[11px] text-red-400 mt-1">⚠ {uploadError}</p>
@@ -207,20 +211,12 @@ function Dashboard() {
               e.target.value = "";
             }}
           />
-          {meta.source === "upload" && (
-            <button
-              onClick={handleReset}
-              className="rounded-full px-3 py-1.5 text-[11px] flex items-center gap-1.5 border bg-[#1a1a1c] border-neutral-800 text-neutral-400 hover:border-neutral-700"
-              title="Voltar para os dados de exemplo"
-            >
-              <RefreshCw size={12} /> Restaurar
-            </button>
-          )}
           <button
             onClick={() => setLoginOpen(true)}
-            className="rounded-full px-3 py-1.5 text-[11px] flex items-center gap-1.5 border bg-[#0E2E4D] border-[#378ADD] text-[#8BBEEC] font-medium hover:bg-[#13395f]"
+            disabled={uploading}
+            className="rounded-full px-3 py-1.5 text-[11px] flex items-center gap-1.5 border bg-[#0E2E4D] border-[#378ADD] text-[#8BBEEC] font-medium hover:bg-[#13395f] disabled:opacity-50"
           >
-            <Upload size={12} /> Atualizar dados (.xlsx)
+            <Upload size={12} /> {uploading ? "Enviando..." : "Atualizar dados (.xlsx)"}
           </button>
         </div>
       </div>
@@ -228,12 +224,14 @@ function Dashboard() {
       {loginOpen && (
         <LoginModal
           onClose={() => setLoginOpen(false)}
-          onSuccess={() => {
+          onSuccess={(email, password) => {
+            credsRef.current = { email, password };
             setLoginOpen(false);
             fileRef.current?.click();
           }}
         />
       )}
+
 
       {/* Filtros */}
       <FilterBar
@@ -963,7 +961,7 @@ function LoginModal({
   onSuccess,
 }: {
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (email: string, password: string) => void;
 }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -972,7 +970,7 @@ function LoginModal({
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (email.trim().toLowerCase() === "filipe.pedroso@oniz.com.br" && password === "402139") {
-      onSuccess();
+      onSuccess(email.trim(), password);
     } else {
       setError("Credenciais inválidas");
     }
@@ -1106,6 +1104,17 @@ function LineHistoryCard(p: LineHistoryProps) {
   const polylinePoints = (vals: number[]) =>
     vals.map((v, i) => `${xAt(i)},${yAt(v)}`).join(" ");
 
+  const areaPath = (vals: number[]) => {
+    if (vals.length === 0) return "";
+    const baseY = padT + innerH;
+    const pts = vals.map((v, i) => `${xAt(i)},${yAt(v)}`).join(" L ");
+    return `M ${xAt(0)},${baseY} L ${pts} L ${xAt(vals.length - 1)},${baseY} Z`;
+  };
+
+  // Stable gradient id per card instance
+  const gradIdRef = useRef(`grad-${Math.random().toString(36).slice(2)}`);
+  const gradId = gradIdRef.current;
+
   return (
     <Card>
       <div className="flex items-start justify-between gap-2 mb-2">
@@ -1155,6 +1164,23 @@ function LineHistoryCard(p: LineHistoryProps) {
         <Empty />
       ) : (
         <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-[170px] overflow-visible">
+          <defs>
+            <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={p.color} stopOpacity="0.45" />
+              <stop offset="60%" stopColor={p.color} stopOpacity="0.12" />
+              <stop offset="100%" stopColor={p.color} stopOpacity="0" />
+            </linearGradient>
+            {showCluster &&
+              p.groups.map((g, idx) => {
+                const c = PALETTE[idx % PALETTE.length];
+                return (
+                  <linearGradient key={`${gradId}-${idx}`} id={`${gradId}-${idx}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={c} stopOpacity="0.35" />
+                    <stop offset="100%" stopColor={c} stopOpacity="0" />
+                  </linearGradient>
+                );
+              })}
+          </defs>
           {/* Eixos / grid */}
           <line x1={padL} y1={padT} x2={padL} y2={padT + innerH} stroke="#2a2a2c" strokeWidth="0.5" />
           <line x1={padL} y1={padT + innerH} x2={W - padR} y2={padT + innerH} stroke="#2a2a2c" strokeWidth="0.5" />
@@ -1209,6 +1235,7 @@ function LineHistoryCard(p: LineHistoryProps) {
               const c = PALETTE[idx % PALETTE.length];
               return (
                 <g key={g.name}>
+                  <path d={areaPath(g.values)} fill={`url(#${gradId}-${idx})`} />
                   <polyline points={polylinePoints(g.values)} fill="none" stroke={c} strokeWidth="1.8" />
                   {g.values.map((v, i) => (
                     <circle key={`${g.name}-${i}`} cx={xAt(i)} cy={yAt(v)} r="3" fill={c} />
@@ -1218,12 +1245,14 @@ function LineHistoryCard(p: LineHistoryProps) {
             })
           ) : (
             <>
+              <path d={areaPath(p.total)} fill={`url(#${gradId})`} />
               <polyline
                 points={polylinePoints(p.total)}
                 fill="none"
                 stroke={p.color}
                 strokeWidth="2"
               />
+
               {p.total.map((v, i) => (
                 <g key={`t-${i}`}>
                   <circle cx={xAt(i)} cy={yAt(v)} r="4" fill={p.color} />
