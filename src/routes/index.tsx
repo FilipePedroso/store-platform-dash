@@ -251,7 +251,12 @@ function Dashboard() {
 
       {/* Indicadores */}
       <SectionLabel>
-        Indicadores principais{currentMonth ? ` · ${fmtMonth(currentMonth)}` : ""}
+        Indicadores principais
+        {isAccumulated
+          ? ` · Acumulado (${selectedMonths.length} meses)`
+          : selectedMonths.length === 1
+            ? ` · ${fmtMonth(selectedMonths[0])}`
+            : ""}
       </SectionLabel>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 mb-3">
         <KpiCard
