@@ -702,6 +702,7 @@ function KpiCard({
   progressLabel,
   progressValue,
   progressPct,
+  progressTarget,
   badge,
 }: {
   color: string;
@@ -713,6 +714,7 @@ function KpiCard({
   progressLabel: string;
   progressValue: string;
   progressPct: number;
+  progressTarget?: number;
   badge: { text: string; bg: string; fg: string };
 }) {
   return (
