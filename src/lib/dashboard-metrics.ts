@@ -63,6 +63,32 @@ export function applyBaseFilters(rows: Row[], f: Filters): Row[] {
   );
 }
 
+/**
+ * Compute options for a given filter key, applying all OTHER active filters.
+ * Already-selected values are merged in so the user can always deselect them.
+ */
+export function optionsFor(
+  rows: Row[],
+  f: Filters,
+  key: "cluster" | "canal" | "rede" | "distribuidor" | "mes",
+): string[] {
+  const filtered = rows.filter(
+    (r) =>
+      (key === "cluster" || inList(r.cluster, f.cluster)) &&
+      (key === "canal" || inList(r.canal, f.canal)) &&
+      (key === "rede" || inList(r.rede, f.rede)) &&
+      (key === "distribuidor" || inList(r.distribuidor, f.distribuidor)) &&
+      (key === "mes" || inList(r.mes, f.mes)),
+  );
+  const set = new Set<string>();
+  for (const r of filtered) {
+    const v = r[key];
+    if (v != null && v !== "") set.add(String(v));
+  }
+  for (const v of f[key]) set.add(v);
+  return [...set].sort();
+}
+
 export function applyAllFilters(rows: Row[], f: Filters): Row[] {
   return applyBaseFilters(rows, f).filter((r) => inList(r.mes, f.mes));
 }
