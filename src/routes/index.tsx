@@ -1104,6 +1104,17 @@ function LineHistoryCard(p: LineHistoryProps) {
   const polylinePoints = (vals: number[]) =>
     vals.map((v, i) => `${xAt(i)},${yAt(v)}`).join(" ");
 
+  const areaPath = (vals: number[]) => {
+    if (vals.length === 0) return "";
+    const baseY = padT + innerH;
+    const pts = vals.map((v, i) => `${xAt(i)},${yAt(v)}`).join(" L ");
+    return `M ${xAt(0)},${baseY} L ${pts} L ${xAt(vals.length - 1)},${baseY} Z`;
+  };
+
+  // Stable gradient id per card instance
+  const gradIdRef = useRef(`grad-${Math.random().toString(36).slice(2)}`);
+  const gradId = gradIdRef.current;
+
   return (
     <Card>
       <div className="flex items-start justify-between gap-2 mb-2">
