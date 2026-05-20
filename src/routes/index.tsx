@@ -1164,6 +1164,23 @@ function LineHistoryCard(p: LineHistoryProps) {
         <Empty />
       ) : (
         <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-[170px] overflow-visible">
+          <defs>
+            <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={p.color} stopOpacity="0.45" />
+              <stop offset="60%" stopColor={p.color} stopOpacity="0.12" />
+              <stop offset="100%" stopColor={p.color} stopOpacity="0" />
+            </linearGradient>
+            {showCluster &&
+              p.groups.map((g, idx) => {
+                const c = PALETTE[idx % PALETTE.length];
+                return (
+                  <linearGradient key={`${gradId}-${idx}`} id={`${gradId}-${idx}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={c} stopOpacity="0.35" />
+                    <stop offset="100%" stopColor={c} stopOpacity="0" />
+                  </linearGradient>
+                );
+              })}
+          </defs>
           {/* Eixos / grid */}
           <line x1={padL} y1={padT} x2={padL} y2={padT + innerH} stroke="#2a2a2c" strokeWidth="0.5" />
           <line x1={padL} y1={padT + innerH} x2={W - padR} y2={padT + innerH} stroke="#2a2a2c" strokeWidth="0.5" />
