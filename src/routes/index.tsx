@@ -118,6 +118,7 @@ function Dashboard() {
 
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [loginOpen, setLoginOpen] = useState(false);
 
   const handleUpload = async (file: File) => {
     setUploadError(null);
