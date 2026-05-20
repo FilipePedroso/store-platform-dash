@@ -95,8 +95,13 @@ export type Kpis = {
   agsDeltaPP: number | null;
 };
 
-export function computeKpis(allRows: Row[], baseRows: Row[], currentMonth: string | null): Kpis {
-  const monthRows = baseRows.filter((r) => r.mes === currentMonth);
+export function computeKpis(
+  allRows: Row[],
+  baseRows: Row[],
+  selectedMonths: string[],
+): Kpis {
+  const monthSet = new Set(selectedMonths);
+  const monthRows = baseRows.filter((r) => monthSet.has(r.mes));
   const gerado = sum(monthRows, "gerado");
   const potencial = sum(monthRows, "potencial");
   const faturamento = sum(monthRows, "faturamento");
@@ -109,9 +114,10 @@ export function computeKpis(allRows: Row[], baseRows: Row[], currentMonth: strin
     monthRows.filter((r) => r.sortimento >= 0.9).map((r) => r.rede),
   ).size;
 
-  // Previous month using same base filters
-  const prevMonth = currentMonth ? previousMonth(allRows, currentMonth) : null;
-  const prevRows = baseRows.filter((r) => r.mes === prevMonth);
+  // Previous month comparison only when exactly one month is selected
+  const singleMonth = selectedMonths.length === 1 ? selectedMonths[0] : null;
+  const prevMonth = singleMonth ? previousMonth(allRows, singleMonth) : null;
+  const prevRows = prevMonth ? baseRows.filter((r) => r.mes === prevMonth) : [];
   const prevGerado = sum(prevRows, "gerado");
   const prevPotencial = sum(prevRows, "potencial");
   const prevAg = sum(prevRows, "agBatidos");
