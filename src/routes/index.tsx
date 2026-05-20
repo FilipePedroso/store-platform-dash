@@ -92,16 +92,21 @@ function Dashboard() {
   }, []);
 
   const months = useMemo(() => uniqueMonths(rows), [rows]);
-  const currentMonth = filters.mes ?? latestMonth(rows);
+  const selectedMonths = useMemo(() => {
+    if (filters.mes.length > 0) return filters.mes;
+    const latest = latestMonth(rows);
+    return latest ? [latest] : [];
+  }, [filters.mes, rows]);
+  const isAccumulated = filters.mes.length > 1 || filters.mes.length === months.length;
 
   const baseRows = useMemo(() => applyBaseFilters(rows, filters), [rows, filters]);
-  const monthRows = useMemo(
-    () => baseRows.filter((r) => r.mes === currentMonth),
-    [baseRows, currentMonth],
-  );
+  const monthRows = useMemo(() => {
+    const set = new Set(selectedMonths);
+    return baseRows.filter((r) => set.has(r.mes));
+  }, [baseRows, selectedMonths]);
   const kpis = useMemo(
-    () => computeKpis(rows, baseRows, currentMonth),
-    [rows, baseRows, currentMonth],
+    () => computeKpis(rows, baseRows, selectedMonths),
+    [rows, baseRows, selectedMonths],
   );
   const clusters = useMemo(() => computeByCluster(monthRows), [monthRows]);
   const sortimentoByCanal = useMemo(() => {
