@@ -94,7 +94,19 @@ function Dashboard() {
     [rows, baseRows, currentMonth],
   );
   const clusters = useMemo(() => computeByCluster(monthRows), [monthRows]);
-  const donut = useMemo(() => computeDonutByCanal(monthRows), [monthRows]);
+  const sortimentoByCanal = useMemo(() => {
+    const map = new Map<string, { ok: Set<string>; all: Set<string> }>();
+    for (const r of monthRows) {
+      const k = r.canal || "—";
+      const cur = map.get(k) ?? { ok: new Set<string>(), all: new Set<string>() };
+      cur.all.add(r.rede);
+      if (r.sortimento >= 0.9) cur.ok.add(r.rede);
+      map.set(k, cur);
+    }
+    return [...map.entries()]
+      .map(([canal, v]) => ({ canal, pct: v.all.size > 0 ? v.ok.size / v.all.size : 0 }))
+      .sort((a, b) => b.pct - a.pct);
+  }, [monthRows]);
   const evolution = useMemo(() => computeEvolution(baseRows), [baseRows]);
   const ranking = useMemo(() => computeRanking(monthRows, 5), [monthRows]);
   const canalMix = useMemo(() => computeAgsByCanalMix(monthRows), [monthRows]);
