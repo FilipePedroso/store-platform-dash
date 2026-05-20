@@ -35,7 +35,6 @@ import {
   applyBaseFilters,
   computeAgsByCanalMix,
   computeByCluster,
-  computeDonutByCanal,
   computeEvolution,
   computeKpis,
   computeRanking,
