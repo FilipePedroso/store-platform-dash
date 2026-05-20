@@ -390,7 +390,7 @@ function Dashboard() {
             values: histConversao,
             format: (n) => fmtPct(n, 0),
             threshold: 0.6,
-            activeColor: GREEN,
+            activeColor: "#22ff88",
           }}
           badgeBg="#0E2E4D"
           badgeFg="#8BBEEC"
