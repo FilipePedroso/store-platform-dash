@@ -1410,7 +1410,7 @@ function GruposNaoBatidosCard({
                       {r.atributo}
                     </td>
                     <td
-                      className="py-1 text-right tabular-nums font-medium"
+                      className="py-1 text-center tabular-nums font-medium"
                       style={{ color: sortColor }}
                     >
                       {fmtPct(r.sortimento, 0)}
