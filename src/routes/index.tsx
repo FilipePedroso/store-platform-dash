@@ -638,6 +638,8 @@ function FilterChip({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [alignRight, setAlignRight] = useState(false);
+  const [maxHeight, setMaxHeight] = useState(300);
+  const [openUp, setOpenUp] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   const active = values.length > 0;
@@ -655,8 +657,17 @@ function FilterChip({
     if (!open || !btnRef.current) return;
     const rect = btnRef.current.getBoundingClientRect();
     const vw = window.innerWidth;
-    // If dropdown (min 200px) would overflow on the right, align it to the right edge of the button
+    const vh = window.innerHeight;
     setAlignRight(rect.left + 200 > vw - 8);
+    const spaceBelow = vh - rect.bottom - 12;
+    const spaceAbove = rect.top - 12;
+    if (spaceBelow < 180 && spaceAbove > spaceBelow) {
+      setOpenUp(true);
+      setMaxHeight(Math.max(160, Math.min(300, spaceAbove)));
+    } else {
+      setOpenUp(false);
+      setMaxHeight(Math.max(160, Math.min(300, spaceBelow)));
+    }
   }, [open]);
 
   const filtered = searchable
@@ -692,10 +703,10 @@ function FilterChip({
       </button>
       {open && (
         <div
-          className={`absolute z-20 mt-1 min-w-[200px] max-h-[300px] overflow-auto bg-[#1a1a1c] border border-neutral-800 rounded-md shadow-lg py-1 text-[11px] ${
+          className={`absolute z-20 min-w-[200px] overflow-auto bg-[#1a1a1c] border border-neutral-800 rounded-md shadow-lg py-1 text-[11px] ${
             alignRight ? "right-0" : "left-0"
-          }`}
-          style={{ maxWidth: "calc(100vw - 16px)" }}
+          } ${openUp ? "bottom-full mb-1" : "mt-1"}`}
+          style={{ maxWidth: "calc(100vw - 16px)", maxHeight: `${maxHeight}px` }}
         >
 
           {searchable && (
