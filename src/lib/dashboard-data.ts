@@ -162,7 +162,7 @@ function excelDateToISO(v: unknown): string {
 
 export async function parseXlsxFile(
   file: File,
-): Promise<{ rows: Row[]; agRows: AgRow[] }> {
+): Promise<{ rows: Row[]; agRows: AgRow[]; estrutura: EstruturaRow[] }> {
   const buf = await file.arrayBuffer();
   const wb = XLSX.read(buf, { type: "array", cellDates: true });
   const sheetName = wb.SheetNames.find((n) => n.toLowerCase() === "dados") ?? wb.SheetNames[0];
