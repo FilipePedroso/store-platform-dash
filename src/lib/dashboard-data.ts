@@ -36,6 +36,13 @@ export type AgRow = {
   positivacao: number;
 };
 
+export type EstruturaRow = {
+  rede: string;
+  rv: string;
+  sv: string;
+  gv: string;
+};
+
 export type DataMeta = { updatedAt: string; rowCount: number; agsCount: number };
 
 const SEED_META: DataMeta = {
