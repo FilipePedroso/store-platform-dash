@@ -208,7 +208,9 @@ function Dashboard() {
     setUploading(true);
     try {
       const parsed = await parseXlsxFile(file);
-      await updateDatasetFn({ data: { ...creds, rows: parsed } });
+      await updateDatasetFn({
+        data: { ...creds, rows: parsed.rows, agRows: parsed.agRows },
+      });
       await refresh();
       setFilters(EMPTY_FILTERS);
     } catch (e) {
