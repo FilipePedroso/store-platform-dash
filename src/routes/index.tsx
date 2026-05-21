@@ -27,7 +27,7 @@ import {
   type AgRow,
   type DataMeta,
 } from "@/lib/dashboard-data";
-import { updateDataset } from "@/lib/dataset.functions";
+import { updateDataset, appendAgsChunk } from "@/lib/dataset.functions";
 import { useServerFn } from "@tanstack/react-start";
 import {
   EMPTY_FILTERS,
@@ -82,6 +82,8 @@ function Dashboard() {
   const [meta, setMeta] = useState<DataMeta | null>(null);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const updateDatasetFn = useServerFn(updateDataset);
+  const appendAgsChunkFn = useServerFn(appendAgsChunk);
+  const [uploadProgress, setUploadProgress] = useState<string | null>(null);
 
   const refresh = async () => {
     const { rows, agRows, meta } = await loadRowsFromCloud();
@@ -237,12 +239,25 @@ function Dashboard() {
     setUploading(true);
     try {
       const parsed = await parseXlsxFile(file);
+      setUploadProgress("Enviando dados principais...");
       await updateDatasetFn({
-        data: { ...creds, rows: parsed.rows, agRows: parsed.agRows },
+        data: { ...creds, rows: parsed.rows },
       });
+      // Envia a aba "dados ags" em chunks para evitar timeout
+      const CHUNK = 2000;
+      const total = Math.ceil(parsed.agRows.length / CHUNK);
+      for (let i = 0; i < total; i++) {
+        setUploadProgress(`Enviando grupos (${i + 1}/${total})...`);
+        const slice = parsed.agRows.slice(i * CHUNK, (i + 1) * CHUNK);
+        await appendAgsChunkFn({
+          data: { ...creds, chunkIndex: i, rows: slice },
+        });
+      }
+      setUploadProgress(null);
       await refresh();
       setFilters(EMPTY_FILTERS);
     } catch (e) {
+      setUploadProgress(null);
       setUploadError(e instanceof Error ? e.message : "Falha ao atualizar os dados");
     } finally {
       setUploading(false);
@@ -289,7 +304,7 @@ function Dashboard() {
             disabled={uploading}
             className="rounded-full px-3 py-1.5 text-[11px] flex items-center gap-1.5 border bg-[#0E2E4D] border-[#378ADD] text-[#8BBEEC] font-medium hover:bg-[#13395f] disabled:opacity-50"
           >
-            <Upload size={12} /> {uploading ? "Enviando..." : "Atualizar dados (.xlsx)"}
+            <Upload size={12} /> {uploading ? (uploadProgress ?? "Enviando...") : "Atualizar dados (.xlsx)"}
           </button>
         </div>
       </div>

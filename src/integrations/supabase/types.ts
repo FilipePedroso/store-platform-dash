@@ -16,28 +16,40 @@ export type Database = {
     Tables: {
       dataset: {
         Row: {
-          ags: Json
-          ags_count: number
           id: string
           row_count: number
           rows: Json
           updated_at: string
         }
         Insert: {
-          ags?: Json
-          ags_count?: number
           id?: string
           row_count?: number
           rows?: Json
           updated_at?: string
         }
         Update: {
-          ags?: Json
-          ags_count?: number
           id?: string
           row_count?: number
           rows?: Json
           updated_at?: string
+        }
+        Relationships: []
+      }
+      dataset_ags_chunks: {
+        Row: {
+          chunk_index: number
+          id: string
+          rows: Json
+        }
+        Insert: {
+          chunk_index: number
+          id?: string
+          rows?: Json
+        }
+        Update: {
+          chunk_index?: number
+          id?: string
+          rows?: Json
         }
         Relationships: []
       }

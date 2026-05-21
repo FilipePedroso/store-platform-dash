@@ -53,23 +53,41 @@ export async function loadRowsFromCloud(): Promise<{
   try {
     const { data, error } = await supabase
       .from("dataset")
-      .select("rows, row_count, ags, ags_count, updated_at")
+      .select("rows, row_count, updated_at")
       .eq("id", "main")
       .maybeSingle();
     if (error) throw error;
     const rows = (data?.rows as Row[] | null) ?? [];
-    const agRows = ((data as unknown as { ags?: AgRow[] | null })?.ags as AgRow[] | null) ?? [];
     if (rows.length === 0) {
       return { rows: seed as Row[], agRows: [], meta: SEED_META };
     }
+
+    // Carrega todos os chunks da aba "dados ags"
+    const agRows: AgRow[] = [];
+    const PAGE = 1000;
+    for (let from = 0; ; from += PAGE) {
+      const { data: chunks, error: chunkErr } = await supabase
+        .from("dataset_ags_chunks")
+        .select("rows")
+        .eq("id", "main")
+        .order("chunk_index", { ascending: true })
+        .range(from, from + PAGE - 1);
+      if (chunkErr) break;
+      if (!chunks || chunks.length === 0) break;
+      for (const c of chunks) {
+        const arr = (c.rows as AgRow[] | null) ?? [];
+        for (const r of arr) agRows.push(r);
+      }
+      if (chunks.length < PAGE) break;
+    }
+
     return {
       rows,
       agRows,
       meta: {
         updatedAt: data!.updated_at,
         rowCount: data!.row_count ?? rows.length,
-        agsCount:
-          (data as unknown as { ags_count?: number | null })?.ags_count ?? agRows.length,
+        agsCount: agRows.length,
       },
     };
   } catch {
