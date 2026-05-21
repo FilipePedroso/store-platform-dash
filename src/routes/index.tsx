@@ -200,19 +200,23 @@ function Dashboard() {
   }, [agRows, filters, selectedMonths]);
 
   // Tabela "Grupos não batidos": positivação == 0
-  const gruposNaoBatidos = useMemo(
-    () =>
-      agMonthRows
-        .filter((r) => Number(r.positivacao) === 0)
-        .map((r) => ({
-          rede: r.rede,
-          target: r.targetUnidades,
-          atributo: r.atributo,
-          valor: r.valor,
-        }))
-        .sort((a, b) => a.rede.localeCompare(b.rede) || a.atributo.localeCompare(b.atributo)),
-    [agMonthRows],
-  );
+  const gruposNaoBatidos = useMemo(() => {
+    const sortMap = new Map<string, number>();
+    for (const r of monthRows) {
+      const cur = sortMap.get(r.rede);
+      sortMap.set(r.rede, cur == null ? r.sortimento : Math.max(cur, r.sortimento));
+    }
+    return agMonthRows
+      .filter((r) => Number(r.positivacao) === 0)
+      .map((r) => ({
+        rede: r.rede,
+        sortimento: sortMap.get(r.rede) ?? 0,
+        target: r.targetUnidades,
+        atributo: r.atributo,
+        valor: r.valor,
+      }))
+      .sort((a, b) => a.rede.localeCompare(b.rede) || a.atributo.localeCompare(b.atributo));
+  }, [agMonthRows, monthRows]);
 
   // Históricos mês a mês (gráficos de linha) — usam baseRows (sem filtro de mês)
   const histGerado = useMemo(
