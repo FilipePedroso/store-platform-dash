@@ -505,10 +505,20 @@ function Dashboard() {
       </div>
 
       {/* Linha inferior */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-2.5">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-2.5 mb-3">
         <MonthlyEvolutionCard data={evolution} />
         <RankingCard rows={ranking} />
         <ChannelMixCard rows={canalMix} />
+      </div>
+
+      {/* Grupos não batidos (dataset 'dados ags') */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-2.5">
+        <GruposNaoBatidosCard
+          rows={gruposNaoBatidos}
+          redeValues={filters.rede}
+          redeOptions={redeOpts}
+          onRedeChange={(v) => setFilters({ ...filters, rede: v })}
+        />
       </div>
     </div>
   );
