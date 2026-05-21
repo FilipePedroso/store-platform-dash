@@ -384,11 +384,7 @@ function Dashboard() {
           progressLabel="% AGs"
           progressValue={fmtPct(kpis.pctAGs)}
           progressPct={kpis.pctAGs * 100}
-          badge={{
-            text: `AGs batidos: ${kpis.agBatidos.toLocaleString("pt-BR")} / ${kpis.qtdAG.toLocaleString("pt-BR")}`,
-            bg: "#241F4D",
-            fg: "#A39DE5",
-          }}
+
 
         />
       </div>
