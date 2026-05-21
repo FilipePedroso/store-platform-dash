@@ -304,7 +304,7 @@ function Dashboard() {
             disabled={uploading}
             className="rounded-full px-3 py-1.5 text-[11px] flex items-center gap-1.5 border bg-[#0E2E4D] border-[#378ADD] text-[#8BBEEC] font-medium hover:bg-[#13395f] disabled:opacity-50"
           >
-            <Upload size={12} /> {uploading ? "Enviando..." : "Atualizar dados (.xlsx)"}
+            <Upload size={12} /> {uploading ? (uploadProgress ?? "Enviando...") : "Atualizar dados (.xlsx)"}
           </button>
         </div>
       </div>
