@@ -1380,8 +1380,8 @@ function GruposNaoBatidosCard({
             <thead className="sticky top-0 bg-[#141416] z-10">
               <tr className="text-neutral-400 font-medium border-b border-neutral-800">
                 <th className="text-left pb-1.5 font-medium w-[26%]">Rede</th>
-                <th className="text-right pb-1.5 font-medium w-[14%]">Sortimento</th>
                 <th className="text-left pb-1.5 font-medium pl-2">Grupo</th>
+                <th className="text-right pb-1.5 font-medium w-12">%</th>
                 <th className="text-right pb-1.5 w-16 font-medium">Target</th>
                 <th className="text-right pb-1.5 w-20 font-medium">Vendido(Un)</th>
                 <th className="text-right pb-1.5 w-16 font-medium">Faltante</th>
@@ -1391,7 +1391,7 @@ function GruposNaoBatidosCard({
               {visibleRows.map((r, i) => {
                 const faltante = Math.max(0, r.target - r.valor);
                 const sortColor =
-                  r.sortimento >= 0.9 ? GREEN : r.sortimento >= 0.85 ? ORANGE : RED;
+                  r.sortimento >= 0.9 ? "#22C55E" : r.sortimento >= 0.85 ? ORANGE : RED;
                 return (
                   <tr
                     key={`${r.rede}-${r.atributo}-${i}`}
@@ -1404,16 +1404,16 @@ function GruposNaoBatidosCard({
                       {r.rede}
                     </td>
                     <td
-                      className="py-1 text-right tabular-nums font-medium"
-                      style={{ color: sortColor }}
-                    >
-                      {fmtPct(r.sortimento, 0)}
-                    </td>
-                    <td
                       className="py-1 text-neutral-200 truncate pr-2 pl-2 overflow-hidden whitespace-nowrap"
                       title={r.atributo}
                     >
                       {r.atributo}
+                    </td>
+                    <td
+                      className="py-1 text-right tabular-nums font-medium"
+                      style={{ color: sortColor }}
+                    >
+                      {fmtPct(r.sortimento, 0)}
                     </td>
                     <td className="py-1 text-right tabular-nums text-neutral-300">
                       {fmtInt(r.target)}
