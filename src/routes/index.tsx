@@ -24,6 +24,7 @@ import {
   parseXlsxFile,
   formatUpdatedAt,
   type Row,
+  type AgRow,
   type DataMeta,
 } from "@/lib/dashboard-data";
 import { updateDataset } from "@/lib/dataset.functions";
