@@ -239,12 +239,25 @@ function Dashboard() {
     setUploading(true);
     try {
       const parsed = await parseXlsxFile(file);
+      setUploadProgress("Enviando dados principais...");
       await updateDatasetFn({
-        data: { ...creds, rows: parsed.rows, agRows: parsed.agRows },
+        data: { ...creds, rows: parsed.rows },
       });
+      // Envia a aba "dados ags" em chunks para evitar timeout
+      const CHUNK = 2000;
+      const total = Math.ceil(parsed.agRows.length / CHUNK);
+      for (let i = 0; i < total; i++) {
+        setUploadProgress(`Enviando grupos (${i + 1}/${total})...`);
+        const slice = parsed.agRows.slice(i * CHUNK, (i + 1) * CHUNK);
+        await appendAgsChunkFn({
+          data: { ...creds, chunkIndex: i, rows: slice },
+        });
+      }
+      setUploadProgress(null);
       await refresh();
       setFilters(EMPTY_FILTERS);
     } catch (e) {
+      setUploadProgress(null);
       setUploadError(e instanceof Error ? e.message : "Falha ao atualizar os dados");
     } finally {
       setUploading(false);
