@@ -27,7 +27,7 @@ import {
   type AgRow,
   type DataMeta,
 } from "@/lib/dashboard-data";
-import { updateDataset } from "@/lib/dataset.functions";
+import { updateDataset, appendAgsChunk } from "@/lib/dataset.functions";
 import { useServerFn } from "@tanstack/react-start";
 import {
   EMPTY_FILTERS,
