@@ -154,6 +154,35 @@ function Dashboard() {
   const ranking = useMemo(() => computeRanking(monthRows, 9999), [monthRows]);
   const canalMix = useMemo(() => computeAgsByCanalMix(monthRows), [monthRows]);
 
+  // Aplica os mesmos filtros (base + mês) ao dataset "dados ags"
+  const agMonthRows = useMemo(() => {
+    const inList = (v: string, list: string[]) => list.length === 0 || list.includes(v);
+    const monthSet = new Set(selectedMonths);
+    return agRows.filter(
+      (r) =>
+        inList(r.cluster, filters.cluster) &&
+        inList(r.canal, filters.canal) &&
+        inList(r.rede, filters.rede) &&
+        inList(r.distribuidor, filters.distribuidor) &&
+        monthSet.has(r.mes),
+    );
+  }, [agRows, filters, selectedMonths]);
+
+  // Tabela "Grupos não batidos": positivação == 0
+  const gruposNaoBatidos = useMemo(
+    () =>
+      agMonthRows
+        .filter((r) => Number(r.positivacao) === 0)
+        .map((r) => ({
+          rede: r.rede,
+          target: r.targetUnidades,
+          atributo: r.atributo,
+          valor: r.valor,
+        }))
+        .sort((a, b) => a.rede.localeCompare(b.rede) || a.atributo.localeCompare(b.atributo)),
+    [agMonthRows],
+  );
+
   // Históricos mês a mês (gráficos de linha) — usam baseRows (sem filtro de mês)
   const histGerado = useMemo(
     () => computeMonthlySeries(baseRows, reduceSumGerado, "cluster"),
