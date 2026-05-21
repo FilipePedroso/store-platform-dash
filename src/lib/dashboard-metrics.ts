@@ -6,6 +6,9 @@ export type Filters = {
   rede: string[];
   distribuidor: string[];
   mes: string[]; // empty = latest month
+  gv: string[];
+  sv: string[];
+  rv: string[];
 };
 
 export const EMPTY_FILTERS: Filters = {
@@ -14,6 +17,9 @@ export const EMPTY_FILTERS: Filters = {
   rede: [],
   distribuidor: [],
   mes: [],
+  gv: [],
+  sv: [],
+  rv: [],
 };
 
 export function hasAnyFilter(f: Filters): boolean {
@@ -22,7 +28,10 @@ export function hasAnyFilter(f: Filters): boolean {
     f.canal.length > 0 ||
     f.rede.length > 0 ||
     f.distribuidor.length > 0 ||
-    f.mes.length > 0
+    f.mes.length > 0 ||
+    f.gv.length > 0 ||
+    f.sv.length > 0 ||
+    f.rv.length > 0
   );
 }
 
