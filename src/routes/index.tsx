@@ -528,12 +528,8 @@ function Dashboard() {
 
       {/* Grupos não batidos (dataset 'dados ags') */}
       <div className="grid grid-cols-1 gap-2.5">
-        <GruposNaoBatidosCard
-          rows={gruposNaoBatidos}
-          redeValues={filters.rede}
-          redeOptions={redeOpts}
-          onRedeChange={(v) => setFilters({ ...filters, rede: v })}
-        />
+        <GruposNaoBatidosCard rows={gruposNaoBatidos} />
+
       </div>
     </div>
   );
