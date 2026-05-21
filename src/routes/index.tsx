@@ -798,11 +798,22 @@ function KpiCard({
                     style={{ background: c.color }}
                   />
                   <span className="text-neutral-200 font-medium">{c.label}</span>
-                  <span className="ml-auto tabular-nums text-neutral-300">
-                    <span className="font-semibold" style={{ color: c.color }}>
-                      {c.ok}
+                  <span className="ml-auto tabular-nums text-neutral-300 flex items-center gap-1.5">
+                    <span>
+                      <span className="font-semibold" style={{ color: c.color }}>
+                        {c.ok}
+                      </span>
+                      <span className="text-neutral-500"> / {c.total}</span>
                     </span>
-                    <span className="text-neutral-500"> / {c.total}</span>
+                    {(() => {
+                      const pct = c.total > 0 ? c.ok / c.total : 0;
+                      const pctColor = pct >= 0.6 ? "#22c55e" : c.color;
+                      return (
+                        <span className="font-semibold tabular-nums" style={{ color: pctColor }}>
+                          {Math.round(pct * 100)}%
+                        </span>
+                      );
+                    })()}
                   </span>
                 </div>
               ))}
