@@ -245,16 +245,28 @@ function Dashboard() {
       await updateDatasetFn({
         data: { ...creds, rows: parsed.rows },
       });
-      // Envia a aba "dados ags" em chunks para evitar timeout
-      const CHUNK = 2000;
+      // Envia a aba "dados ags" em chunks com paralelismo controlado
+      const CHUNK = 5000;
+      const CONCURRENCY = 5;
       const total = Math.ceil(parsed.agRows.length / CHUNK);
-      for (let i = 0; i < total; i++) {
-        setUploadProgress(`Enviando grupos (${i + 1}/${total})...`);
-        const slice = parsed.agRows.slice(i * CHUNK, (i + 1) * CHUNK);
-        await appendAgsChunkFn({
-          data: { ...creds, chunkIndex: i, rows: slice },
-        });
-      }
+      let done = 0;
+      setUploadProgress(`Enviando grupos (0/${total})...`);
+      let next = 0;
+      const worker = async () => {
+        while (true) {
+          const i = next++;
+          if (i >= total) return;
+          const slice = parsed.agRows.slice(i * CHUNK, (i + 1) * CHUNK);
+          await appendAgsChunkFn({
+            data: { ...creds, chunkIndex: i, rows: slice },
+          });
+          done++;
+          setUploadProgress(`Enviando grupos (${done}/${total})...`);
+        }
+      };
+      await Promise.all(
+        Array.from({ length: Math.min(CONCURRENCY, total) }, () => worker()),
+      );
       setUploadProgress(null);
       await refresh();
       setFilters(EMPTY_FILTERS);
