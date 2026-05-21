@@ -303,6 +303,7 @@ function Dashboard() {
           progressLabel="Atingimento"
           progressValue={fmtPct(kpis.atingimentoVerba)}
           progressPct={Math.min(100, kpis.atingimentoVerba * 100)}
+          rightStat={{ label: "Faturamento", value: fmtBRL(kpis.faturamento) }}
           badge={
             kpis.geradoDeltaPct == null
               ? { text: "sem mês anterior", bg: "#1a1a1c", fg: "#888" }
@@ -315,6 +316,7 @@ function Dashboard() {
                 }
           }
         />
+
         <KpiCard
           categoryTitle="Por Cluster"
           categoryBreakdown={sortimentoByCluster}
@@ -757,6 +759,7 @@ function KpiCard({
   progressTarget,
   badge,
   footerRight,
+  rightStat,
   categoryTitle,
   categoryBreakdown,
 }: {
@@ -772,6 +775,7 @@ function KpiCard({
   progressTarget?: number;
   badge?: { text: string; bg: string; fg: string };
   footerRight?: React.ReactNode;
+  rightStat?: { label: string; value: React.ReactNode };
   categoryTitle?: string;
   categoryBreakdown?: { label: string; ok: number; total: number; color: string }[];
 
@@ -792,6 +796,18 @@ function KpiCard({
           </div>
           <div className="text-[11px] text-neutral-400 mt-1.5">{sub}</div>
         </div>
+        {rightStat && (
+          <div className="shrink-0 text-right">
+            <div className="text-[11px] text-neutral-400 mb-1.5">{rightStat.label}</div>
+            <div
+              className="text-[22px] font-medium leading-none"
+              style={{ color: valueColor }}
+            >
+              {rightStat.value}
+            </div>
+          </div>
+        )}
+
         {categoryBreakdown && categoryBreakdown.length > 0 && (
           <div className="shrink-0 border-l border-neutral-800 pl-3 -my-0.5">
             {categoryTitle && (
