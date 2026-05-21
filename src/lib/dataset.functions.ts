@@ -16,14 +16,18 @@ function checkCreds(email: string, password: string) {
  * via `appendAgsChunk` para evitar timeouts.
  */
 export const updateDataset = createServerFn({ method: "POST" })
-  .inputValidator((input: { email: string; password: string; rows: unknown[] }) => {
-    if (!input || typeof input !== "object") throw new Error("Payload inválido");
-    if (typeof input.email !== "string" || typeof input.password !== "string")
-      throw new Error("Credenciais ausentes");
-    if (!Array.isArray(input.rows)) throw new Error("Linhas ausentes");
-    if (input.rows.length > 50000) throw new Error("Arquivo muito grande");
-    return input;
-  })
+  .inputValidator(
+    (input: { email: string; password: string; rows: unknown[]; estrutura?: unknown[] }) => {
+      if (!input || typeof input !== "object") throw new Error("Payload inválido");
+      if (typeof input.email !== "string" || typeof input.password !== "string")
+        throw new Error("Credenciais ausentes");
+      if (!Array.isArray(input.rows)) throw new Error("Linhas ausentes");
+      if (input.rows.length > 50000) throw new Error("Arquivo muito grande");
+      if (input.estrutura != null && !Array.isArray(input.estrutura))
+        throw new Error("Estrutura inválida");
+      return input;
+    },
+  )
   .handler(async ({ data }) => {
     checkCreds(data.email, data.password);
     const updatedAt = new Date().toISOString();
@@ -32,6 +36,7 @@ export const updateDataset = createServerFn({ method: "POST" })
       rows: data.rows as unknown as never,
       row_count: data.rows.length,
       updated_at: updatedAt,
+      estrutura: (data.estrutura ?? []) as unknown as never,
     });
     if (error) throw new Error(error.message);
     // Limpa chunks antigos da aba "dados ags"

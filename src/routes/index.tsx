@@ -28,6 +28,7 @@ import {
   type Row,
   type AgRow,
   type DataMeta,
+  type EstruturaRow,
 } from "@/lib/dashboard-data";
 import { updateDataset, appendAgsChunk } from "@/lib/dataset.functions";
 import { useServerFn } from "@tanstack/react-start";
@@ -79,8 +80,9 @@ const LIGHT_BLUE = "#B5D4F4";
 const PALETTE = [GREEN, PURPLE, ORANGE, BLUE, RED, LIGHT_BLUE, "#5DCAA5", "#F1B257"];
 
 function Dashboard() {
-  const [rows, setRows] = useState<Row[]>([]);
-  const [agRows, setAgRows] = useState<AgRow[]>([]);
+  const [allRows, setAllRows] = useState<Row[]>([]);
+  const [allAgRows, setAllAgRows] = useState<AgRow[]>([]);
+  const [estrutura, setEstrutura] = useState<EstruturaRow[]>([]);
   const [meta, setMeta] = useState<DataMeta | null>(null);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const updateDatasetFn = useServerFn(updateDataset);
@@ -88,15 +90,40 @@ function Dashboard() {
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
 
   const refresh = async () => {
-    const { rows, agRows, meta } = await loadRowsFromCloud();
-    setRows(rows);
-    setAgRows(agRows);
+    const { rows, agRows, estrutura, meta } = await loadRowsFromCloud();
+    setAllRows(rows);
+    setAllAgRows(agRows);
+    setEstrutura(estrutura);
     setMeta(meta);
   };
 
   useEffect(() => {
     refresh();
   }, []);
+
+  // Conjunto de redes permitidas pelos filtros de código (Gv/Sv/Rv).
+  // Se nenhum dos três estiver selecionado, allowedRedes = null (sem restrição).
+  const allowedRedes = useMemo<Set<string> | null>(() => {
+    if (filters.gv.length === 0 && filters.sv.length === 0 && filters.rv.length === 0) return null;
+    const inList = (v: string, list: string[]) => list.length === 0 || list.includes(v);
+    const set = new Set<string>();
+    for (const e of estrutura) {
+      if (inList(e.gv, filters.gv) && inList(e.sv, filters.sv) && inList(e.rv, filters.rv)) {
+        set.add(e.rede);
+      }
+    }
+    return set;
+  }, [estrutura, filters.gv, filters.sv, filters.rv]);
+
+  const rows = useMemo(
+    () => (allowedRedes ? allRows.filter((r) => allowedRedes.has(r.rede)) : allRows),
+    [allRows, allowedRedes],
+  );
+  const agRows = useMemo(
+    () => (allowedRedes ? allAgRows.filter((r) => allowedRedes.has(r.rede)) : allAgRows),
+    [allAgRows, allowedRedes],
+  );
+
 
   const months = useMemo(() => uniqueMonths(rows), [rows]);
   const selectedMonths = useMemo(() => {
@@ -225,6 +252,26 @@ function Dashboard() {
   const distribOpts = useMemo(() => optionsFor(rows, filters, "distribuidor"), [rows, filters]);
   const monthOpts = useMemo(() => optionsFor(rows, filters, "mes"), [rows, filters]);
 
+  // Opções para os filtros de código (Gv/Sv/Rv), cada um adaptado aos outros dois
+  // e ao filtro de rede atualmente selecionado.
+  const codeOpts = useMemo(() => {
+    const inList = (v: string, list: string[]) => list.length === 0 || list.includes(v);
+    const redeSel = filters.rede;
+    const pick = (key: "gv" | "sv" | "rv") => {
+      const set = new Set<string>();
+      for (const e of estrutura) {
+        if (!inList(e.rede, redeSel)) continue;
+        if (key !== "gv" && !inList(e.gv, filters.gv)) continue;
+        if (key !== "sv" && !inList(e.sv, filters.sv)) continue;
+        if (key !== "rv" && !inList(e.rv, filters.rv)) continue;
+        if (e[key]) set.add(e[key]);
+      }
+      for (const v of filters[key]) set.add(v);
+      return [...set].sort();
+    };
+    return { gv: pick("gv"), sv: pick("sv"), rv: pick("rv") };
+  }, [estrutura, filters.rede, filters.gv, filters.sv, filters.rv]);
+
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -243,7 +290,7 @@ function Dashboard() {
       const parsed = await parseXlsxFile(file);
       setUploadProgress("Enviando dados principais...");
       await updateDatasetFn({
-        data: { ...creds, rows: parsed.rows },
+        data: { ...creds, rows: parsed.rows, estrutura: parsed.estrutura },
       });
       // Envia a aba "dados ags" em chunks com paralelismo controlado
       const CHUNK = 5000;
@@ -344,6 +391,9 @@ function Dashboard() {
         redeOpts={redeOpts}
         distribOpts={distribOpts}
         monthOpts={monthOpts}
+        gvOpts={codeOpts.gv}
+        svOpts={codeOpts.sv}
+        rvOpts={codeOpts.rv}
       />
 
       {/* Indicadores */}
@@ -559,6 +609,9 @@ type FilterBarProps = {
   redeOpts: string[];
   distribOpts: string[];
   monthOpts: string[];
+  gvOpts: string[];
+  svOpts: string[];
+  rvOpts: string[];
 };
 
 function FilterBar(p: FilterBarProps) {
@@ -567,7 +620,10 @@ function FilterBar(p: FilterBarProps) {
     p.filters.canal.length ||
     p.filters.rede.length ||
     p.filters.distribuidor.length ||
-    p.filters.mes.length;
+    p.filters.mes.length ||
+    p.filters.gv.length ||
+    p.filters.sv.length ||
+    p.filters.rv.length;
   return (
     <div className="flex flex-wrap items-center gap-1.5 mb-3">
       <span className="text-[11px] font-medium text-neutral-400 mr-1">Filtros:</span>
@@ -611,6 +667,30 @@ function FilterBar(p: FilterBarProps) {
         onChange={(v) => p.setFilters({ ...p.filters, mes: v })}
         allLabel="Mês mais recente"
         accumulatedLabel="Acumulado (todos os meses)"
+      />
+      <FilterChip
+        icon={<Network size={12} />}
+        label="Cód.Gv/Cv"
+        values={p.filters.gv}
+        options={p.gvOpts}
+        onChange={(v) => p.setFilters({ ...p.filters, gv: v })}
+        searchable
+      />
+      <FilterChip
+        icon={<Network size={12} />}
+        label="Cód.Sv"
+        values={p.filters.sv}
+        options={p.svOpts}
+        onChange={(v) => p.setFilters({ ...p.filters, sv: v })}
+        searchable
+      />
+      <FilterChip
+        icon={<Network size={12} />}
+        label="Cód.Rv"
+        values={p.filters.rv}
+        options={p.rvOpts}
+        onChange={(v) => p.setFilters({ ...p.filters, rv: v })}
+        searchable
       />
       {hasAny ? (
         <button

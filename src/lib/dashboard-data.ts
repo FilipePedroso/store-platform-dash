@@ -36,6 +36,13 @@ export type AgRow = {
   positivacao: number;
 };
 
+export type EstruturaRow = {
+  rede: string;
+  rv: string;
+  sv: string;
+  gv: string;
+};
+
 export type DataMeta = { updatedAt: string; rowCount: number; agsCount: number };
 
 const SEED_META: DataMeta = {
@@ -48,18 +55,20 @@ const SEED_META: DataMeta = {
 export async function loadRowsFromCloud(): Promise<{
   rows: Row[];
   agRows: AgRow[];
+  estrutura: EstruturaRow[];
   meta: DataMeta;
 }> {
   try {
     const { data, error } = await supabase
       .from("dataset")
-      .select("rows, row_count, updated_at")
+      .select("rows, row_count, updated_at, estrutura")
       .eq("id", "main")
       .maybeSingle();
     if (error) throw error;
     const rows = (data?.rows as Row[] | null) ?? [];
+    const estrutura = ((data as { estrutura?: EstruturaRow[] } | null)?.estrutura as EstruturaRow[] | null) ?? [];
     if (rows.length === 0) {
-      return { rows: seed as Row[], agRows: [], meta: SEED_META };
+      return { rows: seed as Row[], agRows: [], estrutura: [], meta: SEED_META };
     }
 
     // Carrega todos os chunks da aba "dados ags"
@@ -84,6 +93,7 @@ export async function loadRowsFromCloud(): Promise<{
     return {
       rows,
       agRows,
+      estrutura,
       meta: {
         updatedAt: data!.updated_at,
         rowCount: data!.row_count ?? rows.length,
@@ -91,7 +101,7 @@ export async function loadRowsFromCloud(): Promise<{
       },
     };
   } catch {
-    return { rows: seed as Row[], agRows: [], meta: SEED_META };
+    return { rows: seed as Row[], agRows: [], estrutura: [], meta: SEED_META };
   }
 }
 
@@ -152,7 +162,7 @@ function excelDateToISO(v: unknown): string {
 
 export async function parseXlsxFile(
   file: File,
-): Promise<{ rows: Row[]; agRows: AgRow[] }> {
+): Promise<{ rows: Row[]; agRows: AgRow[]; estrutura: EstruturaRow[] }> {
   const buf = await file.arrayBuffer();
   const wb = XLSX.read(buf, { type: "array", cellDates: true });
   const sheetName = wb.SheetNames.find((n) => n.toLowerCase() === "dados") ?? wb.SheetNames[0];
@@ -225,7 +235,32 @@ export async function parseXlsxFile(
       .filter((r) => r.rede && r.mes);
   }
 
-  return { rows, agRows };
+  // Parse "estrutura" sheet if present
+  const estSheetName = wb.SheetNames.find((n) => n.toLowerCase() === "estrutura");
+  let estrutura: EstruturaRow[] = [];
+  if (estSheetName) {
+    const wsE = wb.Sheets[estSheetName];
+    const jsonE = XLSX.utils.sheet_to_json<Record<string, unknown>>(wsE, {
+      defval: null,
+      raw: true,
+    });
+    const norm = (v: unknown) => (v == null ? "" : String(v).trim());
+    estrutura = jsonE
+      .map((raw) => {
+        const out: EstruturaRow = { rede: "", rv: "", sv: "", gv: "" };
+        for (const [k, v] of Object.entries(raw)) {
+          const key = k.trim().toLowerCase();
+          if (key === "rede") out.rede = norm(v);
+          else if (key === "rv") out.rv = norm(v);
+          else if (key === "sv") out.sv = norm(v);
+          else if (key === "gv") out.gv = norm(v);
+        }
+        return out;
+      })
+      .filter((r) => r.rede);
+  }
+
+  return { rows, agRows, estrutura };
 }
 
 export function formatUpdatedAt(meta: DataMeta): string {

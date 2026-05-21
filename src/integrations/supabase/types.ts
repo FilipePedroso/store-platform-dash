@@ -16,18 +16,21 @@ export type Database = {
     Tables: {
       dataset: {
         Row: {
+          estrutura: Json
           id: string
           row_count: number
           rows: Json
           updated_at: string
         }
         Insert: {
+          estrutura?: Json
           id?: string
           row_count?: number
           rows?: Json
           updated_at?: string
         }
         Update: {
+          estrutura?: Json
           id?: string
           row_count?: number
           rows?: Json
