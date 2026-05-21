@@ -20,29 +20,60 @@ export type Row = {
   mes: string; // YYYY-MM-DD
 };
 
-export type DataMeta = { updatedAt: string; rowCount: number };
+export type AgRow = {
+  rede: string;
+  distribuidor: string;
+  cluster: string;
+  clusterMix: string;
+  canal: string;
+  canalMix: string;
+  cnpjs: number;
+  targetUnidades: number;
+  atributo: string;
+  valor: number;
+  mes: string;
+  loadingDpp: number;
+  positivacao: number;
+};
 
-const SEED_META: DataMeta = { updatedAt: "2025-01-01T00:00:00Z", rowCount: (seed as Row[]).length };
+export type DataMeta = { updatedAt: string; rowCount: number; agsCount: number };
+
+const SEED_META: DataMeta = {
+  updatedAt: "2025-01-01T00:00:00Z",
+  rowCount: (seed as Row[]).length,
+  agsCount: 0,
+};
 
 /** Carrega o dataset compartilhado da Cloud. Se ainda não houver upload, usa o seed embarcado. */
-export async function loadRowsFromCloud(): Promise<{ rows: Row[]; meta: DataMeta }> {
+export async function loadRowsFromCloud(): Promise<{
+  rows: Row[];
+  agRows: AgRow[];
+  meta: DataMeta;
+}> {
   try {
     const { data, error } = await supabase
       .from("dataset")
-      .select("rows, row_count, updated_at")
+      .select("rows, row_count, ags, ags_count, updated_at")
       .eq("id", "main")
       .maybeSingle();
     if (error) throw error;
     const rows = (data?.rows as Row[] | null) ?? [];
+    const agRows = ((data as unknown as { ags?: AgRow[] | null })?.ags as AgRow[] | null) ?? [];
     if (rows.length === 0) {
-      return { rows: seed as Row[], meta: SEED_META };
+      return { rows: seed as Row[], agRows: [], meta: SEED_META };
     }
     return {
       rows,
-      meta: { updatedAt: data!.updated_at, rowCount: data!.row_count ?? rows.length },
+      agRows,
+      meta: {
+        updatedAt: data!.updated_at,
+        rowCount: data!.row_count ?? rows.length,
+        agsCount:
+          (data as unknown as { ags_count?: number | null })?.ags_count ?? agRows.length,
+      },
     };
   } catch {
-    return { rows: seed as Row[], meta: SEED_META };
+    return { rows: seed as Row[], agRows: [], meta: SEED_META };
   }
 }
 
@@ -65,6 +96,25 @@ const COL_MAP: Record<string, keyof Row> = {
   "Mês": "mes",
 };
 
+const AG_COL_MAP: Record<string, keyof AgRow> = {
+  "Rede": "rede",
+  "Distribuidor": "distribuidor",
+  "Cluster": "cluster",
+  "Cluster Mix": "clusterMix",
+  "Canal": "canal",
+  "Canal Mix": "canalMix",
+  "Nº de CNPJ's": "cnpjs",
+  "Nº de CNPJs": "cnpjs",
+  "Target de Unidades por Activation Group": "targetUnidades",
+  "Atributo": "atributo",
+  "Valor": "valor",
+  "Mês": "mes",
+  "loading dpp": "loadingDpp",
+  "Loading DPP": "loadingDpp",
+  "positivação": "positivacao",
+  "Positivação": "positivacao",
+};
+
 function excelDateToISO(v: unknown): string {
   if (v instanceof Date) return v.toISOString().slice(0, 10);
   if (typeof v === "number") {
@@ -82,7 +132,9 @@ function excelDateToISO(v: unknown): string {
   return "";
 }
 
-export async function parseXlsxFile(file: File): Promise<Row[]> {
+export async function parseXlsxFile(
+  file: File,
+): Promise<{ rows: Row[]; agRows: AgRow[] }> {
   const buf = await file.arrayBuffer();
   const wb = XLSX.read(buf, { type: "array", cellDates: true });
   const sheetName = wb.SheetNames.find((n) => n.toLowerCase() === "dados") ?? wb.SheetNames[0];
@@ -117,7 +169,45 @@ export async function parseXlsxFile(file: File): Promise<Row[]> {
     .filter((r) => r.rede && r.mes);
 
   if (rows.length === 0) throw new Error("Nenhuma linha válida encontrada na aba 'Dados'");
-  return rows;
+
+  // Parse "dados ags" sheet if present (case-insensitive)
+  const agsSheetName = wb.SheetNames.find((n) => n.toLowerCase() === "dados ags");
+  let agRows: AgRow[] = [];
+  if (agsSheetName) {
+    const wsAg = wb.Sheets[agsSheetName];
+    const jsonAg = XLSX.utils.sheet_to_json<Record<string, unknown>>(wsAg, {
+      defval: null,
+      raw: true,
+    });
+    agRows = jsonAg
+      .map((raw) => {
+        const out: Partial<AgRow> = {};
+        for (const [key, value] of Object.entries(raw)) {
+          const mapped = AG_COL_MAP[key.trim()];
+          if (!mapped) continue;
+          if (mapped === "mes") {
+            out.mes = excelDateToISO(value);
+          } else if (
+            mapped === "rede" ||
+            mapped === "distribuidor" ||
+            mapped === "cluster" ||
+            mapped === "clusterMix" ||
+            mapped === "canal" ||
+            mapped === "canalMix" ||
+            mapped === "atributo"
+          ) {
+            out[mapped] = value == null ? "" : String(value);
+          } else {
+            const n = typeof value === "number" ? value : value == null ? 0 : Number(value);
+            out[mapped] = Number.isFinite(n) ? n : 0;
+          }
+        }
+        return out as AgRow;
+      })
+      .filter((r) => r.rede && r.mes);
+  }
+
+  return { rows, agRows };
 }
 
 export function formatUpdatedAt(meta: DataMeta): string {

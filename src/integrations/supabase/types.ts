@@ -16,18 +16,24 @@ export type Database = {
     Tables: {
       dataset: {
         Row: {
+          ags: Json
+          ags_count: number
           id: string
           row_count: number
           rows: Json
           updated_at: string
         }
         Insert: {
+          ags?: Json
+          ags_count?: number
           id?: string
           row_count?: number
           rows?: Json
           updated_at?: string
         }
         Update: {
+          ags?: Json
+          ags_count?: number
           id?: string
           row_count?: number
           rows?: Json
