@@ -78,13 +78,15 @@ const PALETTE = [GREEN, PURPLE, ORANGE, BLUE, RED, LIGHT_BLUE, "#5DCAA5", "#F1B2
 
 function Dashboard() {
   const [rows, setRows] = useState<Row[]>([]);
+  const [agRows, setAgRows] = useState<AgRow[]>([]);
   const [meta, setMeta] = useState<DataMeta | null>(null);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const updateDatasetFn = useServerFn(updateDataset);
 
   const refresh = async () => {
-    const { rows, meta } = await loadRowsFromCloud();
+    const { rows, agRows, meta } = await loadRowsFromCloud();
     setRows(rows);
+    setAgRows(agRows);
     setMeta(meta);
   };
 
