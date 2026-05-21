@@ -18,6 +18,8 @@ import {
   Upload,
   X,
   Lock,
+  Download,
+
 } from "lucide-react";
 import {
   loadRowsFromCloud,
