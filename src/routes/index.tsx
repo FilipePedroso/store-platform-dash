@@ -80,8 +80,9 @@ const LIGHT_BLUE = "#B5D4F4";
 const PALETTE = [GREEN, PURPLE, ORANGE, BLUE, RED, LIGHT_BLUE, "#5DCAA5", "#F1B257"];
 
 function Dashboard() {
-  const [rows, setRows] = useState<Row[]>([]);
-  const [agRows, setAgRows] = useState<AgRow[]>([]);
+  const [allRows, setAllRows] = useState<Row[]>([]);
+  const [allAgRows, setAllAgRows] = useState<AgRow[]>([]);
+  const [estrutura, setEstrutura] = useState<EstruturaRow[]>([]);
   const [meta, setMeta] = useState<DataMeta | null>(null);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const updateDatasetFn = useServerFn(updateDataset);
@@ -89,15 +90,40 @@ function Dashboard() {
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
 
   const refresh = async () => {
-    const { rows, agRows, meta } = await loadRowsFromCloud();
-    setRows(rows);
-    setAgRows(agRows);
+    const { rows, agRows, estrutura, meta } = await loadRowsFromCloud();
+    setAllRows(rows);
+    setAllAgRows(agRows);
+    setEstrutura(estrutura);
     setMeta(meta);
   };
 
   useEffect(() => {
     refresh();
   }, []);
+
+  // Conjunto de redes permitidas pelos filtros de código (Gv/Sv/Rv).
+  // Se nenhum dos três estiver selecionado, allowedRedes = null (sem restrição).
+  const allowedRedes = useMemo<Set<string> | null>(() => {
+    if (filters.gv.length === 0 && filters.sv.length === 0 && filters.rv.length === 0) return null;
+    const inList = (v: string, list: string[]) => list.length === 0 || list.includes(v);
+    const set = new Set<string>();
+    for (const e of estrutura) {
+      if (inList(e.gv, filters.gv) && inList(e.sv, filters.sv) && inList(e.rv, filters.rv)) {
+        set.add(e.rede);
+      }
+    }
+    return set;
+  }, [estrutura, filters.gv, filters.sv, filters.rv]);
+
+  const rows = useMemo(
+    () => (allowedRedes ? allRows.filter((r) => allowedRedes.has(r.rede)) : allRows),
+    [allRows, allowedRedes],
+  );
+  const agRows = useMemo(
+    () => (allowedRedes ? allAgRows.filter((r) => allowedRedes.has(r.rede)) : allAgRows),
+    [allAgRows, allowedRedes],
+  );
+
 
   const months = useMemo(() => uniqueMonths(rows), [rows]);
   const selectedMonths = useMemo(() => {
