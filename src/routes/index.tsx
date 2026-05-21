@@ -82,6 +82,8 @@ function Dashboard() {
   const [meta, setMeta] = useState<DataMeta | null>(null);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const updateDatasetFn = useServerFn(updateDataset);
+  const appendAgsChunkFn = useServerFn(appendAgsChunk);
+  const [uploadProgress, setUploadProgress] = useState<string | null>(null);
 
   const refresh = async () => {
     const { rows, agRows, meta } = await loadRowsFromCloud();
