@@ -344,6 +344,15 @@ function Dashboard() {
                   fg: "#8BBEEC",
                 }
           }
+          footerRight={
+            <span
+              className="inline-block text-[10px] px-2 py-0.5 rounded-full font-medium"
+              style={{ background: "#241F4D", color: "#A39DE5" }}
+            >
+              {kpis.cnpjsAtivos.toLocaleString("pt-BR")} CNPJs ativos
+            </span>
+          }
+
         />
         <KpiCard
           color={ORANGE}
@@ -375,11 +384,8 @@ function Dashboard() {
           progressLabel="% AGs"
           progressValue={fmtPct(kpis.pctAGs)}
           progressPct={kpis.pctAGs * 100}
-          badge={{
-            text: `${kpis.cnpjsAtivos.toLocaleString("pt-BR")} CNPJs ativos`,
-            bg: "#241F4D",
-            fg: "#A39DE5",
-          }}
+
+
         />
       </div>
 
@@ -750,6 +756,7 @@ function KpiCard({
   progressPct,
   progressTarget,
   badge,
+  footerRight,
   categoryTitle,
   categoryBreakdown,
 }: {
@@ -763,9 +770,11 @@ function KpiCard({
   progressValue: string;
   progressPct: number;
   progressTarget?: number;
-  badge: { text: string; bg: string; fg: string };
+  badge?: { text: string; bg: string; fg: string };
+  footerRight?: React.ReactNode;
   categoryTitle?: string;
   categoryBreakdown?: { label: string; ok: number; total: number; color: string }[];
+
 }) {
   return (
     <div
@@ -852,12 +861,19 @@ function KpiCard({
           </span>
         </div>
       )}
-      <span
-        className="inline-block text-[10px] px-2 py-0.5 rounded-full font-medium mt-2"
-        style={{ background: badge.bg, color: badge.fg }}
-      >
-        {badge.text}
-      </span>
+      <div className="flex items-center justify-between gap-2 mt-2">
+        {badge ? (
+          <span
+            className="inline-block text-[10px] px-2 py-0.5 rounded-full font-medium"
+            style={{ background: badge.bg, color: badge.fg }}
+          >
+            {badge.text}
+          </span>
+        ) : <span />}
+        {footerRight && <div className="text-[10px] text-neutral-400">{footerRight}</div>}
+      </div>
+
+
     </div>
   );
 }

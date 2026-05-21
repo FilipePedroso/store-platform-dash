@@ -1,11 +1,13 @@
-## Correção
+## Mudança
 
-A coluna foi adicionada por engano no card **"Investimento gerado"** (1º KpiCard). Mover para o card **"Redes com sortimento ≥ 90%"** (2º KpiCard) e trocar o título de **"POR CATEGORIA"** para **"Por Cluster"**.
+Mover o badge "CNPJs ativos" do card **"Faturamento mês atual"** para o canto inferior direito do card **"Redes com sortimento ≥ 90%"**.
 
-## Mudanças
+## Alterações em `src/routes/index.tsx`
 
-- `src/routes/index.tsx`:
-  - Remover `categoryTitle` e `categoryBreakdown` do 1º KpiCard (linhas ~297-298).
-  - Adicionar `categoryTitle="Por Cluster"` e `categoryBreakdown={sortimentoByCluster}` no KpiCard cujo `label="Redes com sortimento ≥ 90%"` (linha ~323).
+1. **Card "Faturamento mês atual"** (linhas ~378-382): remover a prop `badge` que renderiza `"{cnpjsAtivos} CNPJs ativos"`.
 
-Nada mais é alterado.
+2. **Card "Redes com sortimento ≥ 90%"** (linhas ~318-347): adicionar o texto `"{cnpjsAtivos} CNPJs ativos"` posicionado na extremidade inferior direita do card, alinhado com o badge "−81 redes vs mês ant." (lado esquerdo do rodapé), mantendo a cor roxa atual (`#A39DE5` sobre `#241F4D`).
+
+3. **Componente `KpiCard`**: adicionar uma nova prop opcional `footerRight?: ReactNode` renderizada no rodapé do card à direita (mesma linha do `badge`). Aplicar somente no card de sortimento.
+
+Nada mais é alterado (KPIs, lógica, demais cards e barra de progresso permanecem iguais).
