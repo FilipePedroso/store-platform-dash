@@ -200,19 +200,23 @@ function Dashboard() {
   }, [agRows, filters, selectedMonths]);
 
   // Tabela "Grupos não batidos": positivação == 0
-  const gruposNaoBatidos = useMemo(
-    () =>
-      agMonthRows
-        .filter((r) => Number(r.positivacao) === 0)
-        .map((r) => ({
-          rede: r.rede,
-          target: r.targetUnidades,
-          atributo: r.atributo,
-          valor: r.valor,
-        }))
-        .sort((a, b) => a.rede.localeCompare(b.rede) || a.atributo.localeCompare(b.atributo)),
-    [agMonthRows],
-  );
+  const gruposNaoBatidos = useMemo(() => {
+    const sortMap = new Map<string, number>();
+    for (const r of monthRows) {
+      const cur = sortMap.get(r.rede);
+      sortMap.set(r.rede, cur == null ? r.sortimento : Math.max(cur, r.sortimento));
+    }
+    return agMonthRows
+      .filter((r) => Number(r.positivacao) === 0)
+      .map((r) => ({
+        rede: r.rede,
+        sortimento: sortMap.get(r.rede) ?? 0,
+        target: r.targetUnidades,
+        atributo: r.atributo,
+        valor: r.valor,
+      }))
+      .sort((a, b) => a.rede.localeCompare(b.rede) || a.atributo.localeCompare(b.atributo));
+  }, [agMonthRows, monthRows]);
 
   // Históricos mês a mês (gráficos de linha) — usam baseRows (sem filtro de mês)
   const histGerado = useMemo(
@@ -1308,14 +1312,14 @@ function ChannelMixCard({ rows }: { rows: { canal: string; pct: number }[] }) {
 function GruposNaoBatidosCard({
   rows,
 }: {
-  rows: { rede: string; target: number; atributo: string; valor: number }[];
+  rows: { rede: string; sortimento: number; target: number; atributo: string; valor: number }[];
 }) {
   const fmtInt = (n: number) =>
     n.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
   const visibleRows = rows;
 
   const handleDownloadCsv = () => {
-    const headers = ["Rede", "Grupo", "Target", "Vendido(Un)", "Faltante"];
+    const headers = ["Rede", "Sortimento", "Grupo", "Target", "Vendido(Un)", "Faltante"];
     const escape = (v: string | number) => {
       const s = String(v ?? "");
       return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
@@ -1324,7 +1328,9 @@ function GruposNaoBatidosCard({
     for (const r of visibleRows) {
       const faltante = Math.max(0, r.target - r.valor);
       lines.push(
-        [r.rede, r.atributo, r.target, r.valor, faltante].map(escape).join(";"),
+        [r.rede, fmtPct(r.sortimento, 0), r.atributo, r.target, r.valor, faltante]
+          .map(escape)
+          .join(";"),
       );
     }
     const csv = "\uFEFF" + lines.join("\n");
@@ -1370,28 +1376,43 @@ function GruposNaoBatidosCard({
           className="max-h-[420px] overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full"
           style={{ scrollbarWidth: "thin", scrollbarColor: "#404040 transparent" }}
         >
-          <table className="w-full text-[11px]">
+          <table className="w-full text-[11px] table-fixed">
             <thead className="sticky top-0 bg-[#141416] z-10">
               <tr className="text-neutral-400 font-medium border-b border-neutral-800">
-                <th className="text-left pb-1.5 font-medium">Rede</th>
-                <th className="text-left pb-1.5 font-medium">Grupo</th>
-                <th className="text-right pb-1.5 w-20 font-medium">Target</th>
-                <th className="text-right pb-1.5 w-24 font-medium">Vendido(Un)</th>
-                <th className="text-right pb-1.5 w-20 font-medium">Faltante</th>
+                <th className="text-left pb-1.5 font-medium w-[26%]">Rede</th>
+                <th className="text-right pb-1.5 font-medium w-[14%]">Sortimento</th>
+                <th className="text-left pb-1.5 font-medium pl-2">Grupo</th>
+                <th className="text-right pb-1.5 w-16 font-medium">Target</th>
+                <th className="text-right pb-1.5 w-20 font-medium">Vendido(Un)</th>
+                <th className="text-right pb-1.5 w-16 font-medium">Faltante</th>
               </tr>
             </thead>
             <tbody>
               {visibleRows.map((r, i) => {
                 const faltante = Math.max(0, r.target - r.valor);
+                const sortColor =
+                  r.sortimento >= 0.9 ? GREEN : r.sortimento >= 0.85 ? ORANGE : RED;
                 return (
                   <tr
                     key={`${r.rede}-${r.atributo}-${i}`}
                     className="border-b border-neutral-800 last:border-0"
                   >
-                    <td className="py-1 text-neutral-200 truncate pr-2" title={r.rede}>
+                    <td
+                      className="py-1 text-neutral-200 truncate pr-2 overflow-hidden whitespace-nowrap"
+                      title={r.rede}
+                    >
                       {r.rede}
                     </td>
-                    <td className="py-1 text-neutral-200 truncate pr-2" title={r.atributo}>
+                    <td
+                      className="py-1 text-right tabular-nums font-medium"
+                      style={{ color: sortColor }}
+                    >
+                      {fmtPct(r.sortimento, 0)}
+                    </td>
+                    <td
+                      className="py-1 text-neutral-200 truncate pr-2 pl-2 overflow-hidden whitespace-nowrap"
+                      title={r.atributo}
+                    >
                       {r.atributo}
                     </td>
                     <td className="py-1 text-right tabular-nums text-neutral-300">
