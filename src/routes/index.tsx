@@ -1215,6 +1215,8 @@ function GruposNaoBatidosCard({
 }) {
   const fmtInt = (n: number) =>
     n.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
+  const hasRede = redeValues.length > 0;
+  const visibleRows = hasRede ? rows : [];
   return (
     <div className="lg:col-span-2 bg-[#1a1a1c] rounded-xl border border-neutral-800/80 p-3.5">
       <div className="flex items-start justify-between gap-3 mb-3">
@@ -1224,7 +1226,9 @@ function GruposNaoBatidosCard({
             Grupos não batidos
           </div>
           <div className="text-[11px] text-neutral-400">
-            Grupos com positivação = 0 ({rows.length.toLocaleString("pt-BR")} linhas)
+            {hasRede
+              ? `${visibleRows.length.toLocaleString("pt-BR")} grupos faltantes`
+              : "Sem dados selecionados"}
           </div>
         </div>
         <FilterChip
@@ -1236,7 +1240,11 @@ function GruposNaoBatidosCard({
           searchable
         />
       </div>
-      {rows.length === 0 ? (
+      {!hasRede ? (
+        <div className="h-[360px] flex items-center justify-center text-[11px] text-neutral-500">
+          Selecione uma rede no filtro para visualizar os grupos faltantes.
+        </div>
+      ) : visibleRows.length === 0 ? (
         <Empty />
       ) : (
         <div
@@ -1246,32 +1254,35 @@ function GruposNaoBatidosCard({
           <table className="w-full text-[11px]">
             <thead className="sticky top-0 bg-[#141416] z-10">
               <tr className="text-neutral-400 font-medium border-b border-neutral-800">
-                <th className="text-left pb-1.5 font-medium">Rede</th>
-                <th className="text-right pb-1.5 w-16 font-medium">Target</th>
                 <th className="text-left pb-1.5 font-medium">Grupo</th>
+                <th className="text-right pb-1.5 w-16 font-medium">Target</th>
                 <th className="text-right pb-1.5 w-20 font-medium">Vendido(Un)</th>
+                <th className="text-right pb-1.5 w-20 font-medium">Faltante</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((r, i) => (
-                <tr
-                  key={`${r.rede}-${r.atributo}-${i}`}
-                  className="border-b border-neutral-800 last:border-0"
-                >
-                  <td className="py-1 text-neutral-200 truncate" title={r.rede}>
-                    {r.rede}
-                  </td>
-                  <td className="py-1 text-right tabular-nums text-neutral-300">
-                    {fmtInt(r.target)}
-                  </td>
-                  <td className="py-1 text-neutral-200 truncate" title={r.atributo}>
-                    {r.atributo}
-                  </td>
-                  <td className="py-1 text-right tabular-nums font-medium text-neutral-200">
-                    {fmtInt(r.valor)}
-                  </td>
-                </tr>
-              ))}
+              {visibleRows.map((r, i) => {
+                const faltante = Math.max(0, r.target - r.valor);
+                return (
+                  <tr
+                    key={`${r.rede}-${r.atributo}-${i}`}
+                    className="border-b border-neutral-800 last:border-0"
+                  >
+                    <td className="py-1 text-neutral-200 truncate" title={r.atributo}>
+                      {r.atributo}
+                    </td>
+                    <td className="py-1 text-right tabular-nums text-neutral-300">
+                      {fmtInt(r.target)}
+                    </td>
+                    <td className="py-1 text-right tabular-nums font-medium text-neutral-200">
+                      {fmtInt(r.valor)}
+                    </td>
+                    <td className="py-1 text-right tabular-nums font-medium text-[#F87171]">
+                      {fmtInt(faltante)}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
