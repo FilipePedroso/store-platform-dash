@@ -609,6 +609,9 @@ type FilterBarProps = {
   redeOpts: string[];
   distribOpts: string[];
   monthOpts: string[];
+  gvOpts: string[];
+  svOpts: string[];
+  rvOpts: string[];
 };
 
 function FilterBar(p: FilterBarProps) {
@@ -617,7 +620,10 @@ function FilterBar(p: FilterBarProps) {
     p.filters.canal.length ||
     p.filters.rede.length ||
     p.filters.distribuidor.length ||
-    p.filters.mes.length;
+    p.filters.mes.length ||
+    p.filters.gv.length ||
+    p.filters.sv.length ||
+    p.filters.rv.length;
   return (
     <div className="flex flex-wrap items-center gap-1.5 mb-3">
       <span className="text-[11px] font-medium text-neutral-400 mr-1">Filtros:</span>
@@ -661,6 +667,30 @@ function FilterBar(p: FilterBarProps) {
         onChange={(v) => p.setFilters({ ...p.filters, mes: v })}
         allLabel="Mês mais recente"
         accumulatedLabel="Acumulado (todos os meses)"
+      />
+      <FilterChip
+        icon={<Network size={12} />}
+        label="Cód.Gv/Cv"
+        values={p.filters.gv}
+        options={p.gvOpts}
+        onChange={(v) => p.setFilters({ ...p.filters, gv: v })}
+        searchable
+      />
+      <FilterChip
+        icon={<Network size={12} />}
+        label="Cód.Sv"
+        values={p.filters.sv}
+        options={p.svOpts}
+        onChange={(v) => p.setFilters({ ...p.filters, sv: v })}
+        searchable
+      />
+      <FilterChip
+        icon={<Network size={12} />}
+        label="Cód.Rv"
+        values={p.filters.rv}
+        options={p.rvOpts}
+        onChange={(v) => p.setFilters({ ...p.filters, rv: v })}
+        searchable
       />
       {hasAny ? (
         <button
