@@ -1381,7 +1381,7 @@ function GruposNaoBatidosCard({
               <tr className="text-neutral-400 font-medium border-b border-neutral-800">
                 <th className="text-left pb-1.5 font-medium w-[26%]">Rede</th>
                 <th className="text-left pb-1.5 font-medium pl-2">Grupo</th>
-                <th className="text-right pb-1.5 font-medium w-12">%</th>
+                <th className="text-center pb-1.5 font-medium w-12">%</th>
                 <th className="text-right pb-1.5 w-16 font-medium">Target</th>
                 <th className="text-right pb-1.5 w-20 font-medium">Vendido(Un)</th>
                 <th className="text-right pb-1.5 w-16 font-medium">Faltante</th>
