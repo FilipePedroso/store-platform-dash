@@ -252,6 +252,26 @@ function Dashboard() {
   const distribOpts = useMemo(() => optionsFor(rows, filters, "distribuidor"), [rows, filters]);
   const monthOpts = useMemo(() => optionsFor(rows, filters, "mes"), [rows, filters]);
 
+  // Opções para os filtros de código (Gv/Sv/Rv), cada um adaptado aos outros dois
+  // e ao filtro de rede atualmente selecionado.
+  const codeOpts = useMemo(() => {
+    const inList = (v: string, list: string[]) => list.length === 0 || list.includes(v);
+    const redeSel = filters.rede;
+    const pick = (key: "gv" | "sv" | "rv") => {
+      const set = new Set<string>();
+      for (const e of estrutura) {
+        if (!inList(e.rede, redeSel)) continue;
+        if (key !== "gv" && !inList(e.gv, filters.gv)) continue;
+        if (key !== "sv" && !inList(e.sv, filters.sv)) continue;
+        if (key !== "rv" && !inList(e.rv, filters.rv)) continue;
+        if (e[key]) set.add(e[key]);
+      }
+      for (const v of filters[key]) set.add(v);
+      return [...set].sort();
+    };
+    return { gv: pick("gv"), sv: pick("sv"), rv: pick("rv") };
+  }, [estrutura, filters.rede, filters.gv, filters.sv, filters.rv]);
+
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
