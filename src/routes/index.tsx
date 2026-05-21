@@ -1376,15 +1376,15 @@ function GruposNaoBatidosCard({
           className="max-h-[420px] overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full"
           style={{ scrollbarWidth: "thin", scrollbarColor: "#404040 transparent" }}
         >
-          <table className="w-full text-[11px] table-fixed">
+          <table className="w-full text-[9px] sm:text-[11px] table-fixed">
             <thead className="sticky top-0 bg-[#141416] z-10">
               <tr className="text-neutral-400 font-medium border-b border-neutral-800">
-                <th className="text-left pb-1.5 font-medium w-[26%]">Rede</th>
-                <th className="text-left pb-1.5 font-medium pl-2">Grupo</th>
-                <th className="text-center pb-1.5 font-medium w-12">%</th>
-                <th className="text-right pb-1.5 w-16 font-medium">Target</th>
-                <th className="text-right pb-1.5 w-20 font-medium">Vendido(Un)</th>
-                <th className="text-right pb-1.5 w-16 font-medium">Faltante</th>
+                <th className="text-left pb-1 sm:pb-1.5 font-medium w-[28%] sm:w-[26%]">Rede</th>
+                <th className="text-left pb-1 sm:pb-1.5 font-medium pl-1 sm:pl-2">Grupo</th>
+                <th className="text-center pb-1 sm:pb-1.5 font-medium w-9 sm:w-12">%</th>
+                <th className="text-right pb-1 sm:pb-1.5 w-12 sm:w-16 font-medium">Target</th>
+                <th className="text-right pb-1 sm:pb-1.5 w-14 sm:w-20 font-medium">Vendido(Un)</th>
+                <th className="text-right pb-1 sm:pb-1.5 w-12 sm:w-16 font-medium">Faltante</th>
               </tr>
             </thead>
             <tbody>
@@ -1398,36 +1398,37 @@ function GruposNaoBatidosCard({
                     className="border-b border-neutral-800 last:border-0"
                   >
                     <td
-                      className="py-1 text-neutral-200 truncate pr-2 overflow-hidden whitespace-nowrap"
+                      className="py-0.5 sm:py-1 text-neutral-200 truncate pr-1 sm:pr-2 overflow-hidden whitespace-nowrap"
                       title={r.rede}
                     >
                       {r.rede}
                     </td>
                     <td
-                      className="py-1 text-neutral-200 truncate pr-2 pl-2 overflow-hidden whitespace-nowrap"
+                      className="py-0.5 sm:py-1 text-neutral-200 truncate pr-1 sm:pr-2 pl-1 sm:pl-2 overflow-hidden whitespace-nowrap"
                       title={r.atributo}
                     >
                       {r.atributo}
                     </td>
                     <td
-                      className="py-1 text-center tabular-nums font-medium"
+                      className="py-0.5 sm:py-1 text-center tabular-nums font-medium"
                       style={{ color: sortColor }}
                     >
                       {fmtPct(r.sortimento, 0)}
                     </td>
-                    <td className="py-1 text-right tabular-nums text-neutral-300">
+                    <td className="py-0.5 sm:py-1 text-right tabular-nums text-neutral-300">
                       {fmtInt(r.target)}
                     </td>
-                    <td className="py-1 text-right tabular-nums font-medium text-neutral-200">
+                    <td className="py-0.5 sm:py-1 text-right tabular-nums font-medium text-neutral-200">
                       {fmtInt(r.valor)}
                     </td>
-                    <td className="py-1 text-right tabular-nums font-medium text-[#F87171]">
+                    <td className="py-0.5 sm:py-1 text-right tabular-nums font-medium text-[#F87171]">
                       {fmtInt(faltante)}
                     </td>
                   </tr>
                 );
               })}
             </tbody>
+
           </table>
         </div>
       )}
