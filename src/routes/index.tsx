@@ -257,10 +257,12 @@ function Dashboard() {
   const codeOpts = useMemo(() => {
     const inList = (v: string, list: string[]) => list.length === 0 || list.includes(v);
     const redeSel = filters.rede;
+    const distSel = filters.distribuidor;
     const pick = (key: "gv" | "sv" | "rv") => {
       const set = new Set<string>();
       for (const e of estrutura) {
         if (!inList(e.rede, redeSel)) continue;
+        if (!inList(e.distribuidor, distSel)) continue;
         if (key !== "gv" && !inList(e.gv, filters.gv)) continue;
         if (key !== "sv" && !inList(e.sv, filters.sv)) continue;
         if (key !== "rv" && !inList(e.rv, filters.rv)) continue;
@@ -270,7 +272,7 @@ function Dashboard() {
       return [...set].sort();
     };
     return { gv: pick("gv"), sv: pick("sv"), rv: pick("rv") };
-  }, [estrutura, filters.rede, filters.gv, filters.sv, filters.rv]);
+  }, [estrutura, filters.rede, filters.distribuidor, filters.gv, filters.sv, filters.rv]);
 
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
