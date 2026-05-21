@@ -527,7 +527,7 @@ function Dashboard() {
       </div>
 
       {/* Grupos não batidos (dataset 'dados ags') */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-2.5">
+      <div className="grid grid-cols-1 gap-2.5">
         <GruposNaoBatidosCard
           rows={gruposNaoBatidos}
           redeValues={filters.rede}
