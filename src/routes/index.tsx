@@ -769,11 +769,10 @@ function KpiCard({
 }) {
   return (
     <div
-      className="bg-[#1a1a1c] rounded-b-xl border border-neutral-800/80 p-3.5 h-full flex flex-col"
+      className="bg-[#1a1a1c] rounded-b-xl border border-neutral-800/80 p-3.5"
       style={{ borderTop: `3px solid ${color}` }}
     >
-      <div className="flex items-start gap-3 flex-1">
-
+      <div className="flex items-start gap-3">
         <div className="flex-1 min-w-0">
           <div className="text-[11px] text-neutral-400 mb-1.5 flex items-center gap-1.5">
             {icon}
