@@ -1226,10 +1226,9 @@ function GruposNaoBatidosCard({
 }) {
   const fmtInt = (n: number) =>
     n.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
-  const hasRede = redeValues.length > 0;
-  const visibleRows = hasRede ? rows : [];
+  const visibleRows = rows;
   return (
-    <div className="lg:col-span-2 bg-[#1a1a1c] rounded-xl border border-neutral-800/80 p-3.5">
+    <div className="bg-[#1a1a1c] rounded-xl border border-neutral-800/80 p-3.5">
       <div className="flex items-start justify-between gap-3 mb-3">
         <div>
           <div className="text-[12px] font-medium text-neutral-100 mb-0.5 flex items-center gap-1.5">
@@ -1237,9 +1236,7 @@ function GruposNaoBatidosCard({
             Grupos não batidos
           </div>
           <div className="text-[11px] text-neutral-400">
-            {hasRede
-              ? `${visibleRows.length.toLocaleString("pt-BR")} grupos faltantes`
-              : "Sem dados selecionados"}
+            {`${visibleRows.length.toLocaleString("pt-BR")} grupos faltantes`}
           </div>
         </div>
         <FilterChip
@@ -1251,23 +1248,20 @@ function GruposNaoBatidosCard({
           searchable
         />
       </div>
-      {!hasRede ? (
-        <div className="h-[360px] flex items-center justify-center text-[11px] text-neutral-500">
-          Selecione uma rede no filtro para visualizar os grupos faltantes.
-        </div>
-      ) : visibleRows.length === 0 ? (
+      {visibleRows.length === 0 ? (
         <Empty />
       ) : (
         <div
-          className="max-h-[320px] overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full"
+          className="max-h-[420px] overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full"
           style={{ scrollbarWidth: "thin", scrollbarColor: "#404040 transparent" }}
         >
           <table className="w-full text-[11px]">
             <thead className="sticky top-0 bg-[#141416] z-10">
               <tr className="text-neutral-400 font-medium border-b border-neutral-800">
+                <th className="text-left pb-1.5 font-medium">Rede</th>
                 <th className="text-left pb-1.5 font-medium">Grupo</th>
-                <th className="text-right pb-1.5 w-16 font-medium">Target</th>
-                <th className="text-right pb-1.5 w-20 font-medium">Vendido(Un)</th>
+                <th className="text-right pb-1.5 w-20 font-medium">Target</th>
+                <th className="text-right pb-1.5 w-24 font-medium">Vendido(Un)</th>
                 <th className="text-right pb-1.5 w-20 font-medium">Faltante</th>
               </tr>
             </thead>
@@ -1279,7 +1273,10 @@ function GruposNaoBatidosCard({
                     key={`${r.rede}-${r.atributo}-${i}`}
                     className="border-b border-neutral-800 last:border-0"
                   >
-                    <td className="py-1 text-neutral-200 truncate" title={r.atributo}>
+                    <td className="py-1 text-neutral-200 truncate pr-2" title={r.rede}>
+                      {r.rede}
+                    </td>
+                    <td className="py-1 text-neutral-200 truncate pr-2" title={r.atributo}>
                       {r.atributo}
                     </td>
                     <td className="py-1 text-right tabular-nums text-neutral-300">
