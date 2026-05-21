@@ -235,7 +235,32 @@ export async function parseXlsxFile(
       .filter((r) => r.rede && r.mes);
   }
 
-  return { rows, agRows };
+  // Parse "estrutura" sheet if present
+  const estSheetName = wb.SheetNames.find((n) => n.toLowerCase() === "estrutura");
+  let estrutura: EstruturaRow[] = [];
+  if (estSheetName) {
+    const wsE = wb.Sheets[estSheetName];
+    const jsonE = XLSX.utils.sheet_to_json<Record<string, unknown>>(wsE, {
+      defval: null,
+      raw: true,
+    });
+    const norm = (v: unknown) => (v == null ? "" : String(v).trim());
+    estrutura = jsonE
+      .map((raw) => {
+        const out: EstruturaRow = { rede: "", rv: "", sv: "", gv: "" };
+        for (const [k, v] of Object.entries(raw)) {
+          const key = k.trim().toLowerCase();
+          if (key === "rede") out.rede = norm(v);
+          else if (key === "rv") out.rv = norm(v);
+          else if (key === "sv") out.sv = norm(v);
+          else if (key === "gv") out.gv = norm(v);
+        }
+        return out;
+      })
+      .filter((r) => r.rede);
+  }
+
+  return { rows, agRows, estrutura };
 }
 
 export function formatUpdatedAt(meta: DataMeta): string {
