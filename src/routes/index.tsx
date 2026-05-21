@@ -290,7 +290,7 @@ function Dashboard() {
       const parsed = await parseXlsxFile(file);
       setUploadProgress("Enviando dados principais...");
       await updateDatasetFn({
-        data: { ...creds, rows: parsed.rows },
+        data: { ...creds, rows: parsed.rows, estrutura: parsed.estrutura },
       });
       // Envia a aba "dados ags" em chunks com paralelismo controlado
       const CHUNK = 5000;
