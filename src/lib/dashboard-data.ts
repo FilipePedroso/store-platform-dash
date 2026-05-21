@@ -41,6 +41,7 @@ export type EstruturaRow = {
   rv: string;
   sv: string;
   gv: string;
+  distribuidor: string;
 };
 
 export type DataMeta = { updatedAt: string; rowCount: number; agsCount: number };
