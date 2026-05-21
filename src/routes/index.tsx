@@ -18,6 +18,8 @@ import {
   Upload,
   X,
   Lock,
+  Download,
+
 } from "lucide-react";
 import {
   loadRowsFromCloud,
@@ -528,12 +530,8 @@ function Dashboard() {
 
       {/* Grupos não batidos (dataset 'dados ags') */}
       <div className="grid grid-cols-1 gap-2.5">
-        <GruposNaoBatidosCard
-          rows={gruposNaoBatidos}
-          redeValues={filters.rede}
-          redeOptions={redeOpts}
-          onRedeChange={(v) => setFilters({ ...filters, rede: v })}
-        />
+        <GruposNaoBatidosCard rows={gruposNaoBatidos} />
+
       </div>
     </div>
   );
@@ -1215,18 +1213,38 @@ function ChannelMixCard({ rows }: { rows: { canal: string; pct: number }[] }) {
 
 function GruposNaoBatidosCard({
   rows,
-  redeValues,
-  redeOptions,
-  onRedeChange,
 }: {
   rows: { rede: string; target: number; atributo: string; valor: number }[];
-  redeValues: string[];
-  redeOptions: string[];
-  onRedeChange: (v: string[]) => void;
 }) {
   const fmtInt = (n: number) =>
     n.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
   const visibleRows = rows;
+
+  const handleDownloadCsv = () => {
+    const headers = ["Rede", "Grupo", "Target", "Vendido(Un)", "Faltante"];
+    const escape = (v: string | number) => {
+      const s = String(v ?? "");
+      return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const lines = [headers.join(";")];
+    for (const r of visibleRows) {
+      const faltante = Math.max(0, r.target - r.valor);
+      lines.push(
+        [r.rede, r.atributo, r.target, r.valor, faltante].map(escape).join(";"),
+      );
+    }
+    const csv = "\uFEFF" + lines.join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `grupos-nao-batidos-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="bg-[#1a1a1c] rounded-xl border border-neutral-800/80 p-3.5">
       <div className="flex items-start justify-between gap-3 mb-3">
@@ -1239,15 +1257,18 @@ function GruposNaoBatidosCard({
             {`${visibleRows.length.toLocaleString("pt-BR")} grupos faltantes`}
           </div>
         </div>
-        <FilterChip
-          icon={<Network size={12} />}
-          label="Rede"
-          values={redeValues}
-          options={redeOptions}
-          onChange={onRedeChange}
-          searchable
-        />
+        <button
+          type="button"
+          onClick={handleDownloadCsv}
+          disabled={visibleRows.length === 0}
+          className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-neutral-700/80 bg-neutral-800/60 text-[11px] text-neutral-200 hover:bg-neutral-700/60 hover:text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          title="Baixar CSV"
+        >
+          <Download size={12} />
+          Baixar CSV
+        </button>
       </div>
+
       {visibleRows.length === 0 ? (
         <Empty />
       ) : (
