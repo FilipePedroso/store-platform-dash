@@ -344,6 +344,15 @@ function Dashboard() {
                   fg: "#8BBEEC",
                 }
           }
+          footerRight={
+            <span
+              className="inline-block text-[10px] px-2 py-0.5 rounded-full font-medium"
+              style={{ background: "#241F4D", color: "#A39DE5" }}
+            >
+              {kpis.cnpjsAtivos.toLocaleString("pt-BR")} CNPJs ativos
+            </span>
+          }
+
         />
         <KpiCard
           color={ORANGE}
