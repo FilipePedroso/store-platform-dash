@@ -248,13 +248,14 @@ export async function parseXlsxFile(
     const norm = (v: unknown) => (v == null ? "" : String(v).trim());
     estrutura = jsonE
       .map((raw) => {
-        const out: EstruturaRow = { rede: "", rv: "", sv: "", gv: "" };
+        const out: EstruturaRow = { rede: "", rv: "", sv: "", gv: "", distribuidor: "" };
         for (const [k, v] of Object.entries(raw)) {
           const key = k.trim().toLowerCase();
           if (key === "rede") out.rede = norm(v);
           else if (key === "rv") out.rv = norm(v);
           else if (key === "sv") out.sv = norm(v);
           else if (key === "gv") out.gv = norm(v);
+          else if (key === "distribuidor") out.distribuidor = norm(v);
         }
         return out;
       })
