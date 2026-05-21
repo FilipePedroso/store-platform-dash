@@ -391,6 +391,9 @@ function Dashboard() {
         redeOpts={redeOpts}
         distribOpts={distribOpts}
         monthOpts={monthOpts}
+        gvOpts={codeOpts.gv}
+        svOpts={codeOpts.sv}
+        rvOpts={codeOpts.rv}
       />
 
       {/* Indicadores */}
