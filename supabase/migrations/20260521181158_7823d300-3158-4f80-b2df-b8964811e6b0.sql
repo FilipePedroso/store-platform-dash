@@ -1,0 +1,1 @@
+ALTER TABLE public.dataset ADD COLUMN IF NOT EXISTS estrutura jsonb NOT NULL DEFAULT '[]'::jsonb;
