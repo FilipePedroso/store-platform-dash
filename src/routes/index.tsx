@@ -750,6 +750,7 @@ function KpiCard({
   progressPct,
   progressTarget,
   badge,
+  footerRight,
   categoryTitle,
   categoryBreakdown,
 }: {
@@ -764,8 +765,10 @@ function KpiCard({
   progressPct: number;
   progressTarget?: number;
   badge: { text: string; bg: string; fg: string };
+  footerRight?: React.ReactNode;
   categoryTitle?: string;
   categoryBreakdown?: { label: string; ok: number; total: number; color: string }[];
+
 }) {
   return (
     <div
