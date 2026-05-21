@@ -1,13 +1,14 @@
 ## Mudança
 
-Mover o badge "CNPJs ativos" do card **"Faturamento mês atual"** para o canto inferior direito do card **"Redes com sortimento ≥ 90%"**.
+Adicionar no card **"Investimento gerado"**, na extremidade direita, um bloco com o título "Faturamento" e o valor do faturamento do mês atual (`kpis.faturamento`), no mesmo estilo visual do valor principal e alinhado verticalmente com ele. A cor segue a paleta do card (verde — `valueColor` `#3DD9A4`).
 
 ## Alterações em `src/routes/index.tsx`
 
-1. **Card "Faturamento mês atual"** (linhas ~378-382): remover a prop `badge` que renderiza `"{cnpjsAtivos} CNPJs ativos"`.
+1. **Componente `KpiCard`** (linhas ~747-794): adicionar prop opcional `rightStat?: { label: string; value: React.ReactNode }`. Renderizar à direita do bloco principal (dentro do mesmo `flex items-start`), antes do `categoryBreakdown`, com:
+   - Label `text-[11px] text-neutral-400`
+   - Valor `text-[22px] font-medium leading-none` usando a mesma `valueColor` do card
+   - Alinhamento vertical idêntico ao valor principal (sem ícone em cima, mas com a mesma altura de label).
 
-2. **Card "Redes com sortimento ≥ 90%"** (linhas ~318-347): adicionar o texto `"{cnpjsAtivos} CNPJs ativos"` posicionado na extremidade inferior direita do card, alinhado com o badge "−81 redes vs mês ant." (lado esquerdo do rodapé), mantendo a cor roxa atual (`#A39DE5` sobre `#241F4D`).
+2. **Card "Investimento gerado"** (linhas ~296-317): passar `rightStat={{ label: "Faturamento", value: fmtBRL(kpis.faturamento) }}`.
 
-3. **Componente `KpiCard`**: adicionar uma nova prop opcional `footerRight?: ReactNode` renderizada no rodapé do card à direita (mesma linha do `badge`). Aplicar somente no card de sortimento.
-
-Nada mais é alterado (KPIs, lógica, demais cards e barra de progresso permanecem iguais).
+Nenhum outro card é afetado. Nenhuma lógica ou KPI é alterado.
