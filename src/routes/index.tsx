@@ -862,14 +862,17 @@ function KpiCard({
         </div>
       )}
       <div className="flex items-center justify-between gap-2 mt-2">
-        <span
-          className="inline-block text-[10px] px-2 py-0.5 rounded-full font-medium"
-          style={{ background: badge.bg, color: badge.fg }}
-        >
-          {badge.text}
-        </span>
+        {badge ? (
+          <span
+            className="inline-block text-[10px] px-2 py-0.5 rounded-full font-medium"
+            style={{ background: badge.bg, color: badge.fg }}
+          >
+            {badge.text}
+          </span>
+        ) : <span />}
         {footerRight && <div className="text-[10px] text-neutral-400">{footerRight}</div>}
       </div>
+
 
     </div>
   );
