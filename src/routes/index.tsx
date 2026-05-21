@@ -770,7 +770,7 @@ function KpiCard({
   progressValue: string;
   progressPct: number;
   progressTarget?: number;
-  badge: { text: string; bg: string; fg: string };
+  badge?: { text: string; bg: string; fg: string };
   footerRight?: React.ReactNode;
   categoryTitle?: string;
   categoryBreakdown?: { label: string; ok: number; total: number; color: string }[];
