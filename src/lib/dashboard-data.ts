@@ -44,6 +44,15 @@ export type EstruturaRow = {
   distribuidor: string;
 };
 
+export type IniciativaRow = {
+  distribuidor: string;
+  cluster: string;
+  canal: string;
+  rede: string;
+  /** chave = nome da iniciativa, valor = 0 ou 1 */
+  iniciativas: Record<string, number>;
+};
+
 export type DataMeta = { updatedAt: string; rowCount: number; agsCount: number };
 
 const SEED_META: DataMeta = {
