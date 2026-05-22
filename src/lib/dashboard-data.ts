@@ -66,19 +66,21 @@ export async function loadRowsFromCloud(): Promise<{
   rows: Row[];
   agRows: AgRow[];
   estrutura: EstruturaRow[];
+  iniciativas: IniciativaRow[];
   meta: DataMeta;
 }> {
   try {
     const { data, error } = await supabase
       .from("dataset")
-      .select("rows, row_count, updated_at, estrutura")
+      .select("rows, row_count, updated_at, estrutura, iniciativas")
       .eq("id", "main")
       .maybeSingle();
     if (error) throw error;
     const rows = (data?.rows as Row[] | null) ?? [];
     const estrutura = ((data as { estrutura?: EstruturaRow[] } | null)?.estrutura as EstruturaRow[] | null) ?? [];
+    const iniciativas = ((data as { iniciativas?: IniciativaRow[] } | null)?.iniciativas as IniciativaRow[] | null) ?? [];
     if (rows.length === 0) {
-      return { rows: seed as Row[], agRows: [], estrutura: [], meta: SEED_META };
+      return { rows: seed as Row[], agRows: [], estrutura: [], iniciativas: [], meta: SEED_META };
     }
 
     // Carrega todos os chunks da aba "dados ags"
@@ -104,6 +106,7 @@ export async function loadRowsFromCloud(): Promise<{
       rows,
       agRows,
       estrutura,
+      iniciativas,
       meta: {
         updatedAt: data!.updated_at,
         rowCount: data!.row_count ?? rows.length,
@@ -111,7 +114,7 @@ export async function loadRowsFromCloud(): Promise<{
       },
     };
   } catch {
-    return { rows: seed as Row[], agRows: [], estrutura: [], meta: SEED_META };
+    return { rows: seed as Row[], agRows: [], estrutura: [], iniciativas: [], meta: SEED_META };
   }
 }
 
