@@ -193,6 +193,67 @@ function Dashboard() {
   const ranking = useMemo(() => computeRanking(monthRows, 9999), [monthRows]);
   const canalMix = useMemo(() => computeAgsByCanalMix(monthRows), [monthRows]);
 
+  // Filtra a aba "iniciativas" pelos mesmos filtros (sem mês — não há campo mês)
+  const filteredIniciativas = useMemo(() => {
+    const inList = (v: string, list: string[]) => list.length === 0 || list.includes(v);
+    const redeOk = allowedRedes;
+    return allIniciativas.filter(
+      (r) =>
+        inList(r.cluster, dFilters.cluster) &&
+        inList(r.canal, dFilters.canal) &&
+        inList(r.rede, dFilters.rede) &&
+        inList(r.distribuidor, dFilters.distribuidor) &&
+        (redeOk == null || redeOk.has(r.rede)),
+    );
+  }, [allIniciativas, dFilters, allowedRedes]);
+
+  // Métricas por iniciativa: total batido/total + breakdown por cluster
+  const iniciativasStats = useMemo(() => {
+    if (filteredIniciativas.length === 0) return [] as {
+      name: string;
+      ok: number;
+      total: number;
+      byCluster: { label: string; ok: number; total: number; color: string }[];
+    }[];
+    const clusterOrder = ["Diamante", "Ouro", "Prata"] as const;
+    const clusterColors: Record<string, string> = {
+      Diamante: PURPLE,
+      Ouro: "#F1C40F",
+      Prata: "#9CA3AF",
+    };
+    // Descobre nomes preservando a ordem da primeira linha
+    const names: string[] = [];
+    const seen = new Set<string>();
+    for (const r of filteredIniciativas) {
+      for (const n of Object.keys(r.iniciativas)) {
+        if (!seen.has(n)) {
+          seen.add(n);
+          names.push(n);
+        }
+      }
+    }
+    return names.map((name) => {
+      let ok = 0;
+      const total = filteredIniciativas.length;
+      const byCluster = clusterOrder.map((label) => ({
+        label,
+        ok: 0,
+        total: 0,
+        color: clusterColors[label],
+      }));
+      for (const r of filteredIniciativas) {
+        const val = Number(r.iniciativas[name] ?? 0) > 0 ? 1 : 0;
+        if (val) ok++;
+        const c = byCluster.find((b) => b.label === r.cluster);
+        if (c) {
+          c.total++;
+          if (val) c.ok++;
+        }
+      }
+      return { name, ok, total, byCluster };
+    });
+  }, [filteredIniciativas]);
+
   // Aplica os mesmos filtros (base + mês) ao dataset "dados ags"
   const agMonthRows = useMemo(() => {
     const inList = (v: string, list: string[]) => list.length === 0 || list.includes(v);
