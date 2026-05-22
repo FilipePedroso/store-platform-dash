@@ -19,6 +19,7 @@ import {
   X,
   Lock,
   Download,
+  Rocket,
 
 } from "lucide-react";
 import {
