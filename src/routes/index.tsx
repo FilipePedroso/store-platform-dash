@@ -570,7 +570,11 @@ function Dashboard() {
               : { text: "▼ Abaixo da meta", bg: "#3D2A10", fg: "#F1B257" }
           }
         />
-        <IniciativasCard data={iniciativasStats} />
+        <div className="relative min-h-0">
+          <div className="sm:absolute sm:inset-0">
+            <IniciativasCard data={iniciativasStats} />
+          </div>
+        </div>
 
       </div>
 
