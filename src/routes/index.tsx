@@ -84,6 +84,7 @@ function Dashboard() {
   const [allRows, setAllRows] = useState<Row[]>([]);
   const [allAgRows, setAllAgRows] = useState<AgRow[]>([]);
   const [estrutura, setEstrutura] = useState<EstruturaRow[]>([]);
+  const [allIniciativas, setAllIniciativas] = useState<IniciativaRow[]>([]);
   const [meta, setMeta] = useState<DataMeta | null>(null);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const updateDatasetFn = useServerFn(updateDataset);
@@ -91,10 +92,11 @@ function Dashboard() {
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
 
   const refresh = async () => {
-    const { rows, agRows, estrutura, meta } = await loadRowsFromCloud();
+    const { rows, agRows, estrutura, iniciativas, meta } = await loadRowsFromCloud();
     setAllRows(rows);
     setAllAgRows(agRows);
     setEstrutura(estrutura);
+    setAllIniciativas(iniciativas);
     setMeta(meta);
   };
 
