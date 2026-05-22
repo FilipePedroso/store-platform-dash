@@ -19,6 +19,7 @@ import {
   X,
   Lock,
   Download,
+  Rocket,
 
 } from "lucide-react";
 import {
@@ -29,6 +30,7 @@ import {
   type AgRow,
   type DataMeta,
   type EstruturaRow,
+  type IniciativaRow,
 } from "@/lib/dashboard-data";
 import { updateDataset, appendAgsChunk } from "@/lib/dataset.functions";
 import { useServerFn } from "@tanstack/react-start";
@@ -83,6 +85,7 @@ function Dashboard() {
   const [allRows, setAllRows] = useState<Row[]>([]);
   const [allAgRows, setAllAgRows] = useState<AgRow[]>([]);
   const [estrutura, setEstrutura] = useState<EstruturaRow[]>([]);
+  const [allIniciativas, setAllIniciativas] = useState<IniciativaRow[]>([]);
   const [meta, setMeta] = useState<DataMeta | null>(null);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const updateDatasetFn = useServerFn(updateDataset);
@@ -90,10 +93,11 @@ function Dashboard() {
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
 
   const refresh = async () => {
-    const { rows, agRows, estrutura, meta } = await loadRowsFromCloud();
+    const { rows, agRows, estrutura, iniciativas, meta } = await loadRowsFromCloud();
     setAllRows(rows);
     setAllAgRows(agRows);
     setEstrutura(estrutura);
+    setAllIniciativas(iniciativas);
     setMeta(meta);
   };
 
@@ -189,6 +193,67 @@ function Dashboard() {
   const evolution = useMemo(() => computeEvolution(baseRows), [baseRows]);
   const ranking = useMemo(() => computeRanking(monthRows, 9999), [monthRows]);
   const canalMix = useMemo(() => computeAgsByCanalMix(monthRows), [monthRows]);
+
+  // Filtra a aba "iniciativas" pelos mesmos filtros (sem mês — não há campo mês)
+  const filteredIniciativas = useMemo(() => {
+    const inList = (v: string, list: string[]) => list.length === 0 || list.includes(v);
+    const redeOk = allowedRedes;
+    return allIniciativas.filter(
+      (r) =>
+        inList(r.cluster, dFilters.cluster) &&
+        inList(r.canal, dFilters.canal) &&
+        inList(r.rede, dFilters.rede) &&
+        inList(r.distribuidor, dFilters.distribuidor) &&
+        (redeOk == null || redeOk.has(r.rede)),
+    );
+  }, [allIniciativas, dFilters, allowedRedes]);
+
+  // Métricas por iniciativa: total batido/total + breakdown por cluster
+  const iniciativasStats = useMemo(() => {
+    if (filteredIniciativas.length === 0) return [] as {
+      name: string;
+      ok: number;
+      total: number;
+      byCluster: { label: string; ok: number; total: number; color: string }[];
+    }[];
+    const clusterOrder = ["Diamante", "Ouro", "Prata"] as const;
+    const clusterColors: Record<string, string> = {
+      Diamante: PURPLE,
+      Ouro: "#F1C40F",
+      Prata: "#9CA3AF",
+    };
+    // Descobre nomes preservando a ordem da primeira linha
+    const names: string[] = [];
+    const seen = new Set<string>();
+    for (const r of filteredIniciativas) {
+      for (const n of Object.keys(r.iniciativas)) {
+        if (!seen.has(n)) {
+          seen.add(n);
+          names.push(n);
+        }
+      }
+    }
+    return names.map((name) => {
+      let ok = 0;
+      const total = filteredIniciativas.length;
+      const byCluster = clusterOrder.map((label) => ({
+        label,
+        ok: 0,
+        total: 0,
+        color: clusterColors[label],
+      }));
+      for (const r of filteredIniciativas) {
+        const val = Number(r.iniciativas[name] ?? 0) > 0 ? 1 : 0;
+        if (val) ok++;
+        const c = byCluster.find((b) => b.label === r.cluster);
+        if (c) {
+          c.total++;
+          if (val) c.ok++;
+        }
+      }
+      return { name, ok, total, byCluster };
+    });
+  }, [filteredIniciativas]);
 
   // Aplica os mesmos filtros (base + mês) ao dataset "dados ags"
   const agMonthRows = useMemo(() => {
@@ -301,7 +366,12 @@ function Dashboard() {
       const parsed = await parseXlsxFile(file);
       setUploadProgress("Enviando dados principais...");
       await updateDatasetFn({
-        data: { ...creds, rows: parsed.rows, estrutura: parsed.estrutura },
+        data: {
+          ...creds,
+          rows: parsed.rows,
+          estrutura: parsed.estrutura,
+          iniciativas: parsed.iniciativas,
+        },
       });
       // Envia a aba "dados ags" em chunks com paralelismo controlado
       const CHUNK = 5000;
@@ -500,19 +570,8 @@ function Dashboard() {
               : { text: "▼ Abaixo da meta", bg: "#3D2A10", fg: "#F1B257" }
           }
         />
-        <KpiCard
-          color={PURPLE}
-          icon={<Receipt size={13} style={{ color: PURPLE }} />}
-          label="Faturamento mês atual"
-          value={fmtBRL(kpis.faturamento)}
-          valueColor="#A39DE5"
-          sub={`AGs batidos: ${kpis.agBatidos.toLocaleString("pt-BR")} / ${kpis.qtdAG.toLocaleString("pt-BR")}`}
-          progressLabel="% AGs"
-          progressValue={fmtPct(kpis.pctAGs)}
-          progressPct={kpis.pctAGs * 100}
+        <IniciativasCard data={iniciativasStats} />
 
-
-        />
       </div>
 
       {/* Histórico mês a mês */}
@@ -1066,6 +1125,79 @@ function KpiCard({
 }
 
 /* ---------------- Cards ---------------- */
+
+type IniciativaStat = {
+  name: string;
+  ok: number;
+  total: number;
+  byCluster: { label: string; ok: number; total: number; color: string }[];
+};
+
+function IniciativasCard({ data }: { data: IniciativaStat[] }) {
+  return (
+    <div
+      className="bg-[#1a1a1c] rounded-b-xl border border-neutral-800/80 p-3.5 flex flex-col h-full min-h-0"
+      style={{ borderTop: `3px solid ${PURPLE}` }}
+    >
+      <div className="text-[11px] text-neutral-400 mb-2 flex items-center gap-1.5 tracking-wide uppercase">
+        <Rocket size={13} style={{ color: PURPLE }} />
+        Iniciativas
+      </div>
+      <div className="flex-1 min-h-0 overflow-y-auto pr-1 -mr-1 space-y-2.5">
+        {data.length === 0 ? (
+          <div className="text-[11px] text-neutral-500">Sem dados para os filtros atuais.</div>
+        ) : (
+          data.map((it, idx) => {
+            const pct = it.total > 0 ? it.ok / it.total : 0;
+            return (
+              <div
+                key={it.name}
+                className={idx > 0 ? "pt-2.5 border-t border-neutral-800/70" : ""}
+              >
+                <div className="text-[12px] font-medium text-neutral-100 mb-1 truncate" title={it.name}>
+                  {it.name}
+                </div>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10.5px] text-neutral-300 mb-1.5">
+                  <span className="tabular-nums">
+                    <span className="font-semibold text-neutral-100">{it.ok}</span>
+                    <span className="text-neutral-500"> / {it.total}</span>
+                  </span>
+                  {it.byCluster.map((c) => (
+                    <span key={c.label} className="flex items-center gap-1 tabular-nums">
+                      <span
+                        className="inline-block w-1.5 h-1.5 rounded-full"
+                        style={{ background: c.color }}
+                      />
+                      <span className="text-neutral-300">{c.label}</span>
+                      <span className="text-neutral-400">
+                        {c.ok}/{c.total}
+                      </span>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex justify-end text-[10px] mb-1">
+                  <span className="font-semibold tabular-nums" style={{ color: "#A39DE5" }}>
+                    {(pct * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%
+                  </span>
+                </div>
+                <div className="h-[5px] bg-neutral-800 rounded overflow-hidden">
+                  <div
+                    className="h-full rounded"
+                    style={{
+                      width: `${Math.max(0, Math.min(100, pct * 100))}%`,
+                      background: PURPLE,
+                    }}
+                  />
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
 
 function ClusterCard({ data }: { data: { cluster: string; potencial: number; gerado: number }[] }) {
   const max = Math.max(1, ...data.map((d) => Math.max(d.potencial, d.gerado)));

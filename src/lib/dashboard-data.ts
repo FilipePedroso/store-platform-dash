@@ -44,6 +44,15 @@ export type EstruturaRow = {
   distribuidor: string;
 };
 
+export type IniciativaRow = {
+  distribuidor: string;
+  cluster: string;
+  canal: string;
+  rede: string;
+  /** chave = nome da iniciativa, valor = 0 ou 1 */
+  iniciativas: Record<string, number>;
+};
+
 export type DataMeta = { updatedAt: string; rowCount: number; agsCount: number };
 
 const SEED_META: DataMeta = {
@@ -57,19 +66,21 @@ export async function loadRowsFromCloud(): Promise<{
   rows: Row[];
   agRows: AgRow[];
   estrutura: EstruturaRow[];
+  iniciativas: IniciativaRow[];
   meta: DataMeta;
 }> {
   try {
     const { data, error } = await supabase
       .from("dataset")
-      .select("rows, row_count, updated_at, estrutura")
+      .select("rows, row_count, updated_at, estrutura, iniciativas")
       .eq("id", "main")
       .maybeSingle();
     if (error) throw error;
     const rows = (data?.rows as Row[] | null) ?? [];
     const estrutura = ((data as { estrutura?: EstruturaRow[] } | null)?.estrutura as EstruturaRow[] | null) ?? [];
+    const iniciativas = ((data as { iniciativas?: IniciativaRow[] } | null)?.iniciativas as IniciativaRow[] | null) ?? [];
     if (rows.length === 0) {
-      return { rows: seed as Row[], agRows: [], estrutura: [], meta: SEED_META };
+      return { rows: seed as Row[], agRows: [], estrutura: [], iniciativas: [], meta: SEED_META };
     }
 
     // Carrega todos os chunks da aba "dados ags"
@@ -95,6 +106,7 @@ export async function loadRowsFromCloud(): Promise<{
       rows,
       agRows,
       estrutura,
+      iniciativas,
       meta: {
         updatedAt: data!.updated_at,
         rowCount: data!.row_count ?? rows.length,
@@ -102,7 +114,7 @@ export async function loadRowsFromCloud(): Promise<{
       },
     };
   } catch {
-    return { rows: seed as Row[], agRows: [], estrutura: [], meta: SEED_META };
+    return { rows: seed as Row[], agRows: [], estrutura: [], iniciativas: [], meta: SEED_META };
   }
 }
 
@@ -163,7 +175,7 @@ function excelDateToISO(v: unknown): string {
 
 export async function parseXlsxFile(
   file: File,
-): Promise<{ rows: Row[]; agRows: AgRow[]; estrutura: EstruturaRow[] }> {
+): Promise<{ rows: Row[]; agRows: AgRow[]; estrutura: EstruturaRow[]; iniciativas: IniciativaRow[] }> {
   const buf = await file.arrayBuffer();
   const wb = XLSX.read(buf, { type: "array", cellDates: true });
   const sheetName = wb.SheetNames.find((n) => n.toLowerCase() === "dados") ?? wb.SheetNames[0];
@@ -262,7 +274,44 @@ export async function parseXlsxFile(
       .filter((r) => r.rede);
   }
 
-  return { rows, agRows, estrutura };
+  // Parse "iniciativas" sheet if present
+  const iniSheetName = wb.SheetNames.find((n) => n.toLowerCase() === "iniciativas");
+  let iniciativas: IniciativaRow[] = [];
+  if (iniSheetName) {
+    const wsI = wb.Sheets[iniSheetName];
+    const jsonI = XLSX.utils.sheet_to_json<Record<string, unknown>>(wsI, {
+      defval: null,
+      raw: true,
+    });
+    const norm = (v: unknown) => (v == null ? "" : String(v).trim());
+    const fixed = new Set(["distribuidor", "cluster", "canal", "rede"]);
+    iniciativas = jsonI
+      .map((raw) => {
+        const out: IniciativaRow = {
+          distribuidor: "",
+          cluster: "",
+          canal: "",
+          rede: "",
+          iniciativas: {},
+        };
+        for (const [k, v] of Object.entries(raw)) {
+          const keyRaw = k.trim();
+          const key = keyRaw.toLowerCase();
+          if (key === "distribuidor") out.distribuidor = norm(v);
+          else if (key === "cluster") out.cluster = norm(v);
+          else if (key === "canal") out.canal = norm(v);
+          else if (key === "rede") out.rede = norm(v);
+          else if (!fixed.has(key)) {
+            const n = typeof v === "number" ? v : v == null ? 0 : Number(v);
+            out.iniciativas[keyRaw] = Number.isFinite(n) && n > 0 ? 1 : 0;
+          }
+        }
+        return out;
+      })
+      .filter((r) => r.rede);
+  }
+
+  return { rows, agRows, estrutura, iniciativas };
 }
 
 export function formatUpdatedAt(meta: DataMeta): string {
