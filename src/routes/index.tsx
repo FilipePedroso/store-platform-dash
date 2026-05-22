@@ -1147,7 +1147,10 @@ function IniciativasCard({ data }: { data: IniciativaStat[] }) {
         <Rocket size={13} style={{ color: PURPLE }} />
         Iniciativas
       </div>
-      <div className="flex-1 min-h-0 overflow-y-auto pr-1 -mr-1 space-y-2.5">
+      <div
+        className="flex-1 min-h-0 overflow-y-auto pr-1 -mr-1 space-y-2.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-neutral-600"
+        style={{ scrollbarWidth: "thin", scrollbarColor: "#404040 transparent" }}
+      >
         {data.length === 0 ? (
           <div className="text-[11px] text-neutral-500">Sem dados para os filtros atuais.</div>
         ) : (
