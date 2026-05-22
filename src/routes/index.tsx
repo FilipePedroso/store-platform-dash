@@ -29,6 +29,7 @@ import {
   type AgRow,
   type DataMeta,
   type EstruturaRow,
+  type IniciativaRow,
 } from "@/lib/dashboard-data";
 import { updateDataset, appendAgsChunk } from "@/lib/dataset.functions";
 import { useServerFn } from "@tanstack/react-start";
