@@ -569,19 +569,8 @@ function Dashboard() {
               : { text: "▼ Abaixo da meta", bg: "#3D2A10", fg: "#F1B257" }
           }
         />
-        <KpiCard
-          color={PURPLE}
-          icon={<Receipt size={13} style={{ color: PURPLE }} />}
-          label="Faturamento mês atual"
-          value={fmtBRL(kpis.faturamento)}
-          valueColor="#A39DE5"
-          sub={`AGs batidos: ${kpis.agBatidos.toLocaleString("pt-BR")} / ${kpis.qtdAG.toLocaleString("pt-BR")}`}
-          progressLabel="% AGs"
-          progressValue={fmtPct(kpis.pctAGs)}
-          progressPct={kpis.pctAGs * 100}
+        <IniciativasCard data={iniciativasStats} />
 
-
-        />
       </div>
 
       {/* Histórico mês a mês */}
