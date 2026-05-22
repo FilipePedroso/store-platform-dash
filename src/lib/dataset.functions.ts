@@ -17,7 +17,13 @@ function checkCreds(email: string, password: string) {
  */
 export const updateDataset = createServerFn({ method: "POST" })
   .inputValidator(
-    (input: { email: string; password: string; rows: unknown[]; estrutura?: unknown[] }) => {
+    (input: {
+      email: string;
+      password: string;
+      rows: unknown[];
+      estrutura?: unknown[];
+      iniciativas?: unknown[];
+    }) => {
       if (!input || typeof input !== "object") throw new Error("Payload inválido");
       if (typeof input.email !== "string" || typeof input.password !== "string")
         throw new Error("Credenciais ausentes");
@@ -25,6 +31,8 @@ export const updateDataset = createServerFn({ method: "POST" })
       if (input.rows.length > 50000) throw new Error("Arquivo muito grande");
       if (input.estrutura != null && !Array.isArray(input.estrutura))
         throw new Error("Estrutura inválida");
+      if (input.iniciativas != null && !Array.isArray(input.iniciativas))
+        throw new Error("Iniciativas inválidas");
       return input;
     },
   )
@@ -37,6 +45,7 @@ export const updateDataset = createServerFn({ method: "POST" })
       row_count: data.rows.length,
       updated_at: updatedAt,
       estrutura: (data.estrutura ?? []) as unknown as never,
+      iniciativas: (data.iniciativas ?? []) as unknown as never,
     });
     if (error) throw new Error(error.message);
     // Limpa chunks antigos da aba "dados ags"
