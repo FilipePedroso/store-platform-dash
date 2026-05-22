@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           estrutura: Json
           id: string
+          iniciativas: Json
           row_count: number
           rows: Json
           updated_at: string
@@ -25,6 +26,7 @@ export type Database = {
         Insert: {
           estrutura?: Json
           id?: string
+          iniciativas?: Json
           row_count?: number
           rows?: Json
           updated_at?: string
@@ -32,6 +34,7 @@ export type Database = {
         Update: {
           estrutura?: Json
           id?: string
+          iniciativas?: Json
           row_count?: number
           rows?: Json
           updated_at?: string

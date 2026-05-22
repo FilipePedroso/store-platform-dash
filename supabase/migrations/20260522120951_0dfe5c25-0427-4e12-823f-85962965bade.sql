@@ -1,0 +1,1 @@
+ALTER TABLE public.dataset ADD COLUMN IF NOT EXISTS iniciativas jsonb NOT NULL DEFAULT '[]'::jsonb;
