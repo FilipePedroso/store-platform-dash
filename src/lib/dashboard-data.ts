@@ -175,7 +175,7 @@ function excelDateToISO(v: unknown): string {
 
 export async function parseXlsxFile(
   file: File,
-): Promise<{ rows: Row[]; agRows: AgRow[]; estrutura: EstruturaRow[] }> {
+): Promise<{ rows: Row[]; agRows: AgRow[]; estrutura: EstruturaRow[]; iniciativas: IniciativaRow[] }> {
   const buf = await file.arrayBuffer();
   const wb = XLSX.read(buf, { type: "array", cellDates: true });
   const sheetName = wb.SheetNames.find((n) => n.toLowerCase() === "dados") ?? wb.SheetNames[0];
@@ -274,7 +274,44 @@ export async function parseXlsxFile(
       .filter((r) => r.rede);
   }
 
-  return { rows, agRows, estrutura };
+  // Parse "iniciativas" sheet if present
+  const iniSheetName = wb.SheetNames.find((n) => n.toLowerCase() === "iniciativas");
+  let iniciativas: IniciativaRow[] = [];
+  if (iniSheetName) {
+    const wsI = wb.Sheets[iniSheetName];
+    const jsonI = XLSX.utils.sheet_to_json<Record<string, unknown>>(wsI, {
+      defval: null,
+      raw: true,
+    });
+    const norm = (v: unknown) => (v == null ? "" : String(v).trim());
+    const fixed = new Set(["distribuidor", "cluster", "canal", "rede"]);
+    iniciativas = jsonI
+      .map((raw) => {
+        const out: IniciativaRow = {
+          distribuidor: "",
+          cluster: "",
+          canal: "",
+          rede: "",
+          iniciativas: {},
+        };
+        for (const [k, v] of Object.entries(raw)) {
+          const keyRaw = k.trim();
+          const key = keyRaw.toLowerCase();
+          if (key === "distribuidor") out.distribuidor = norm(v);
+          else if (key === "cluster") out.cluster = norm(v);
+          else if (key === "canal") out.canal = norm(v);
+          else if (key === "rede") out.rede = norm(v);
+          else if (!fixed.has(key)) {
+            const n = typeof v === "number" ? v : v == null ? 0 : Number(v);
+            out.iniciativas[keyRaw] = Number.isFinite(n) && n > 0 ? 1 : 0;
+          }
+        }
+        return out;
+      })
+      .filter((r) => r.rede);
+  }
+
+  return { rows, agRows, estrutura, iniciativas };
 }
 
 export function formatUpdatedAt(meta: DataMeta): string {
