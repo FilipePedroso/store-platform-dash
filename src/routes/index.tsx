@@ -1126,6 +1126,79 @@ function KpiCard({
 
 /* ---------------- Cards ---------------- */
 
+type IniciativaStat = {
+  name: string;
+  ok: number;
+  total: number;
+  byCluster: { label: string; ok: number; total: number; color: string }[];
+};
+
+function IniciativasCard({ data }: { data: IniciativaStat[] }) {
+  return (
+    <div
+      className="bg-[#1a1a1c] rounded-b-xl border border-neutral-800/80 p-3.5 flex flex-col h-full min-h-0"
+      style={{ borderTop: `3px solid ${PURPLE}` }}
+    >
+      <div className="text-[11px] text-neutral-400 mb-2 flex items-center gap-1.5 tracking-wide uppercase">
+        <Rocket size={13} style={{ color: PURPLE }} />
+        Iniciativas
+      </div>
+      <div className="flex-1 min-h-0 overflow-y-auto pr-1 -mr-1 space-y-2.5">
+        {data.length === 0 ? (
+          <div className="text-[11px] text-neutral-500">Sem dados para os filtros atuais.</div>
+        ) : (
+          data.map((it, idx) => {
+            const pct = it.total > 0 ? it.ok / it.total : 0;
+            return (
+              <div
+                key={it.name}
+                className={idx > 0 ? "pt-2.5 border-t border-neutral-800/70" : ""}
+              >
+                <div className="text-[12px] font-medium text-neutral-100 mb-1 truncate" title={it.name}>
+                  {it.name}
+                </div>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10.5px] text-neutral-300 mb-1.5">
+                  <span className="tabular-nums">
+                    <span className="font-semibold text-neutral-100">{it.ok}</span>
+                    <span className="text-neutral-500"> / {it.total}</span>
+                  </span>
+                  {it.byCluster.map((c) => (
+                    <span key={c.label} className="flex items-center gap-1 tabular-nums">
+                      <span
+                        className="inline-block w-1.5 h-1.5 rounded-full"
+                        style={{ background: c.color }}
+                      />
+                      <span className="text-neutral-300">{c.label}</span>
+                      <span className="text-neutral-400">
+                        {c.ok}/{c.total}
+                      </span>
+                    </span>
+                  ))}
+                </div>
+                <div className="flex justify-end text-[10px] mb-1">
+                  <span className="font-semibold tabular-nums" style={{ color: "#A39DE5" }}>
+                    {(pct * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%
+                  </span>
+                </div>
+                <div className="h-[5px] bg-neutral-800 rounded overflow-hidden">
+                  <div
+                    className="h-full rounded"
+                    style={{
+                      width: `${Math.max(0, Math.min(100, pct * 100))}%`,
+                      background: PURPLE,
+                    }}
+                  />
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
+
 function ClusterCard({ data }: { data: { cluster: string; potencial: number; gerado: number }[] }) {
   const max = Math.max(1, ...data.map((d) => Math.max(d.potencial, d.gerado)));
   return (
