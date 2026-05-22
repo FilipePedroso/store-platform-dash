@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import {
   LayoutDashboard,
   Layers,
@@ -101,19 +101,24 @@ function Dashboard() {
     refresh();
   }, []);
 
+  // Defer heavy recomputations so the filter UI (checkboxes) reflete
+  // instantaneamente o clique, e o resto da página recalcula em segundo plano
+  // sem travar a interação.
+  const dFilters = useDeferredValue(filters);
+
   // Conjunto de redes permitidas pelos filtros de código (Gv/Sv/Rv).
   // Se nenhum dos três estiver selecionado, allowedRedes = null (sem restrição).
   const allowedRedes = useMemo<Set<string> | null>(() => {
-    if (filters.gv.length === 0 && filters.sv.length === 0 && filters.rv.length === 0) return null;
+    if (dFilters.gv.length === 0 && dFilters.sv.length === 0 && dFilters.rv.length === 0) return null;
     const inList = (v: string, list: string[]) => list.length === 0 || list.includes(v);
     const set = new Set<string>();
     for (const e of estrutura) {
-      if (inList(e.gv, filters.gv) && inList(e.sv, filters.sv) && inList(e.rv, filters.rv)) {
+      if (inList(e.gv, dFilters.gv) && inList(e.sv, dFilters.sv) && inList(e.rv, dFilters.rv)) {
         set.add(e.rede);
       }
     }
     return set;
-  }, [estrutura, filters.gv, filters.sv, filters.rv]);
+  }, [estrutura, dFilters.gv, dFilters.sv, dFilters.rv]);
 
   const rows = useMemo(
     () => (allowedRedes ? allRows.filter((r) => allowedRedes.has(r.rede)) : allRows),
@@ -127,13 +132,13 @@ function Dashboard() {
 
   const months = useMemo(() => uniqueMonths(rows), [rows]);
   const selectedMonths = useMemo(() => {
-    if (filters.mes.length > 0) return filters.mes;
+    if (dFilters.mes.length > 0) return dFilters.mes;
     const latest = latestMonth(rows);
     return latest ? [latest] : [];
-  }, [filters.mes, rows]);
-  const isAccumulated = filters.mes.length > 1 || filters.mes.length === months.length;
+  }, [dFilters.mes, rows]);
+  const isAccumulated = dFilters.mes.length > 1 || dFilters.mes.length === months.length;
 
-  const baseRows = useMemo(() => applyBaseFilters(rows, filters), [rows, filters]);
+  const baseRows = useMemo(() => applyBaseFilters(rows, dFilters), [rows, dFilters]);
   const monthRows = useMemo(() => {
     const set = new Set(selectedMonths);
     return baseRows.filter((r) => set.has(r.mes));
@@ -191,13 +196,13 @@ function Dashboard() {
     const monthSet = new Set(selectedMonths);
     return agRows.filter(
       (r) =>
-        inList(r.cluster, filters.cluster) &&
-        inList(r.canal, filters.canal) &&
-        inList(r.rede, filters.rede) &&
-        inList(r.distribuidor, filters.distribuidor) &&
+        inList(r.cluster, dFilters.cluster) &&
+        inList(r.canal, dFilters.canal) &&
+        inList(r.rede, dFilters.rede) &&
+        inList(r.distribuidor, dFilters.distribuidor) &&
         monthSet.has(r.mes),
     );
-  }, [agRows, filters, selectedMonths]);
+  }, [agRows, dFilters, selectedMonths]);
 
   // Tabela "Grupos não batidos": positivação == 0
   const gruposNaoBatidos = useMemo(() => {
@@ -250,33 +255,33 @@ function Dashboard() {
 
 
   // Filter options — each filter adapts to the other selected filters
-  const clusterOpts = useMemo(() => optionsFor(rows, filters, "cluster"), [rows, filters]);
-  const canalOpts = useMemo(() => optionsFor(rows, filters, "canal"), [rows, filters]);
-  const redeOpts = useMemo(() => optionsFor(rows, filters, "rede"), [rows, filters]);
-  const distribOpts = useMemo(() => optionsFor(rows, filters, "distribuidor"), [rows, filters]);
-  const monthOpts = useMemo(() => optionsFor(rows, filters, "mes"), [rows, filters]);
+  const clusterOpts = useMemo(() => optionsFor(rows, dFilters, "cluster"), [rows, dFilters]);
+  const canalOpts = useMemo(() => optionsFor(rows, dFilters, "canal"), [rows, dFilters]);
+  const redeOpts = useMemo(() => optionsFor(rows, dFilters, "rede"), [rows, dFilters]);
+  const distribOpts = useMemo(() => optionsFor(rows, dFilters, "distribuidor"), [rows, dFilters]);
+  const monthOpts = useMemo(() => optionsFor(rows, dFilters, "mes"), [rows, dFilters]);
 
   // Opções para os filtros de código (Gv/Sv/Rv), cada um adaptado aos outros dois
   // e ao filtro de rede atualmente selecionado.
   const codeOpts = useMemo(() => {
     const inList = (v: string, list: string[]) => list.length === 0 || list.includes(v);
-    const redeSel = filters.rede;
-    const distSel = filters.distribuidor;
+    const redeSel = dFilters.rede;
+    const distSel = dFilters.distribuidor;
     const pick = (key: "gv" | "sv" | "rv") => {
       const set = new Set<string>();
       for (const e of estrutura) {
         if (!inList(e.rede, redeSel)) continue;
         if (!inList(e.distribuidor, distSel)) continue;
-        if (key !== "gv" && !inList(e.gv, filters.gv)) continue;
-        if (key !== "sv" && !inList(e.sv, filters.sv)) continue;
-        if (key !== "rv" && !inList(e.rv, filters.rv)) continue;
+        if (key !== "gv" && !inList(e.gv, dFilters.gv)) continue;
+        if (key !== "sv" && !inList(e.sv, dFilters.sv)) continue;
+        if (key !== "rv" && !inList(e.rv, dFilters.rv)) continue;
         if (e[key]) set.add(e[key]);
       }
-      for (const v of filters[key]) set.add(v);
+      for (const v of dFilters[key]) set.add(v);
       return [...set].sort();
     };
     return { gv: pick("gv"), sv: pick("sv"), rv: pick("rv") };
-  }, [estrutura, filters.rede, filters.distribuidor, filters.gv, filters.sv, filters.rv]);
+  }, [estrutura, dFilters.rede, dFilters.distribuidor, dFilters.gv, dFilters.sv, dFilters.rv]);
 
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
