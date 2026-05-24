@@ -23,6 +23,14 @@ import {
 
 } from "lucide-react";
 import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import {
   loadRowsFromCloud,
   parseXlsxFile,
   formatUpdatedAt,
