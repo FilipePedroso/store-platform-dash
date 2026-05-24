@@ -1794,15 +1794,16 @@ function LineHistoryCard(p: LineHistoryProps) {
     n <= 1 ? padL + innerW / 2 : padL + (i * innerW) / (n - 1);
   const yAt = (v: number) => padT + innerH - (v / yMax) * innerH;
 
-  const firstTotal = p.total[0] ?? 0;
   const lastTotal = p.total[p.total.length - 1] ?? 0;
+  const prevTotal = p.total[p.total.length - 2] ?? 0;
   let deltaText = "—";
-  if (n > 1 && p.months.length > 0) {
+  if (n > 1) {
     if (p.deltaMode === "pp") {
-      deltaText = `${(lastTotal - firstTotal) >= 0 ? "+" : ""}${((lastTotal - firstTotal) * 100).toFixed(1)} p.p. ${fmtMonth(p.months[0])} → ${fmtMonth(p.months[n - 1])}`;
+      const diff = (lastTotal - prevTotal) * 100;
+      deltaText = `${diff >= 0 ? "+" : ""}${diff.toFixed(1)} p.p. vs mês ant.`;
     } else {
-      const pct = firstTotal > 0 ? (lastTotal - firstTotal) / firstTotal : 0;
-      deltaText = `${pct >= 0 ? "+" : ""}${(pct * 100).toFixed(0)}% ${fmtMonth(p.months[0])} → ${fmtMonth(p.months[n - 1])}`;
+      const pct = prevTotal > 0 ? (lastTotal - prevTotal) / prevTotal : 0;
+      deltaText = `${pct >= 0 ? "+" : ""}${(pct * 100).toFixed(0)}% vs mês ant.`;
     }
   }
 
