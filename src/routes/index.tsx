@@ -1497,6 +1497,32 @@ function GruposNaoBatidosCard({
     URL.revokeObjectURL(url);
   };
 
+  const handleDownloadPdf = () => {
+    const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+    doc.setFontSize(14);
+    doc.text("Grupos não batidos", 40, 40);
+    const body = visibleRows.map((r) => {
+      const faltante = Math.max(0, r.target - r.valor);
+      return [
+        r.rede,
+        fmtPct(r.sortimento, 0),
+        r.atributo,
+        fmtInt(r.target),
+        fmtInt(r.valor),
+        fmtInt(faltante),
+      ];
+    });
+    autoTable(doc, {
+      startY: 60,
+      head: [["Rede", "Sortimento", "Grupo", "Target", "Vendido(Un)", "Faltante"]],
+      body,
+      styles: { fontSize: 8, cellPadding: 4 },
+      headStyles: { fillColor: [38, 38, 40], textColor: 255 },
+      alternateRowStyles: { fillColor: [245, 245, 245] },
+    });
+    doc.save(`grupos-nao-batidos-${new Date().toISOString().slice(0, 10)}.pdf`);
+  };
+
   return (
     <div className="bg-[#1a1a1c] rounded-xl border border-neutral-800/80 p-3.5">
       <div className="flex items-start justify-between gap-3 mb-3">
@@ -1509,16 +1535,40 @@ function GruposNaoBatidosCard({
             {`${visibleRows.length.toLocaleString("pt-BR")} grupos faltantes`}
           </div>
         </div>
-        <button
-          type="button"
-          onClick={handleDownloadCsv}
-          disabled={visibleRows.length === 0}
-          className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-neutral-700/80 bg-neutral-800/60 text-[11px] text-neutral-200 hover:bg-neutral-700/60 hover:text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          title="Baixar CSV"
-        >
-          <Download size={12} />
-          Baixar CSV
-        </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              disabled={visibleRows.length === 0}
+              className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-neutral-700/80 bg-neutral-800/60 text-[11px] text-neutral-200 hover:bg-neutral-700/60 hover:text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Extrair"
+            >
+              <Download size={12} />
+              Extrair
+              <ChevronDown size={12} />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            className="bg-neutral-900 border-neutral-700 text-neutral-200 min-w-[140px]"
+          >
+            <DropdownMenuItem
+              onClick={handleDownloadCsv}
+              className="text-[12px] focus:bg-neutral-800 focus:text-white cursor-pointer"
+            >
+              <Download size={12} className="mr-2" />
+              Extrair em CSV
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={handleDownloadPdf}
+              className="text-[12px] focus:bg-neutral-800 focus:text-white cursor-pointer"
+            >
+              <Download size={12} className="mr-2" />
+              Extrair em PDF
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
       </div>
 
       {visibleRows.length === 0 ? (
