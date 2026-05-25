@@ -236,6 +236,7 @@ function Dashboard() {
     const seen = new Set<string>();
     for (const r of filteredIniciativas) {
       for (const n of Object.keys(r.iniciativas)) {
+        if (n.trim().toLowerCase() === "pantene pocahontas") continue;
         if (!seen.has(n)) {
           seen.add(n);
           names.push(n);
