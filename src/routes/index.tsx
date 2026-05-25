@@ -2143,23 +2143,29 @@ function ProductGroupHistoryCard({ rows }: { rows: AgRow[] }) {
             Quantidade vendida por mês
           </div>
         </div>
-        <div className="relative shrink-0" ref={ref}>
-          <button
-            onClick={() => setOpen((v) => !v)}
-            className={`rounded-full px-3 py-1 text-[11px] flex items-center gap-1.5 border transition-colors ${
-              selected.length > 0
-                ? "bg-[#0E2E4D] border-[#378ADD] text-[#8BBEEC] font-medium"
-                : "bg-[#1a1a1c] border-neutral-800 text-neutral-400 hover:border-neutral-700"
-            }`}
-          >
-            <Layers size={12} />
-            {selected.length === 0
-              ? "Selecionar grupo"
-              : `${selected.length} grupo${selected.length > 1 ? "s" : ""}`}
-            <ChevronDown size={12} />
-          </button>
-          {open && (
-            <div className="absolute right-0 z-30 mt-1 w-[280px] bg-[#1a1a1c] border border-neutral-800 rounded-md shadow-lg text-[11px]">
+        <div className="shrink-0">
+          <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+              <button
+                className={`rounded-full px-3 py-1 text-[11px] flex items-center gap-1.5 border transition-colors ${
+                  selected.length > 0
+                    ? "bg-[#0E2E4D] border-[#378ADD] text-[#8BBEEC] font-medium"
+                    : "bg-[#1a1a1c] border-neutral-800 text-neutral-400 hover:border-neutral-700"
+                }`}
+              >
+                <Layers size={12} />
+                {selected.length === 0
+                  ? "Selecionar grupo"
+                  : `${selected.length} grupo${selected.length > 1 ? "s" : ""}`}
+                <ChevronDown size={12} />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent
+              align="end"
+              sideOffset={4}
+              collisionPadding={12}
+              className="w-[280px] p-0 bg-[#1a1a1c] border-neutral-800 text-[11px]"
+            >
               <div className="p-2 border-b border-neutral-800">
                 <input
                   type="text"
@@ -2186,7 +2192,7 @@ function ProductGroupHistoryCard({ rows }: { rows: AgRow[] }) {
                 </div>
               </div>
               <div
-                className="max-h-[260px] overflow-y-auto py-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full"
+                className="max-h-[240px] overflow-y-auto py-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full"
                 style={{ scrollbarWidth: "thin", scrollbarColor: "#404040 transparent" }}
               >
                 {filteredAtributos.length === 0 ? (
@@ -2214,8 +2220,8 @@ function ProductGroupHistoryCard({ rows }: { rows: AgRow[] }) {
                   })
                 )}
               </div>
-            </div>
-          )}
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 
