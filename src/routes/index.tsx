@@ -277,6 +277,18 @@ function Dashboard() {
     );
   }, [agRows, dFilters, selectedMonths]);
 
+  // Mesmos filtros sem o mês — usado para o histórico de Grupos de Produto
+  const baseAgRows = useMemo(() => {
+    const inList = (v: string, list: string[]) => list.length === 0 || list.includes(v);
+    return agRows.filter(
+      (r) =>
+        inList(r.cluster, dFilters.cluster) &&
+        inList(r.canal, dFilters.canal) &&
+        inList(r.rede, dFilters.rede) &&
+        inList(r.distribuidor, dFilters.distribuidor),
+    );
+  }, [agRows, dFilters]);
+
   // Tabela "Grupos não batidos": positivação == 0
   const gruposNaoBatidos = useMemo(() => {
     const sortMap = new Map<string, number>();
