@@ -2068,3 +2068,219 @@ function LineLegend({ color, label, dashed }: { color: string; label: string; da
   );
 }
 
+function ProductGroupHistoryCard({ rows }: { rows: AgRow[] }) {
+  const [selected, setSelected] = useState<string[]>([]);
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, [open]);
+
+  const atributos = useMemo(() => {
+    const s = new Set<string>();
+    for (const r of rows) if (r.atributo) s.add(r.atributo);
+    return [...s].sort((a, b) => a.localeCompare(b));
+  }, [rows]);
+
+  const filteredAtributos = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return q ? atributos.filter((a) => a.toLowerCase().includes(q)) : atributos;
+  }, [atributos, query]);
+
+  const months = useMemo(() => {
+    const s = new Set<string>();
+    for (const r of rows) if (r.mes) s.add(r.mes);
+    return [...s].sort();
+  }, [rows]);
+
+  const series = useMemo(() => {
+    if (selected.length === 0) return [];
+    const set = new Set(selected);
+    const maps = new Map<string, Map<string, number>>();
+    for (const a of selected) maps.set(a, new Map());
+    for (const r of rows) {
+      if (!set.has(r.atributo)) continue;
+      const m = maps.get(r.atributo)!;
+      m.set(r.mes, (m.get(r.mes) ?? 0) + (Number(r.valor) || 0));
+    }
+    return selected.map((a) => ({
+      name: a,
+      values: months.map((m) => maps.get(a)!.get(m) ?? 0),
+    }));
+  }, [rows, selected, months]);
+
+  const W = 800;
+  const H = 220;
+  const padL = 56;
+  const padR = 16;
+  const padT = 12;
+  const padB = 32;
+  const innerW = W - padL - padR;
+  const innerH = H - padT - padB;
+  const n = months.length;
+  const allVals = series.flatMap((s) => s.values);
+  const yMax = Math.max(1, ...allVals) * 1.1;
+  const xAt = (i: number) =>
+    n <= 1 ? padL + innerW / 2 : padL + (i * innerW) / (n - 1);
+  const yAt = (v: number) => padT + innerH - (v / yMax) * innerH;
+  const fmtY = (v: number) =>
+    v >= 1000
+      ? `${(v / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}k`
+      : v.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
+  const fmtInt = (v: number) =>
+    v.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
+
+  const toggle = (a: string) =>
+    setSelected((cur) => (cur.includes(a) ? cur.filter((x) => x !== a) : [...cur, a]));
+
+  return (
+    <Card>
+      <div className="flex items-start justify-between gap-3 mb-2">
+        <div>
+          <div className="text-[12px] font-medium text-neutral-100 flex items-center gap-1.5">
+            <BarChart3 size={13} className="text-neutral-400" />
+            Históricos Grupos de Produto
+          </div>
+          <div className="text-[11px] text-neutral-400 mt-0.5">
+            Quantidade vendida por mês
+          </div>
+        </div>
+        <div className="relative shrink-0" ref={ref}>
+          <button
+            onClick={() => setOpen((v) => !v)}
+            className={`rounded-full px-3 py-1 text-[11px] flex items-center gap-1.5 border transition-colors ${
+              selected.length > 0
+                ? "bg-[#0E2E4D] border-[#378ADD] text-[#8BBEEC] font-medium"
+                : "bg-[#1a1a1c] border-neutral-800 text-neutral-400 hover:border-neutral-700"
+            }`}
+          >
+            <Layers size={12} />
+            {selected.length === 0
+              ? "Selecionar grupo"
+              : `${selected.length} grupo${selected.length > 1 ? "s" : ""}`}
+            <ChevronDown size={12} />
+          </button>
+          {open && (
+            <div className="absolute right-0 z-30 mt-1 w-[280px] bg-[#1a1a1c] border border-neutral-800 rounded-md shadow-lg text-[11px]">
+              <div className="p-2 border-b border-neutral-800">
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Buscar grupo..."
+                  className="w-full bg-[#0f0f10] border border-neutral-800 rounded px-2 py-1 text-[11px] text-neutral-100 outline-none focus:border-[#378ADD]"
+                />
+                <div className="flex items-center justify-between mt-2">
+                  <button
+                    type="button"
+                    className="text-[10px] text-[#8BBEEC] hover:underline"
+                    onClick={() => setSelected(filteredAtributos)}
+                  >
+                    Selecionar todos
+                  </button>
+                  <button
+                    type="button"
+                    className="text-[10px] text-neutral-400 hover:text-neutral-200 hover:underline"
+                    onClick={() => setSelected([])}
+                  >
+                    Limpar
+                  </button>
+                </div>
+              </div>
+              <div
+                className="max-h-[260px] overflow-y-auto py-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full"
+                style={{ scrollbarWidth: "thin", scrollbarColor: "#404040 transparent" }}
+              >
+                {filteredAtributos.length === 0 ? (
+                  <div className="px-3 py-2 text-neutral-500">Sem grupos disponíveis</div>
+                ) : (
+                  filteredAtributos.map((a) => {
+                    const checked = selected.includes(a);
+                    return (
+                      <button
+                        key={a}
+                        type="button"
+                        onClick={() => toggle(a)}
+                        className={`flex w-full items-center gap-2 px-3 py-1 text-left hover:bg-neutral-800 ${checked ? "text-[#8BBEEC] font-medium" : "text-neutral-200"}`}
+                      >
+                        <span
+                          className={`w-3 h-3 rounded-sm border flex items-center justify-center shrink-0 ${checked ? "bg-[#378ADD] border-[#378ADD]" : "border-neutral-600"}`}
+                        >
+                          {checked && <Check size={9} className="text-white" />}
+                        </span>
+                        <span className="truncate" title={a}>
+                          {a}
+                        </span>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {selected.length === 0 || n === 0 ? (
+        <div className="text-[11px] text-neutral-500 text-center py-12">
+          Selecione um grupo de produto no filtro à direita para visualizar o histórico.
+        </div>
+      ) : (
+        <>
+          <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-[240px] overflow-visible">
+            <line x1={padL} y1={padT} x2={padL} y2={padT + innerH} stroke="#2a2a2c" strokeWidth="0.5" />
+            <line x1={padL} y1={padT + innerH} x2={W - padR} y2={padT + innerH} stroke="#2a2a2c" strokeWidth="0.5" />
+            <line x1={padL} y1={padT} x2={W - padR} y2={padT} stroke="#2a2a2c" strokeWidth="0.5" strokeDasharray="3 3" />
+            <line x1={padL} y1={padT + innerH / 2} x2={W - padR} y2={padT + innerH / 2} stroke="#2a2a2c" strokeWidth="0.5" strokeDasharray="3 3" />
+            <text x={padL - 6} y={padT + 4} textAnchor="end" fontSize="9" fill="#888780">{fmtY(yMax)}</text>
+            <text x={padL - 6} y={padT + innerH / 2 + 3} textAnchor="end" fontSize="9" fill="#888780">{fmtY(yMax / 2)}</text>
+            <text x={padL - 6} y={padT + innerH + 3} textAnchor="end" fontSize="9" fill="#888780">{fmtY(0)}</text>
+            {months.map((m, i) => (
+              <text key={m} x={xAt(i)} y={padT + innerH + 16} textAnchor="middle" fontSize="10" fill="#888780">
+                {fmtMonth(m)}
+              </text>
+            ))}
+            {series.map((s, idx) => {
+              const c = PALETTE[idx % PALETTE.length];
+              const pts = s.values.map((v, i) => `${xAt(i)},${yAt(v)}`).join(" ");
+              return (
+                <g key={s.name}>
+                  <polyline points={pts} fill="none" stroke={c} strokeWidth="1.8" />
+                  {s.values.map((v, i) => (
+                    <g key={i}>
+                      <circle cx={xAt(i)} cy={yAt(v)} r="3" fill={c} />
+                      <text
+                        x={xAt(i)}
+                        y={yAt(v) - 7}
+                        textAnchor="middle"
+                        fontSize="9"
+                        fontWeight="500"
+                        fill="#fff"
+                      >
+                        {fmtInt(v)}
+                      </text>
+                    </g>
+                  ))}
+                </g>
+              );
+            })}
+          </svg>
+          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
+            {series.map((s, idx) => (
+              <LineLegend key={s.name} color={PALETTE[idx % PALETTE.length]} label={s.name} />
+            ))}
+          </div>
+        </>
+      )}
+    </Card>
+  );
+}
+
+
