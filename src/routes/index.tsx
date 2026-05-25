@@ -2073,16 +2073,6 @@ function ProductGroupHistoryCard({ rows }: { rows: AgRow[] }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
-  }, [open]);
 
   const atributos = useMemo(() => {
     const s = new Set<string>();
