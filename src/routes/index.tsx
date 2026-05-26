@@ -100,6 +100,7 @@ function Dashboard() {
   const updateDatasetFn = useServerFn(updateDataset);
   const appendAgsChunkFn = useServerFn(appendAgsChunk);
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
+  const [selectedHistoryGroups, setSelectedHistoryGroups] = useState<string[]>([]);
 
   const refresh = async () => {
     const { rows, agRows, estrutura, iniciativas, meta } = await loadRowsFromCloud();
@@ -696,13 +697,21 @@ function Dashboard() {
 
       {/* Grupos não batidos (dataset 'dados ags') */}
       <div className="grid grid-cols-1 gap-2.5 mb-3">
-        <GruposNaoBatidosCard rows={gruposNaoBatidos} />
+        <GruposNaoBatidosCard
+          rows={gruposNaoBatidos}
+          selectedGroups={selectedHistoryGroups}
+          setSelectedGroups={setSelectedHistoryGroups}
+        />
 
       </div>
 
       {/* Históricos Grupos de Produto */}
       <div className="grid grid-cols-1 gap-2.5">
-        <ProductGroupHistoryCard rows={baseAgRows} />
+        <ProductGroupHistoryCard
+          rows={baseAgRows}
+          selected={selectedHistoryGroups}
+          setSelected={setSelectedHistoryGroups}
+        />
       </div>
     </div>
   );
@@ -1490,12 +1499,40 @@ function ChannelMixCard({ rows }: { rows: { canal: string; pct: number }[] }) {
 
 function GruposNaoBatidosCard({
   rows,
+  selectedGroups,
+  setSelectedGroups,
 }: {
   rows: { rede: string; sortimento: number; target: number; atributo: string; valor: number }[];
+  selectedGroups: string[];
+  setSelectedGroups: React.Dispatch<React.SetStateAction<string[]>>;
 }) {
   const fmtInt = (n: number) =>
     n.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
   const visibleRows = rows;
+  const selectedSet = useMemo(() => new Set(selectedGroups), [selectedGroups]);
+  const visibleAtributos = useMemo(
+    () => Array.from(new Set(visibleRows.map((r) => r.atributo).filter(Boolean))),
+    [visibleRows],
+  );
+  const allVisibleSelected =
+    visibleAtributos.length > 0 && visibleAtributos.every((a) => selectedSet.has(a));
+  const toggleOne = (atributo: string) => {
+    if (!atributo) return;
+    setSelectedGroups((cur) =>
+      cur.includes(atributo) ? cur.filter((x) => x !== atributo) : [...cur, atributo],
+    );
+  };
+  const toggleAllVisible = () => {
+    setSelectedGroups((cur) => {
+      if (allVisibleSelected) {
+        const remove = new Set(visibleAtributos);
+        return cur.filter((x) => !remove.has(x));
+      }
+      const merged = new Set(cur);
+      for (const a of visibleAtributos) merged.add(a);
+      return Array.from(merged);
+    });
+  };
 
   const handleDownloadCsv = () => {
     const headers = ["Rede", "Sortimento", "Grupo", "Target", "Vendido(Un)", "Faltante"];
@@ -1608,6 +1645,15 @@ function GruposNaoBatidosCard({
           <table className="w-full text-[9px] sm:text-[11px] table-fixed">
             <thead className="sticky top-0 bg-[#141416] z-10">
               <tr className="text-neutral-400 font-medium border-b border-neutral-800">
+                <th className="pb-1 sm:pb-1.5 w-6 sm:w-7 text-center">
+                  <input
+                    type="checkbox"
+                    aria-label="Selecionar todos"
+                    checked={allVisibleSelected}
+                    onChange={toggleAllVisible}
+                    className="h-3 w-3 accent-[#378ADD] cursor-pointer align-middle"
+                  />
+                </th>
                 <th className="text-left pb-1 sm:pb-1.5 font-medium w-[28%] sm:w-[26%]">Rede</th>
                 <th className="text-left pb-1 sm:pb-1.5 font-medium pl-1 sm:pl-2">Grupo</th>
                 <th className="text-center pb-1 sm:pb-1.5 font-medium w-9 sm:w-12">%</th>
@@ -1621,11 +1667,23 @@ function GruposNaoBatidosCard({
                 const faltante = Math.max(0, r.target - r.valor);
                 const sortColor =
                   r.sortimento >= 0.9 ? "#22C55E" : r.sortimento >= 0.85 ? ORANGE : RED;
+                const checked = selectedSet.has(r.atributo);
                 return (
                   <tr
                     key={`${r.rede}-${r.atributo}-${i}`}
-                    className="border-b border-neutral-800 last:border-0"
+                    className={`border-b border-neutral-800 last:border-0 cursor-pointer ${checked ? "bg-[#0E2E4D]/40" : "hover:bg-neutral-800/40"}`}
+                    onClick={() => toggleOne(r.atributo)}
                   >
+                    <td className="py-0.5 sm:py-1 text-center">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleOne(r.atributo)}
+                        onClick={(e) => e.stopPropagation()}
+                        aria-label={`Selecionar ${r.atributo}`}
+                        className="h-3 w-3 accent-[#378ADD] cursor-pointer align-middle"
+                      />
+                    </td>
                     <td
                       className="py-0.5 sm:py-1 text-neutral-200 truncate pr-1 sm:pr-2 overflow-hidden whitespace-nowrap"
                       title={r.rede}
@@ -2078,8 +2136,15 @@ function LineLegend({ color, label, dashed }: { color: string; label: string; da
   );
 }
 
-function ProductGroupHistoryCard({ rows }: { rows: AgRow[] }) {
-  const [selected, setSelected] = useState<string[]>([]);
+function ProductGroupHistoryCard({
+  rows,
+  selected,
+  setSelected,
+}: {
+  rows: AgRow[];
+  selected: string[];
+  setSelected: React.Dispatch<React.SetStateAction<string[]>>;
+}) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
 
