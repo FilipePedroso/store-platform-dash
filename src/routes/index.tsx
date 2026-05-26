@@ -100,6 +100,7 @@ function Dashboard() {
   const updateDatasetFn = useServerFn(updateDataset);
   const appendAgsChunkFn = useServerFn(appendAgsChunk);
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
+  const [selectedHistoryGroups, setSelectedHistoryGroups] = useState<string[]>([]);
 
   const refresh = async () => {
     const { rows, agRows, estrutura, iniciativas, meta } = await loadRowsFromCloud();
