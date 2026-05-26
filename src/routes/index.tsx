@@ -2087,8 +2087,15 @@ function LineLegend({ color, label, dashed }: { color: string; label: string; da
   );
 }
 
-function ProductGroupHistoryCard({ rows }: { rows: AgRow[] }) {
-  const [selected, setSelected] = useState<string[]>([]);
+function ProductGroupHistoryCard({
+  rows,
+  selected,
+  setSelected,
+}: {
+  rows: AgRow[];
+  selected: string[];
+  setSelected: React.Dispatch<React.SetStateAction<string[]>>;
+}) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
 
