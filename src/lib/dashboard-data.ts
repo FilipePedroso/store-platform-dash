@@ -41,6 +41,9 @@ export type EstruturaRow = {
   rv: string;
   sv: string;
   gv: string;
+  rvNome: string;
+  svNome: string;
+  gvNome: string;
   distribuidor: string;
 };
 
