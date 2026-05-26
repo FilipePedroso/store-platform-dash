@@ -1645,15 +1645,6 @@ function GruposNaoBatidosCard({
           <table className="w-full text-[9px] sm:text-[11px] table-fixed">
             <thead className="sticky top-0 bg-[#141416] z-10">
               <tr className="text-neutral-400 font-medium border-b border-neutral-800">
-                <th className="pb-1 sm:pb-1.5 w-6 sm:w-7 text-center">
-                  <input
-                    type="checkbox"
-                    aria-label="Selecionar todos"
-                    checked={allVisibleSelected}
-                    onChange={toggleAllVisible}
-                    className="h-3 w-3 accent-[#378ADD] cursor-pointer align-middle"
-                  />
-                </th>
                 <th className="text-left pb-1 sm:pb-1.5 font-medium w-[28%] sm:w-[26%]">Rede</th>
                 <th className="text-left pb-1 sm:pb-1.5 font-medium pl-1 sm:pl-2">Grupo</th>
                 <th className="text-center pb-1 sm:pb-1.5 font-medium w-9 sm:w-12">%</th>
@@ -1674,16 +1665,7 @@ function GruposNaoBatidosCard({
                     className={`border-b border-neutral-800 last:border-0 cursor-pointer ${checked ? "bg-[#0E2E4D]/40" : "hover:bg-neutral-800/40"}`}
                     onClick={() => toggleOne(r.atributo)}
                   >
-                    <td className="py-0.5 sm:py-1 text-center">
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => toggleOne(r.atributo)}
-                        onClick={(e) => e.stopPropagation()}
-                        aria-label={`Selecionar ${r.atributo}`}
-                        className="h-3 w-3 accent-[#378ADD] cursor-pointer align-middle"
-                      />
-                    </td>
+
                     <td
                       className="py-0.5 sm:py-1 text-neutral-200 truncate pr-1 sm:pr-2 overflow-hidden whitespace-nowrap"
                       title={r.rede}
