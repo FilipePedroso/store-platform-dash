@@ -357,17 +357,20 @@ function Dashboard() {
   // e ao filtro de rede atualmente selecionado.
   const codeOpts = useMemo(() => {
     const inList = (v: string, list: string[]) => list.length === 0 || list.includes(v);
+    const compose = (code: string, name: string) => (code ? (name ? `${code} - ${name}` : code) : "");
     const redeSel = dFilters.rede;
     const distSel = dFilters.distribuidor;
     const pick = (key: "gv" | "sv" | "rv") => {
+      const nameKey = (key + "Nome") as "gvNome" | "svNome" | "rvNome";
       const set = new Set<string>();
       for (const e of estrutura) {
         if (!inList(e.rede, redeSel)) continue;
         if (!inList(e.distribuidor, distSel)) continue;
-        if (key !== "gv" && !inList(e.gv, dFilters.gv)) continue;
-        if (key !== "sv" && !inList(e.sv, dFilters.sv)) continue;
-        if (key !== "rv" && !inList(e.rv, dFilters.rv)) continue;
-        if (e[key]) set.add(e[key]);
+        if (key !== "gv" && !inList(compose(e.gv, e.gvNome), dFilters.gv)) continue;
+        if (key !== "sv" && !inList(compose(e.sv, e.svNome), dFilters.sv)) continue;
+        if (key !== "rv" && !inList(compose(e.rv, e.rvNome), dFilters.rv)) continue;
+        const label = compose(e[key], e[nameKey]);
+        if (label) set.add(label);
       }
       for (const v of dFilters[key]) set.add(v);
       return [...set].sort();
