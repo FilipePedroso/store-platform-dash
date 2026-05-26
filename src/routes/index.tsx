@@ -1665,16 +1665,7 @@ function GruposNaoBatidosCard({
                     className={`border-b border-neutral-800 last:border-0 cursor-pointer ${checked ? "bg-[#0E2E4D]/40" : "hover:bg-neutral-800/40"}`}
                     onClick={() => toggleOne(r.atributo)}
                   >
-                    <td className="py-0.5 sm:py-1 text-center">
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => toggleOne(r.atributo)}
-                        onClick={(e) => e.stopPropagation()}
-                        aria-label={`Selecionar ${r.atributo}`}
-                        className="h-3 w-3 accent-[#378ADD] cursor-pointer align-middle"
-                      />
-                    </td>
+
                     <td
                       className="py-0.5 sm:py-1 text-neutral-200 truncate pr-1 sm:pr-2 overflow-hidden whitespace-nowrap"
                       title={r.rede}
