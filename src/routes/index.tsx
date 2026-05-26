@@ -1499,12 +1499,40 @@ function ChannelMixCard({ rows }: { rows: { canal: string; pct: number }[] }) {
 
 function GruposNaoBatidosCard({
   rows,
+  selectedGroups,
+  setSelectedGroups,
 }: {
   rows: { rede: string; sortimento: number; target: number; atributo: string; valor: number }[];
+  selectedGroups: string[];
+  setSelectedGroups: React.Dispatch<React.SetStateAction<string[]>>;
 }) {
   const fmtInt = (n: number) =>
     n.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
   const visibleRows = rows;
+  const selectedSet = useMemo(() => new Set(selectedGroups), [selectedGroups]);
+  const visibleAtributos = useMemo(
+    () => Array.from(new Set(visibleRows.map((r) => r.atributo).filter(Boolean))),
+    [visibleRows],
+  );
+  const allVisibleSelected =
+    visibleAtributos.length > 0 && visibleAtributos.every((a) => selectedSet.has(a));
+  const toggleOne = (atributo: string) => {
+    if (!atributo) return;
+    setSelectedGroups((cur) =>
+      cur.includes(atributo) ? cur.filter((x) => x !== atributo) : [...cur, atributo],
+    );
+  };
+  const toggleAllVisible = () => {
+    setSelectedGroups((cur) => {
+      if (allVisibleSelected) {
+        const remove = new Set(visibleAtributos);
+        return cur.filter((x) => !remove.has(x));
+      }
+      const merged = new Set(cur);
+      for (const a of visibleAtributos) merged.add(a);
+      return Array.from(merged);
+    });
+  };
 
   const handleDownloadCsv = () => {
     const headers = ["Rede", "Sortimento", "Grupo", "Target", "Vendido(Un)", "Faltante"];
