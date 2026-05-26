@@ -124,9 +124,14 @@ function Dashboard() {
   const allowedRedes = useMemo<Set<string> | null>(() => {
     if (dFilters.gv.length === 0 && dFilters.sv.length === 0 && dFilters.rv.length === 0) return null;
     const inList = (v: string, list: string[]) => list.length === 0 || list.includes(v);
+    const compose = (code: string, name: string) => (code ? (name ? `${code} - ${name}` : code) : "");
     const set = new Set<string>();
     for (const e of estrutura) {
-      if (inList(e.gv, dFilters.gv) && inList(e.sv, dFilters.sv) && inList(e.rv, dFilters.rv)) {
+      if (
+        inList(compose(e.gv, e.gvNome), dFilters.gv) &&
+        inList(compose(e.sv, e.svNome), dFilters.sv) &&
+        inList(compose(e.rv, e.rvNome), dFilters.rv)
+      ) {
         set.add(e.rede);
       }
     }
