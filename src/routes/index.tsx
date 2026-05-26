@@ -696,13 +696,21 @@ function Dashboard() {
 
       {/* Grupos não batidos (dataset 'dados ags') */}
       <div className="grid grid-cols-1 gap-2.5 mb-3">
-        <GruposNaoBatidosCard rows={gruposNaoBatidos} />
+        <GruposNaoBatidosCard
+          rows={gruposNaoBatidos}
+          selectedGroups={selectedHistoryGroups}
+          setSelectedGroups={setSelectedHistoryGroups}
+        />
 
       </div>
 
       {/* Históricos Grupos de Produto */}
       <div className="grid grid-cols-1 gap-2.5">
-        <ProductGroupHistoryCard rows={baseAgRows} />
+        <ProductGroupHistoryCard
+          rows={baseAgRows}
+          selected={selectedHistoryGroups}
+          setSelected={setSelectedHistoryGroups}
+        />
       </div>
     </div>
   );
