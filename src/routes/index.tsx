@@ -1645,15 +1645,6 @@ function GruposNaoBatidosCard({
           <table className="w-full text-[9px] sm:text-[11px] table-fixed">
             <thead className="sticky top-0 bg-[#141416] z-10">
               <tr className="text-neutral-400 font-medium border-b border-neutral-800">
-                <th className="pb-1 sm:pb-1.5 w-6 sm:w-7 text-center">
-                  <input
-                    type="checkbox"
-                    aria-label="Selecionar todos"
-                    checked={allVisibleSelected}
-                    onChange={toggleAllVisible}
-                    className="h-3 w-3 accent-[#378ADD] cursor-pointer align-middle"
-                  />
-                </th>
                 <th className="text-left pb-1 sm:pb-1.5 font-medium w-[28%] sm:w-[26%]">Rede</th>
                 <th className="text-left pb-1 sm:pb-1.5 font-medium pl-1 sm:pl-2">Grupo</th>
                 <th className="text-center pb-1 sm:pb-1.5 font-medium w-9 sm:w-12">%</th>
