@@ -17,6 +17,7 @@ export type Database = {
       dataset: {
         Row: {
           estrutura: Json
+          estrutura_grupos: Json
           id: string
           iniciativas: Json
           row_count: number
@@ -25,6 +26,7 @@ export type Database = {
         }
         Insert: {
           estrutura?: Json
+          estrutura_grupos?: Json
           id?: string
           iniciativas?: Json
           row_count?: number
@@ -33,6 +35,7 @@ export type Database = {
         }
         Update: {
           estrutura?: Json
+          estrutura_grupos?: Json
           id?: string
           iniciativas?: Json
           row_count?: number
@@ -42,6 +45,24 @@ export type Database = {
         Relationships: []
       }
       dataset_ags_chunks: {
+        Row: {
+          chunk_index: number
+          id: string
+          rows: Json
+        }
+        Insert: {
+          chunk_index: number
+          id?: string
+          rows?: Json
+        }
+        Update: {
+          chunk_index?: number
+          id?: string
+          rows?: Json
+        }
+        Relationships: []
+      }
+      dataset_skus_chunks: {
         Row: {
           chunk_index: number
           id: string
