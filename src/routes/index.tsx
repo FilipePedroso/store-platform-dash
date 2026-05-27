@@ -2509,7 +2509,7 @@ function ProductGroupHistoryCard({
         </div>
       </div>
 
-      {selected.length === 0 || n === 0 ? (
+      {!hasAny || n === 0 ? (
         <div className="text-[11px] text-neutral-500 text-center py-12">
           Selecione um grupo de produto no filtro à direita para visualizar o histórico.
         </div>
