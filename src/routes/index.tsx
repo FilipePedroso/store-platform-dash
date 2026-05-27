@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import {
   LayoutDashboard,
   Layers,
@@ -15,6 +15,7 @@ import {
   TrendingUp,
   Star,
   ChevronDown,
+  ChevronRight,
   Upload,
   X,
   Lock,
@@ -39,8 +40,10 @@ import {
   type DataMeta,
   type EstruturaRow,
   type IniciativaRow,
+  type EstruturaGrupoRow,
+  type SkuRow,
 } from "@/lib/dashboard-data";
-import { updateDataset, appendAgsChunk } from "@/lib/dataset.functions";
+import { updateDataset, appendAgsChunk, appendSkusChunk } from "@/lib/dataset.functions";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -95,19 +98,26 @@ function Dashboard() {
   const [allAgRows, setAllAgRows] = useState<AgRow[]>([]);
   const [estrutura, setEstrutura] = useState<EstruturaRow[]>([]);
   const [allIniciativas, setAllIniciativas] = useState<IniciativaRow[]>([]);
+  const [estruturaGrupos, setEstruturaGrupos] = useState<EstruturaGrupoRow[]>([]);
+  const [allSkuRows, setAllSkuRows] = useState<SkuRow[]>([]);
   const [meta, setMeta] = useState<DataMeta | null>(null);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const updateDatasetFn = useServerFn(updateDataset);
   const appendAgsChunkFn = useServerFn(appendAgsChunk);
+  const appendSkusChunkFn = useServerFn(appendSkusChunk);
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
   const [selectedHistoryGroups, setSelectedHistoryGroups] = useState<string[]>([]);
+  const [selectedHistorySkus, setSelectedHistorySkus] = useState<string[]>([]);
 
   const refresh = async () => {
-    const { rows, agRows, estrutura, iniciativas, meta } = await loadRowsFromCloud();
+    const { rows, agRows, estrutura, iniciativas, estruturaGrupos, skuRows, meta } =
+      await loadRowsFromCloud();
     setAllRows(rows);
     setAllAgRows(agRows);
     setEstrutura(estrutura);
     setAllIniciativas(iniciativas);
+    setEstruturaGrupos(estruturaGrupos);
+    setAllSkuRows(skuRows);
     setMeta(meta);
   };
 
@@ -146,6 +156,10 @@ function Dashboard() {
   const agRows = useMemo(
     () => (allowedRedes ? allAgRows.filter((r) => allowedRedes.has(r.rede)) : allAgRows),
     [allAgRows, allowedRedes],
+  );
+  const skuRows = useMemo(
+    () => (allowedRedes ? allSkuRows.filter((r) => allowedRedes.has(r.rede)) : allSkuRows),
+    [allSkuRows, allowedRedes],
   );
 
 
@@ -297,6 +311,67 @@ function Dashboard() {
     );
   }, [agRows, dFilters]);
 
+  // Filtros aplicados ao dataset de SKUs (com mês — usado na tabela de Grupos não batidos)
+  const skuMonthRows = useMemo(() => {
+    const inList = (v: string, list: string[]) => list.length === 0 || list.includes(v);
+    const monthSet = new Set(selectedMonths);
+    return skuRows.filter(
+      (r) =>
+        inList(r.cluster, dFilters.cluster) &&
+        inList(r.canal, dFilters.canal) &&
+        inList(r.rede, dFilters.rede) &&
+        inList(r.distribuidor, dFilters.distribuidor) &&
+        monthSet.has(r.mes),
+    );
+  }, [skuRows, dFilters, selectedMonths]);
+
+  // Mesmos filtros sem mês — usado para o histórico de SKUs
+  const baseSkuRows = useMemo(() => {
+    const inList = (v: string, list: string[]) => list.length === 0 || list.includes(v);
+    return skuRows.filter(
+      (r) =>
+        inList(r.cluster, dFilters.cluster) &&
+        inList(r.canal, dFilters.canal) &&
+        inList(r.rede, dFilters.rede) &&
+        inList(r.distribuidor, dFilters.distribuidor),
+    );
+  }, [skuRows, dFilters]);
+
+  // Mapa: activationGroup -> lista de SKUs (ean + descricao)
+  const skusByGroup = useMemo(() => {
+    const map = new Map<string, { ean: string; descricao: string }[]>();
+    const seen = new Map<string, Set<string>>();
+    for (const e of estruturaGrupos) {
+      if (!e.activationGroup || !e.ean) continue;
+      let arr = map.get(e.activationGroup);
+      let dedup = seen.get(e.activationGroup);
+      if (!arr) {
+        arr = [];
+        map.set(e.activationGroup, arr);
+        dedup = new Set();
+        seen.set(e.activationGroup, dedup);
+      }
+      if (!dedup!.has(e.ean)) {
+        dedup!.add(e.ean);
+        arr.push({ ean: e.ean, descricao: e.descricao });
+      }
+    }
+    for (const arr of map.values()) {
+      arr.sort((a, b) => a.ean.localeCompare(b.ean));
+    }
+    return map;
+  }, [estruturaGrupos]);
+
+  // Mapa: `${rede}|${activationGroup}|${ean}` -> volume somado (mês corrente)
+  const skuVolumeMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const r of skuMonthRows) {
+      const k = `${r.rede}|${r.activationGroup}|${r.dsEan}`;
+      map.set(k, (map.get(k) ?? 0) + (Number(r.volume) || 0));
+    }
+    return map;
+  }, [skuMonthRows]);
+
   // Tabela "Grupos não batidos": positivação == 0
   const gruposNaoBatidos = useMemo(() => {
     const sortMap = new Map<string, number>();
@@ -402,6 +477,7 @@ function Dashboard() {
           rows: parsed.rows,
           estrutura: parsed.estrutura,
           iniciativas: parsed.iniciativas,
+          estruturaGrupos: parsed.estruturaGrupos,
         },
       });
       // Envia a aba "dados ags" em chunks com paralelismo controlado
@@ -425,6 +501,26 @@ function Dashboard() {
       };
       await Promise.all(
         Array.from({ length: Math.min(CONCURRENCY, total) }, () => worker()),
+      );
+      // Envia a aba "dados_skus" em chunks
+      const totalSku = Math.ceil(parsed.skuRows.length / CHUNK);
+      let doneSku = 0;
+      setUploadProgress(`Enviando SKUs (0/${totalSku})...`);
+      let nextSku = 0;
+      const workerSku = async () => {
+        while (true) {
+          const i = nextSku++;
+          if (i >= totalSku) return;
+          const slice = parsed.skuRows.slice(i * CHUNK, (i + 1) * CHUNK);
+          await appendSkusChunkFn({
+            data: { ...creds, chunkIndex: i, rows: slice },
+          });
+          doneSku++;
+          setUploadProgress(`Enviando SKUs (${doneSku}/${totalSku})...`);
+        }
+      };
+      await Promise.all(
+        Array.from({ length: Math.min(CONCURRENCY, totalSku) }, () => workerSku()),
       );
       setUploadProgress(null);
       await refresh();
@@ -701,6 +797,10 @@ function Dashboard() {
           rows={gruposNaoBatidos}
           selectedGroups={selectedHistoryGroups}
           setSelectedGroups={setSelectedHistoryGroups}
+          skusByGroup={skusByGroup}
+          skuVolumeMap={skuVolumeMap}
+          selectedSkus={selectedHistorySkus}
+          setSelectedSkus={setSelectedHistorySkus}
         />
 
       </div>
@@ -709,8 +809,12 @@ function Dashboard() {
       <div className="grid grid-cols-1 gap-2.5">
         <ProductGroupHistoryCard
           rows={baseAgRows}
+          skuRows={baseSkuRows}
           selected={selectedHistoryGroups}
           setSelected={setSelectedHistoryGroups}
+          selectedSkus={selectedHistorySkus}
+          setSelectedSkus={setSelectedHistorySkus}
+          skusByGroup={skusByGroup}
         />
       </div>
     </div>
@@ -1501,11 +1605,34 @@ function GruposNaoBatidosCard({
   rows,
   selectedGroups,
   setSelectedGroups,
+  skusByGroup,
+  skuVolumeMap,
+  selectedSkus,
+  setSelectedSkus,
 }: {
   rows: { rede: string; sortimento: number; target: number; atributo: string; valor: number }[];
   selectedGroups: string[];
   setSelectedGroups: React.Dispatch<React.SetStateAction<string[]>>;
+  skusByGroup: Map<string, { ean: string; descricao: string }[]>;
+  skuVolumeMap: Map<string, number>;
+  selectedSkus: string[];
+  setSelectedSkus: React.Dispatch<React.SetStateAction<string[]>>;
 }) {
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const selectedSkuSet = useMemo(() => new Set(selectedSkus), [selectedSkus]);
+  const toggleExpand = (key: string) =>
+    setExpanded((cur) => {
+      const next = new Set(cur);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  const toggleSku = (ean: string) => {
+    if (!ean) return;
+    setSelectedSkus((cur) =>
+      cur.includes(ean) ? cur.filter((x) => x !== ean) : [...cur, ean],
+    );
+  };
   const fmtInt = (n: number) =>
     n.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
   const visibleRows = rows;
@@ -1659,41 +1786,102 @@ function GruposNaoBatidosCard({
                 const sortColor =
                   r.sortimento >= 0.9 ? "#22C55E" : r.sortimento >= 0.85 ? ORANGE : RED;
                 const checked = selectedSet.has(r.atributo);
+                const rowKey = `${r.rede}-${r.atributo}-${i}`;
+                const isExpanded = expanded.has(rowKey);
+                const skus = skusByGroup.get(r.atributo) ?? [];
                 return (
-                  <tr
-                    key={`${r.rede}-${r.atributo}-${i}`}
-                    className={`border-b border-neutral-800 last:border-0 cursor-pointer ${checked ? "bg-[#0E2E4D]/40" : "hover:bg-neutral-800/40"}`}
-                    onClick={() => toggleOne(r.atributo)}
-                  >
-
-                    <td
-                      className="py-0.5 sm:py-1 text-neutral-200 truncate pr-1 sm:pr-2 overflow-hidden whitespace-nowrap"
-                      title={r.rede}
+                  <React.Fragment key={rowKey}>
+                    <tr
+                      className={`border-b border-neutral-800 cursor-pointer ${checked ? "bg-[#0E2E4D]/40" : "hover:bg-neutral-800/40"}`}
                     >
-                      {r.rede}
-                    </td>
-                    <td
-                      className="py-0.5 sm:py-1 text-neutral-200 truncate pr-1 sm:pr-2 pl-1 sm:pl-2 overflow-hidden whitespace-nowrap"
-                      title={r.atributo}
-                    >
-                      {r.atributo}
-                    </td>
-                    <td
-                      className="py-0.5 sm:py-1 text-center tabular-nums font-medium"
-                      style={{ color: sortColor }}
-                    >
-                      {fmtPct(r.sortimento, 0)}
-                    </td>
-                    <td className="py-0.5 sm:py-1 text-right tabular-nums text-neutral-300">
-                      {fmtInt(r.target)}
-                    </td>
-                    <td className="py-0.5 sm:py-1 text-right tabular-nums font-medium text-neutral-200">
-                      {fmtInt(r.valor)}
-                    </td>
-                    <td className="py-0.5 sm:py-1 text-right tabular-nums font-medium text-[#F87171]">
-                      {fmtInt(faltante)}
-                    </td>
-                  </tr>
+                      <td
+                        className="py-0.5 sm:py-1 text-neutral-200 truncate pr-1 sm:pr-2 overflow-hidden whitespace-nowrap"
+                        title={r.rede}
+                        onClick={() => toggleOne(r.atributo)}
+                      >
+                        {r.rede}
+                      </td>
+                      <td
+                        className="py-0.5 sm:py-1 text-neutral-200 truncate pr-1 sm:pr-2 pl-1 sm:pl-2 overflow-hidden whitespace-nowrap"
+                        title={r.atributo}
+                      >
+                        <span className="inline-flex items-center gap-1">
+                          {skus.length > 0 ? (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleExpand(rowKey);
+                              }}
+                              className="text-neutral-400 hover:text-neutral-100 -ml-1"
+                              aria-label="Expandir SKUs"
+                            >
+                              {isExpanded ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+                            </button>
+                          ) : (
+                            <span className="w-[11px] inline-block" />
+                          )}
+                          <span
+                            onClick={() => toggleOne(r.atributo)}
+                            className="truncate"
+                          >
+                            {r.atributo}
+                          </span>
+                        </span>
+                      </td>
+                      <td
+                        className="py-0.5 sm:py-1 text-center tabular-nums font-medium"
+                        style={{ color: sortColor }}
+                        onClick={() => toggleOne(r.atributo)}
+                      >
+                        {fmtPct(r.sortimento, 0)}
+                      </td>
+                      <td
+                        className="py-0.5 sm:py-1 text-right tabular-nums text-neutral-300"
+                        onClick={() => toggleOne(r.atributo)}
+                      >
+                        {fmtInt(r.target)}
+                      </td>
+                      <td
+                        className="py-0.5 sm:py-1 text-right tabular-nums font-medium text-neutral-200"
+                        onClick={() => toggleOne(r.atributo)}
+                      >
+                        {fmtInt(r.valor)}
+                      </td>
+                      <td
+                        className="py-0.5 sm:py-1 text-right tabular-nums font-medium text-[#F87171]"
+                        onClick={() => toggleOne(r.atributo)}
+                      >
+                        {fmtInt(faltante)}
+                      </td>
+                    </tr>
+                    {isExpanded &&
+                      skus.map((sku) => {
+                        const vol = skuVolumeMap.get(`${r.rede}|${r.atributo}|${sku.ean}`) ?? 0;
+                        const skuChecked = selectedSkuSet.has(sku.ean);
+                        return (
+                          <tr
+                            key={`${rowKey}-${sku.ean}`}
+                            className={`border-b border-neutral-800/60 cursor-pointer ${skuChecked ? "bg-[#0E2E4D]/30" : "hover:bg-neutral-800/30"}`}
+                            onClick={() => toggleSku(sku.ean)}
+                          >
+                            <td className="py-0.5 sm:py-1" />
+                            <td
+                              className="py-0.5 sm:py-1 text-neutral-400 truncate pr-1 sm:pr-2 pl-5 sm:pl-7 overflow-hidden whitespace-nowrap text-[10px]"
+                              title={`${sku.ean} - ${sku.descricao}`}
+                            >
+                              {sku.ean}{sku.descricao ? ` - ${sku.descricao}` : ""}
+                            </td>
+                            <td />
+                            <td />
+                            <td className="py-0.5 sm:py-1 text-right tabular-nums text-neutral-300 text-[10px]">
+                              {fmtInt(vol)}
+                            </td>
+                            <td />
+                          </tr>
+                        );
+                      })}
+                  </React.Fragment>
                 );
               })}
             </tbody>
@@ -2120,15 +2308,32 @@ function LineLegend({ color, label, dashed }: { color: string; label: string; da
 
 function ProductGroupHistoryCard({
   rows,
+  skuRows,
   selected,
   setSelected,
+  selectedSkus,
+  setSelectedSkus,
+  skusByGroup,
 }: {
   rows: AgRow[];
+  skuRows: SkuRow[];
   selected: string[];
   setSelected: React.Dispatch<React.SetStateAction<string[]>>;
+  selectedSkus: string[];
+  setSelectedSkus: React.Dispatch<React.SetStateAction<string[]>>;
+  skusByGroup: Map<string, { ean: string; descricao: string }[]>;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+
+  // Descrição lookup para os EANs selecionados
+  const eanDesc = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const arr of skusByGroup.values()) {
+      for (const s of arr) if (!m.has(s.ean)) m.set(s.ean, s.descricao);
+    }
+    return m;
+  }, [skusByGroup]);
 
   const atributos = useMemo(() => {
     const s = new Set<string>();
@@ -2144,24 +2349,47 @@ function ProductGroupHistoryCard({
   const months = useMemo(() => {
     const s = new Set<string>();
     for (const r of rows) if (r.mes) s.add(r.mes);
+    for (const r of skuRows) if (r.mes) s.add(r.mes);
     return [...s].sort();
-  }, [rows]);
+  }, [rows, skuRows]);
+
+  const hasAny = selected.length > 0 || selectedSkus.length > 0;
 
   const series = useMemo(() => {
-    if (selected.length === 0) return [];
-    const set = new Set(selected);
-    const maps = new Map<string, Map<string, number>>();
-    for (const a of selected) maps.set(a, new Map());
-    for (const r of rows) {
-      if (!set.has(r.atributo)) continue;
-      const m = maps.get(r.atributo)!;
-      m.set(r.mes, (m.get(r.mes) ?? 0) + (Number(r.valor) || 0));
+    if (!hasAny) return [] as { name: string; values: number[] }[];
+    const out: { name: string; values: number[] }[] = [];
+    // Séries por grupo (agRows)
+    if (selected.length > 0) {
+      const set = new Set(selected);
+      const maps = new Map<string, Map<string, number>>();
+      for (const a of selected) maps.set(a, new Map());
+      for (const r of rows) {
+        if (!set.has(r.atributo)) continue;
+        const m = maps.get(r.atributo)!;
+        m.set(r.mes, (m.get(r.mes) ?? 0) + (Number(r.valor) || 0));
+      }
+      for (const a of selected) {
+        out.push({ name: a, values: months.map((m) => maps.get(a)!.get(m) ?? 0) });
+      }
     }
-    return selected.map((a) => ({
-      name: a,
-      values: months.map((m) => maps.get(a)!.get(m) ?? 0),
-    }));
-  }, [rows, selected, months]);
+    // Séries por SKU (skuRows)
+    if (selectedSkus.length > 0) {
+      const set = new Set(selectedSkus);
+      const maps = new Map<string, Map<string, number>>();
+      for (const e of selectedSkus) maps.set(e, new Map());
+      for (const r of skuRows) {
+        if (!set.has(r.dsEan)) continue;
+        const m = maps.get(r.dsEan)!;
+        m.set(r.mes, (m.get(r.mes) ?? 0) + (Number(r.volume) || 0));
+      }
+      for (const e of selectedSkus) {
+        const desc = eanDesc.get(e);
+        const label = desc ? `${e} - ${desc}` : e;
+        out.push({ name: label, values: months.map((m) => maps.get(e)!.get(m) ?? 0) });
+      }
+    }
+    return out;
+  }, [rows, skuRows, selected, selectedSkus, months, hasAny, eanDesc]);
 
   const W = 800;
   const H = 220;

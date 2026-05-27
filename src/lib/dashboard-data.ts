@@ -56,12 +56,32 @@ export type IniciativaRow = {
   iniciativas: Record<string, number>;
 };
 
-export type DataMeta = { updatedAt: string; rowCount: number; agsCount: number };
+export type EstruturaGrupoRow = {
+  categoria: string;
+  marca: string;
+  activationGroup: string;
+  ean: string;
+  descricao: string;
+};
+
+export type SkuRow = {
+  rede: string;
+  activationGroup: string;
+  dsEan: string;
+  volume: number;
+  mes: string;
+  distribuidor: string;
+  canal: string;
+  cluster: string;
+};
+
+export type DataMeta = { updatedAt: string; rowCount: number; agsCount: number; skusCount: number };
 
 const SEED_META: DataMeta = {
   updatedAt: "2025-01-01T00:00:00Z",
   rowCount: (seed as Row[]).length,
   agsCount: 0,
+  skusCount: 0,
 };
 
 /** Carrega o dataset compartilhado da Cloud. Se ainda não houver upload, usa o seed embarcado. */
@@ -70,20 +90,33 @@ export async function loadRowsFromCloud(): Promise<{
   agRows: AgRow[];
   estrutura: EstruturaRow[];
   iniciativas: IniciativaRow[];
+  estruturaGrupos: EstruturaGrupoRow[];
+  skuRows: SkuRow[];
   meta: DataMeta;
 }> {
   try {
     const { data, error } = await supabase
       .from("dataset")
-      .select("rows, row_count, updated_at, estrutura, iniciativas")
+      .select("rows, row_count, updated_at, estrutura, iniciativas, estrutura_grupos")
       .eq("id", "main")
       .maybeSingle();
     if (error) throw error;
     const rows = (data?.rows as Row[] | null) ?? [];
     const estrutura = ((data as { estrutura?: EstruturaRow[] } | null)?.estrutura as EstruturaRow[] | null) ?? [];
     const iniciativas = ((data as { iniciativas?: IniciativaRow[] } | null)?.iniciativas as IniciativaRow[] | null) ?? [];
+    const estruturaGrupos =
+      ((data as { estrutura_grupos?: EstruturaGrupoRow[] } | null)?.estrutura_grupos as EstruturaGrupoRow[] | null) ??
+      [];
     if (rows.length === 0) {
-      return { rows: seed as Row[], agRows: [], estrutura: [], iniciativas: [], meta: SEED_META };
+      return {
+        rows: seed as Row[],
+        agRows: [],
+        estrutura: [],
+        iniciativas: [],
+        estruturaGrupos: [],
+        skuRows: [],
+        meta: SEED_META,
+      };
     }
 
     // Carrega todos os chunks da aba "dados ags"
@@ -105,19 +138,48 @@ export async function loadRowsFromCloud(): Promise<{
       if (chunks.length < PAGE) break;
     }
 
+    // Carrega todos os chunks da aba "dados_skus"
+    const skuRows: SkuRow[] = [];
+    for (let from = 0; ; from += PAGE) {
+      const { data: chunks, error: chunkErr } = await supabase
+        .from("dataset_skus_chunks")
+        .select("rows")
+        .eq("id", "main")
+        .order("chunk_index", { ascending: true })
+        .range(from, from + PAGE - 1);
+      if (chunkErr) break;
+      if (!chunks || chunks.length === 0) break;
+      for (const c of chunks) {
+        const arr = (c.rows as SkuRow[] | null) ?? [];
+        for (const r of arr) skuRows.push(r);
+      }
+      if (chunks.length < PAGE) break;
+    }
+
     return {
       rows,
       agRows,
       estrutura,
       iniciativas,
+      estruturaGrupos,
+      skuRows,
       meta: {
         updatedAt: data!.updated_at,
         rowCount: data!.row_count ?? rows.length,
         agsCount: agRows.length,
+        skusCount: skuRows.length,
       },
     };
   } catch {
-    return { rows: seed as Row[], agRows: [], estrutura: [], iniciativas: [], meta: SEED_META };
+    return {
+      rows: seed as Row[],
+      agRows: [],
+      estrutura: [],
+      iniciativas: [],
+      estruturaGrupos: [],
+      skuRows: [],
+      meta: SEED_META,
+    };
   }
 }
 
@@ -178,7 +240,14 @@ function excelDateToISO(v: unknown): string {
 
 export async function parseXlsxFile(
   file: File,
-): Promise<{ rows: Row[]; agRows: AgRow[]; estrutura: EstruturaRow[]; iniciativas: IniciativaRow[] }> {
+): Promise<{
+  rows: Row[];
+  agRows: AgRow[];
+  estrutura: EstruturaRow[];
+  iniciativas: IniciativaRow[];
+  estruturaGrupos: EstruturaGrupoRow[];
+  skuRows: SkuRow[];
+}> {
   const buf = await file.arrayBuffer();
   const wb = XLSX.read(buf, { type: "array", cellDates: true });
   const sheetName = wb.SheetNames.find((n) => n.toLowerCase() === "dados") ?? wb.SheetNames[0];
@@ -317,7 +386,83 @@ export async function parseXlsxFile(
       .filter((r) => r.rede);
   }
 
-  return { rows, agRows, estrutura, iniciativas };
+  // Parse "estrutura_grupos" sheet if present
+  const egSheetName = wb.SheetNames.find(
+    (n) => n.toLowerCase() === "estrutura_grupos" || n.toLowerCase() === "estrutura grupos",
+  );
+  let estruturaGrupos: EstruturaGrupoRow[] = [];
+  if (egSheetName) {
+    const wsEg = wb.Sheets[egSheetName];
+    const jsonEg = XLSX.utils.sheet_to_json<Record<string, unknown>>(wsEg, {
+      defval: null,
+      raw: true,
+    });
+    const norm = (v: unknown) => (v == null ? "" : String(v).trim());
+    estruturaGrupos = jsonEg
+      .map((raw) => {
+        const out: EstruturaGrupoRow = {
+          categoria: "",
+          marca: "",
+          activationGroup: "",
+          ean: "",
+          descricao: "",
+        };
+        for (const [k, v] of Object.entries(raw)) {
+          const key = k.trim().toLowerCase();
+          if (key === "categoria") out.categoria = norm(v);
+          else if (key === "marca") out.marca = norm(v);
+          else if (key === "activation group" || key === "activationgroup") out.activationGroup = norm(v);
+          else if (key === "ean") out.ean = norm(v);
+          else if (key === "descrição" || key === "descricao") out.descricao = norm(v);
+        }
+        return out;
+      })
+      .filter((r) => r.activationGroup && r.ean);
+  }
+
+  // Parse "dados_skus" sheet if present
+  const skuSheetName = wb.SheetNames.find(
+    (n) => n.toLowerCase() === "dados_skus" || n.toLowerCase() === "dados skus",
+  );
+  let skuRows: SkuRow[] = [];
+  if (skuSheetName) {
+    const wsS = wb.Sheets[skuSheetName];
+    const jsonS = XLSX.utils.sheet_to_json<Record<string, unknown>>(wsS, {
+      defval: null,
+      raw: true,
+    });
+    const norm = (v: unknown) => (v == null ? "" : String(v).trim());
+    skuRows = jsonS
+      .map((raw) => {
+        const out: SkuRow = {
+          rede: "",
+          activationGroup: "",
+          dsEan: "",
+          volume: 0,
+          mes: "",
+          distribuidor: "",
+          canal: "",
+          cluster: "",
+        };
+        for (const [k, v] of Object.entries(raw)) {
+          const key = k.trim().toLowerCase();
+          if (key === "rede") out.rede = norm(v);
+          else if (key === "activation group" || key === "activationgroup") out.activationGroup = norm(v);
+          else if (key === "ds_ean" || key === "dsean" || key === "ean") out.dsEan = norm(v);
+          else if (key === "volume") {
+            const n = typeof v === "number" ? v : v == null ? 0 : Number(v);
+            out.volume = Number.isFinite(n) ? n : 0;
+          } else if (key === "mês" || key === "mes") out.mes = excelDateToISO(v);
+          else if (key === "distribuidor") out.distribuidor = norm(v);
+          else if (key === "canal") out.canal = norm(v);
+          else if (key === "cluster") out.cluster = norm(v);
+        }
+        return out;
+      })
+      .filter((r) => r.rede && r.dsEan);
+  }
+
+  return { rows, agRows, estrutura, iniciativas, estruturaGrupos, skuRows };
 }
 
 export function formatUpdatedAt(meta: DataMeta): string {

@@ -12,8 +12,8 @@ function checkCreds(email: string, password: string) {
 
 /**
  * Atualiza a tabela principal `dataset` (aba "Dados") e limpa os chunks
- * existentes da aba "dados ags". Em seguida o cliente envia os chunks
- * via `appendAgsChunk` para evitar timeouts.
+ * existentes das abas "dados ags" e "dados_skus". Em seguida o cliente envia os
+ * chunks via `appendAgsChunk`/`appendSkusChunk` para evitar timeouts.
  */
 export const updateDataset = createServerFn({ method: "POST" })
   .inputValidator(
@@ -23,6 +23,7 @@ export const updateDataset = createServerFn({ method: "POST" })
       rows: unknown[];
       estrutura?: unknown[];
       iniciativas?: unknown[];
+      estruturaGrupos?: unknown[];
     }) => {
       if (!input || typeof input !== "object") throw new Error("Payload inválido");
       if (typeof input.email !== "string" || typeof input.password !== "string")
@@ -33,6 +34,8 @@ export const updateDataset = createServerFn({ method: "POST" })
         throw new Error("Estrutura inválida");
       if (input.iniciativas != null && !Array.isArray(input.iniciativas))
         throw new Error("Iniciativas inválidas");
+      if (input.estruturaGrupos != null && !Array.isArray(input.estruturaGrupos))
+        throw new Error("Estrutura de grupos inválida");
       return input;
     },
   )
@@ -46,14 +49,20 @@ export const updateDataset = createServerFn({ method: "POST" })
       updated_at: updatedAt,
       estrutura: (data.estrutura ?? []) as unknown as never,
       iniciativas: (data.iniciativas ?? []) as unknown as never,
+      estrutura_grupos: (data.estruturaGrupos ?? []) as unknown as never,
     });
     if (error) throw new Error(error.message);
-    // Limpa chunks antigos da aba "dados ags"
+    // Limpa chunks antigos das abas "dados ags" e "dados_skus"
     const { error: delErr } = await supabaseAdmin
       .from("dataset_ags_chunks")
       .delete()
       .eq("id", "main");
     if (delErr) throw new Error(delErr.message);
+    const { error: delSkuErr } = await supabaseAdmin
+      .from("dataset_skus_chunks")
+      .delete()
+      .eq("id", "main");
+    if (delSkuErr) throw new Error(delSkuErr.message);
     return { ok: true, updatedAt, rowCount: data.rows.length };
   });
 
@@ -79,6 +88,36 @@ export const appendAgsChunk = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     checkCreds(data.email, data.password);
     const { error } = await supabaseAdmin.from("dataset_ags_chunks").upsert({
+      id: "main",
+      chunk_index: data.chunkIndex,
+      rows: data.rows as unknown as never,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true, chunkIndex: data.chunkIndex, count: data.rows.length };
+  });
+
+/** Envia um chunk de linhas da aba "dados_skus" — chamado em loop pelo cliente. */
+export const appendSkusChunk = createServerFn({ method: "POST" })
+  .inputValidator(
+    (input: {
+      email: string;
+      password: string;
+      chunkIndex: number;
+      rows: unknown[];
+    }) => {
+      if (!input || typeof input !== "object") throw new Error("Payload inválido");
+      if (typeof input.email !== "string" || typeof input.password !== "string")
+        throw new Error("Credenciais ausentes");
+      if (typeof input.chunkIndex !== "number" || input.chunkIndex < 0)
+        throw new Error("chunkIndex inválido");
+      if (!Array.isArray(input.rows)) throw new Error("Linhas ausentes");
+      if (input.rows.length > 5000) throw new Error("Chunk muito grande");
+      return input;
+    },
+  )
+  .handler(async ({ data }) => {
+    checkCreds(data.email, data.password);
+    const { error } = await supabaseAdmin.from("dataset_skus_chunks").upsert({
       id: "main",
       chunk_index: data.chunkIndex,
       rows: data.rows as unknown as never,
