@@ -2308,15 +2308,32 @@ function LineLegend({ color, label, dashed }: { color: string; label: string; da
 
 function ProductGroupHistoryCard({
   rows,
+  skuRows,
   selected,
   setSelected,
+  selectedSkus,
+  setSelectedSkus,
+  skusByGroup,
 }: {
   rows: AgRow[];
+  skuRows: SkuRow[];
   selected: string[];
   setSelected: React.Dispatch<React.SetStateAction<string[]>>;
+  selectedSkus: string[];
+  setSelectedSkus: React.Dispatch<React.SetStateAction<string[]>>;
+  skusByGroup: Map<string, { ean: string; descricao: string }[]>;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+
+  // Descrição lookup para os EANs selecionados
+  const eanDesc = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const arr of skusByGroup.values()) {
+      for (const s of arr) if (!m.has(s.ean)) m.set(s.ean, s.descricao);
+    }
+    return m;
+  }, [skusByGroup]);
 
   const atributos = useMemo(() => {
     const s = new Set<string>();
@@ -2332,24 +2349,47 @@ function ProductGroupHistoryCard({
   const months = useMemo(() => {
     const s = new Set<string>();
     for (const r of rows) if (r.mes) s.add(r.mes);
+    for (const r of skuRows) if (r.mes) s.add(r.mes);
     return [...s].sort();
-  }, [rows]);
+  }, [rows, skuRows]);
+
+  const hasAny = selected.length > 0 || selectedSkus.length > 0;
 
   const series = useMemo(() => {
-    if (selected.length === 0) return [];
-    const set = new Set(selected);
-    const maps = new Map<string, Map<string, number>>();
-    for (const a of selected) maps.set(a, new Map());
-    for (const r of rows) {
-      if (!set.has(r.atributo)) continue;
-      const m = maps.get(r.atributo)!;
-      m.set(r.mes, (m.get(r.mes) ?? 0) + (Number(r.valor) || 0));
+    if (!hasAny) return [] as { name: string; values: number[] }[];
+    const out: { name: string; values: number[] }[] = [];
+    // Séries por grupo (agRows)
+    if (selected.length > 0) {
+      const set = new Set(selected);
+      const maps = new Map<string, Map<string, number>>();
+      for (const a of selected) maps.set(a, new Map());
+      for (const r of rows) {
+        if (!set.has(r.atributo)) continue;
+        const m = maps.get(r.atributo)!;
+        m.set(r.mes, (m.get(r.mes) ?? 0) + (Number(r.valor) || 0));
+      }
+      for (const a of selected) {
+        out.push({ name: a, values: months.map((m) => maps.get(a)!.get(m) ?? 0) });
+      }
     }
-    return selected.map((a) => ({
-      name: a,
-      values: months.map((m) => maps.get(a)!.get(m) ?? 0),
-    }));
-  }, [rows, selected, months]);
+    // Séries por SKU (skuRows)
+    if (selectedSkus.length > 0) {
+      const set = new Set(selectedSkus);
+      const maps = new Map<string, Map<string, number>>();
+      for (const e of selectedSkus) maps.set(e, new Map());
+      for (const r of skuRows) {
+        if (!set.has(r.dsEan)) continue;
+        const m = maps.get(r.dsEan)!;
+        m.set(r.mes, (m.get(r.mes) ?? 0) + (Number(r.volume) || 0));
+      }
+      for (const e of selectedSkus) {
+        const desc = eanDesc.get(e);
+        const label = desc ? `${e} - ${desc}` : e;
+        out.push({ name: label, values: months.map((m) => maps.get(e)!.get(m) ?? 0) });
+      }
+    }
+    return out;
+  }, [rows, skuRows, selected, selectedSkus, months, hasAny, eanDesc]);
 
   const W = 800;
   const H = 220;
