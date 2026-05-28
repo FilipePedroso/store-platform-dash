@@ -2458,15 +2458,15 @@ function ProductGroupHistoryCard({
             <PopoverTrigger asChild>
               <button
                 className={`rounded-full px-3 py-1 text-[11px] flex items-center gap-1.5 border transition-colors ${
-                  selected.length > 0
+                  hasAny
                     ? "bg-[#0E2E4D] border-[#378ADD] text-[#8BBEEC] font-medium"
                     : "bg-[#1a1a1c] border-neutral-800 text-neutral-400 hover:border-neutral-700"
                 }`}
               >
                 <Layers size={12} />
-                {selected.length === 0
+                {!hasAny
                   ? "Selecionar grupo"
-                  : `${selected.length} grupo${selected.length > 1 ? "s" : ""}`}
+                  : `${groupCount + selectedSkus.length} selecionado${groupCount + selectedSkus.length > 1 ? "s" : ""}`}
                 <ChevronDown size={12} />
               </button>
             </PopoverTrigger>
@@ -2488,14 +2488,14 @@ function ProductGroupHistoryCard({
                   <button
                     type="button"
                     className="text-[10px] text-[#8BBEEC] hover:underline"
-                    onClick={() => setSelected(filteredAtributos)}
+                    onClick={() => setSelected(filteredAtributos.map(popoverKey))}
                   >
                     Selecionar todos
                   </button>
                   <button
                     type="button"
                     className="text-[10px] text-neutral-400 hover:text-neutral-200 hover:underline"
-                    onClick={() => setSelected([])}
+                    onClick={clearAll}
                   >
                     Limpar
                   </button>
@@ -2509,7 +2509,7 @@ function ProductGroupHistoryCard({
                   <div className="px-3 py-2 text-neutral-500">Sem grupos disponíveis</div>
                 ) : (
                   filteredAtributos.map((a) => {
-                    const checked = selected.includes(a);
+                    const checked = popoverHas(a);
                     return (
                       <button
                         key={a}
