@@ -1627,38 +1627,23 @@ function GruposNaoBatidosCard({
       else next.add(key);
       return next;
     });
-  const toggleSku = (ean: string) => {
+  const toggleSku = (rede: string, ean: string) => {
     if (!ean) return;
+    const key = `${rede}||${ean}`;
     setSelectedSkus((cur) =>
-      cur.includes(ean) ? cur.filter((x) => x !== ean) : [...cur, ean],
+      cur.includes(key) ? cur.filter((x) => x !== key) : [...cur, key],
     );
   };
   const fmtInt = (n: number) =>
     n.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
   const visibleRows = rows;
   const selectedSet = useMemo(() => new Set(selectedGroups), [selectedGroups]);
-  const visibleAtributos = useMemo(
-    () => Array.from(new Set(visibleRows.map((r) => r.atributo).filter(Boolean))),
-    [visibleRows],
-  );
-  const allVisibleSelected =
-    visibleAtributos.length > 0 && visibleAtributos.every((a) => selectedSet.has(a));
-  const toggleOne = (atributo: string) => {
+  const toggleOne = (rede: string, atributo: string) => {
     if (!atributo) return;
+    const key = `${rede}||${atributo}`;
     setSelectedGroups((cur) =>
-      cur.includes(atributo) ? cur.filter((x) => x !== atributo) : [...cur, atributo],
+      cur.includes(key) ? cur.filter((x) => x !== key) : [...cur, key],
     );
-  };
-  const toggleAllVisible = () => {
-    setSelectedGroups((cur) => {
-      if (allVisibleSelected) {
-        const remove = new Set(visibleAtributos);
-        return cur.filter((x) => !remove.has(x));
-      }
-      const merged = new Set(cur);
-      for (const a of visibleAtributos) merged.add(a);
-      return Array.from(merged);
-    });
   };
 
   const handleDownloadCsv = () => {
