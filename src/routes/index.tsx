@@ -1770,24 +1770,25 @@ function GruposNaoBatidosCard({
                 const faltante = Math.max(0, r.target - r.valor);
                 const sortColor =
                   r.sortimento >= 0.9 ? "#22C55E" : r.sortimento >= 0.85 ? ORANGE : RED;
-                const checked = selectedSet.has(r.atributo);
+                const rowKeyComp = `${r.rede}||${r.atributo}`;
+                const checked = selectedSet.has(rowKeyComp);
                 const rowKey = `${r.rede}-${r.atributo}-${i}`;
                 const isExpanded = expanded.has(rowKey);
                 const skus = skusByGroup.get(r.atributo) ?? [];
                 return (
                   <React.Fragment key={rowKey}>
                     <tr
-                      className={`border-b border-neutral-800 cursor-pointer ${checked ? "bg-[#0E2E4D]/40" : "hover:bg-neutral-800/40"}`}
+                      className={`border-b border-neutral-800 cursor-pointer transition-colors ${checked ? "bg-[#0E2E4D] ring-1 ring-inset ring-[#378ADD]/60 shadow-[inset_3px_0_0_0_#378ADD]" : "hover:bg-neutral-800/40"}`}
                     >
                       <td
-                        className="py-0.5 sm:py-1 text-neutral-200 truncate pr-1 sm:pr-2 overflow-hidden whitespace-nowrap"
+                        className={`py-0.5 sm:py-1 truncate pr-1 sm:pr-2 overflow-hidden whitespace-nowrap ${checked ? "text-white font-medium" : "text-neutral-200"}`}
                         title={r.rede}
-                        onClick={() => toggleOne(r.atributo)}
+                        onClick={() => toggleOne(r.rede, r.atributo)}
                       >
                         {r.rede}
                       </td>
                       <td
-                        className="py-0.5 sm:py-1 text-neutral-200 truncate pr-1 sm:pr-2 pl-1 sm:pl-2 overflow-hidden whitespace-nowrap"
+                        className={`py-0.5 sm:py-1 truncate pr-1 sm:pr-2 pl-1 sm:pl-2 overflow-hidden whitespace-nowrap ${checked ? "text-white font-medium" : "text-neutral-200"}`}
                         title={r.atributo}
                       >
                         <span className="inline-flex items-center gap-1">
@@ -1807,7 +1808,7 @@ function GruposNaoBatidosCard({
                             <span className="w-[11px] inline-block" />
                           )}
                           <span
-                            onClick={() => toggleOne(r.atributo)}
+                            onClick={() => toggleOne(r.rede, r.atributo)}
                             className="truncate"
                           >
                             {r.atributo}
@@ -1817,25 +1818,25 @@ function GruposNaoBatidosCard({
                       <td
                         className="py-0.5 sm:py-1 text-center tabular-nums font-medium"
                         style={{ color: sortColor }}
-                        onClick={() => toggleOne(r.atributo)}
+                        onClick={() => toggleOne(r.rede, r.atributo)}
                       >
                         {fmtPct(r.sortimento, 0)}
                       </td>
                       <td
-                        className="py-0.5 sm:py-1 text-right tabular-nums text-neutral-300"
-                        onClick={() => toggleOne(r.atributo)}
+                        className={`py-0.5 sm:py-1 text-right tabular-nums ${checked ? "text-white" : "text-neutral-300"}`}
+                        onClick={() => toggleOne(r.rede, r.atributo)}
                       >
                         {fmtInt(r.target)}
                       </td>
                       <td
-                        className="py-0.5 sm:py-1 text-right tabular-nums font-medium text-neutral-200"
-                        onClick={() => toggleOne(r.atributo)}
+                        className={`py-0.5 sm:py-1 text-right tabular-nums font-medium ${checked ? "text-white" : "text-neutral-200"}`}
+                        onClick={() => toggleOne(r.rede, r.atributo)}
                       >
                         {fmtInt(r.valor)}
                       </td>
                       <td
                         className="py-0.5 sm:py-1 text-right tabular-nums font-medium text-[#F87171]"
-                        onClick={() => toggleOne(r.atributo)}
+                        onClick={() => toggleOne(r.rede, r.atributo)}
                       >
                         {fmtInt(faltante)}
                       </td>
@@ -1843,23 +1844,24 @@ function GruposNaoBatidosCard({
                     {isExpanded &&
                       skus.map((sku) => {
                         const vol = skuVolumeMap.get(`${r.rede}|${r.atributo}|${sku.ean}`) ?? 0;
-                        const skuChecked = selectedSkuSet.has(sku.ean);
+                        const skuKey = `${r.rede}||${sku.ean}`;
+                        const skuChecked = selectedSkuSet.has(skuKey);
                         return (
                           <tr
                             key={`${rowKey}-${sku.ean}`}
-                            className={`border-b border-neutral-800/60 cursor-pointer ${skuChecked ? "bg-[#0E2E4D]/30" : "hover:bg-neutral-800/30"}`}
-                            onClick={() => toggleSku(sku.ean)}
+                            className={`border-b border-neutral-800/60 cursor-pointer transition-colors ${skuChecked ? "bg-[#0E2E4D] ring-1 ring-inset ring-[#378ADD]/60 shadow-[inset_3px_0_0_0_#378ADD]" : "hover:bg-neutral-800/30"}`}
+                            onClick={() => toggleSku(r.rede, sku.ean)}
                           >
                             <td className="py-0.5 sm:py-1" />
                             <td
-                              className="py-0.5 sm:py-1 text-neutral-400 truncate pr-1 sm:pr-2 pl-5 sm:pl-7 overflow-hidden whitespace-nowrap text-[10px]"
+                              className={`py-0.5 sm:py-1 truncate pr-1 sm:pr-2 pl-5 sm:pl-7 overflow-hidden whitespace-nowrap text-[10px] ${skuChecked ? "text-white font-medium" : "text-neutral-400"}`}
                               title={`${sku.ean} - ${sku.descricao}`}
                             >
                               {sku.ean}{sku.descricao ? ` - ${sku.descricao}` : ""}
                             </td>
                             <td />
                             <td />
-                            <td className="py-0.5 sm:py-1 text-right tabular-nums text-neutral-300 text-[10px]">
+                            <td className={`py-0.5 sm:py-1 text-right tabular-nums text-[10px] ${skuChecked ? "text-white" : "text-neutral-300"}`}>
                               {fmtInt(vol)}
                             </td>
                             <td />
