@@ -2345,38 +2345,64 @@ function ProductGroupHistoryCard({
   const series = useMemo(() => {
     if (!hasAny) return [] as { name: string; values: number[] }[];
     const out: { name: string; values: number[] }[] = [];
-    // Séries por grupo (agRows)
-    if (selected.length > 0) {
-      const set = new Set(selected);
-      const maps = new Map<string, Map<string, number>>();
-      for (const a of selected) maps.set(a, new Map());
-      for (const r of rows) {
-        if (!set.has(r.atributo)) continue;
-        const m = maps.get(r.atributo)!;
-        m.set(r.mes, (m.get(r.mes) ?? 0) + (Number(r.valor) || 0));
-      }
-      for (const a of selected) {
-        out.push({ name: a, values: months.map((m) => maps.get(a)!.get(m) ?? 0) });
-      }
-    }
-    // Séries por SKU (skuRows)
-    if (selectedSkus.length > 0) {
-      const set = new Set(selectedSkus);
-      const maps = new Map<string, Map<string, number>>();
-      for (const e of selectedSkus) maps.set(e, new Map());
+    const monthIdx = new Map(months.map((m, i) => [m, i]));
+
+    // Parse seleções compostas "rede||valor". Rede vazia = todas as redes.
+    const groupSels = selected.map((k) => {
+      const idx = k.indexOf("||");
+      return idx >= 0
+        ? { rede: k.slice(0, idx), atributo: k.slice(idx + 2) }
+        : { rede: "", atributo: k };
+    });
+    const skuSels = selectedSkus.map((k) => {
+      const idx = k.indexOf("||");
+      return idx >= 0
+        ? { rede: k.slice(0, idx), ean: k.slice(idx + 2) }
+        : { rede: "", ean: k };
+    });
+
+    const addSkuSeries = (rede: string, ean: string, suffix: string) => {
+      const values = new Array(months.length).fill(0);
       for (const r of skuRows) {
-        if (!set.has(r.dsEan)) continue;
-        const m = maps.get(r.dsEan)!;
-        m.set(r.mes, (m.get(r.mes) ?? 0) + (Number(r.volume) || 0));
+        if (r.dsEan !== ean) continue;
+        if (rede && r.rede !== rede) continue;
+        const i = monthIdx.get(r.mes);
+        if (i == null) continue;
+        values[i] += Number(r.volume) || 0;
       }
-      for (const e of selectedSkus) {
-        const desc = eanDesc.get(e);
-        const label = desc ? `${e} - ${desc}` : e;
-        out.push({ name: label, values: months.map((m) => maps.get(e)!.get(m) ?? 0) });
+      const desc = eanDesc.get(ean);
+      const base = desc ? `${ean} - ${desc}` : ean;
+      out.push({ name: `${base}${suffix}`, values });
+    };
+
+    // Para cada grupo selecionado: mostra uma linha por SKU do grupo (filtrado pela Rede).
+    // Sem SKUs cadastrados → cai para o total agregado do grupo.
+    for (const g of groupSels) {
+      const suffix = g.rede ? ` • ${g.rede}` : "";
+      const skus = skusByGroup.get(g.atributo) ?? [];
+      if (skus.length === 0) {
+        const values = new Array(months.length).fill(0);
+        for (const r of rows) {
+          if (r.atributo !== g.atributo) continue;
+          if (g.rede && r.rede !== g.rede) continue;
+          const i = monthIdx.get(r.mes);
+          if (i == null) continue;
+          values[i] += Number(r.valor) || 0;
+        }
+        out.push({ name: `${g.atributo}${suffix}`, values });
+      } else {
+        for (const sku of skus) addSkuSeries(g.rede, sku.ean, suffix);
       }
     }
+
+    // SKUs selecionados explicitamente (apenas aquele SKU, filtrado pela Rede)
+    for (const s of skuSels) {
+      const suffix = s.rede ? ` • ${s.rede}` : "";
+      addSkuSeries(s.rede, s.ean, suffix);
+    }
+
     return out;
-  }, [rows, skuRows, selected, selectedSkus, months, hasAny, eanDesc]);
+  }, [rows, skuRows, selected, selectedSkus, months, hasAny, eanDesc, skusByGroup]);
 
   const W = 800;
   const H = 220;
@@ -2399,8 +2425,21 @@ function ProductGroupHistoryCard({
   const fmtInt = (v: number) =>
     v.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
 
-  const toggle = (a: string) =>
-    setSelected((cur) => (cur.includes(a) ? cur.filter((x) => x !== a) : [...cur, a]));
+  // Popover seleciona atributos "globais" (rede vazia). Chave: "||atributo".
+  const popoverKey = (a: string) => `||${a}`;
+  const popoverHas = (a: string) => selected.includes(popoverKey(a));
+  const toggle = (a: string) => {
+    const k = popoverKey(a);
+    setSelected((cur) => (cur.includes(k) ? cur.filter((x) => x !== k) : [...cur, k]));
+  };
+  const groupCount = useMemo(
+    () => new Set(selected.map((k) => (k.includes("||") ? k.slice(k.indexOf("||") + 2) : k))).size,
+    [selected],
+  );
+  const clearAll = () => {
+    setSelected([]);
+    setSelectedSkus([]);
+  };
 
   return (
     <Card>
