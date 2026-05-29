@@ -1535,36 +1535,36 @@ function RankingCard({
               <tr className="text-neutral-400 font-medium border-b border-neutral-800">
                 <th className="text-left pb-1.5 w-5 font-medium">#</th>
                 <th className="text-left pb-1.5 font-medium">Rede</th>
-                <th className="text-right pb-1.5 w-12 font-medium">Sort.</th>
-                <th className="text-right pb-1.5 w-14 font-medium">Gap AGs</th>
-                <th className="text-right pb-1.5 w-20 font-medium">Gap p/ ≥90%</th>
-                <th className="text-right pb-1.5 w-16 font-medium">Potencial</th>
-                <th className="text-right pb-1.5 w-16 font-medium">Invest.</th>
+                <th className="text-center pb-1.5 w-12 font-medium">Sort.</th>
+                <th className="text-center pb-1.5 w-14 font-medium">Gap AGs</th>
+                <th className="text-center pb-1.5 w-20 font-medium">Gap p/ ≥90%</th>
+                <th className="text-center pb-1.5 w-16 font-medium">Potencial</th>
+                <th className="text-center pb-1.5 w-16 font-medium">Invest.</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((r, i) => {
                 const color =
-                  r.sortimento >= 0.9 ? GREEN : r.sortimento >= 0.85 ? ORANGE : RED;
+                  r.sortimento >= 0.9 ? "#22C55E" : r.sortimento >= 0.85 ? ORANGE : RED;
                 return (
                   <tr key={r.rede} className="border-b border-neutral-800 last:border-0">
                     <td className="py-1 text-neutral-400 font-medium">{i + 1}</td>
                     <td className="py-1 text-neutral-200 truncate" title={r.rede}>
                       {r.rede}
                     </td>
-                    <td className="py-1 text-right font-medium" style={{ color }}>
+                    <td className="py-1 text-center font-medium" style={{ color }}>
                       {fmtPct(r.sortimento, 0)}
                     </td>
-                    <td className="py-1 text-right text-neutral-200">
+                    <td className="py-1 text-center text-neutral-200">
                       {r.gapAgs.toLocaleString("pt-BR")}
                     </td>
-                    <td className="py-1 text-right text-neutral-200">
+                    <td className="py-1 text-center text-neutral-200">
                       {r.gapAgs90.toLocaleString("pt-BR")}
                     </td>
-                    <td className="py-1 text-right text-neutral-200">
+                    <td className="py-1 text-center text-neutral-200">
                       {fmtBRL(r.potencial)}
                     </td>
-                    <td className="py-1 text-right font-medium text-neutral-200">
+                    <td className="py-1 text-center font-medium text-neutral-200">
                       {fmtBRL(r.gerado)}
                     </td>
                   </tr>
