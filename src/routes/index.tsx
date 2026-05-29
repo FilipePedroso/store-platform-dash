@@ -1536,9 +1536,13 @@ function RankingCard({
                 <th className="text-left pb-1.5 w-4 sm:w-5 font-medium">#</th>
                 <th className="text-left pb-1.5 font-medium">Rede</th>
                 <th className="text-center pb-1.5 w-9 sm:w-12 font-medium">Sort.</th>
-                <th className="text-center pb-1.5 w-9 sm:w-14 font-medium">Gap</th>
-                <th className="text-center pb-1.5 w-12 sm:w-20 font-medium">≥90%</th>
-                <th className="text-center pb-1.5 w-12 sm:w-16 font-medium">Potenc.</th>
+                <th className="text-center pb-1.5 w-12 sm:w-16 font-medium leading-tight">
+                  <div>Gap</div><div>Ags</div>
+                </th>
+                <th className="text-center pb-1.5 w-14 sm:w-20 font-medium leading-tight">
+                  <div>Gap Ags</div><div>.p ≥ 90%</div>
+                </th>
+                <th className="text-center pb-1.5 w-12 sm:w-16 font-medium">Potencial</th>
                 <th className="text-center pb-1.5 w-12 sm:w-16 font-medium">Invest.</th>
               </tr>
             </thead>
