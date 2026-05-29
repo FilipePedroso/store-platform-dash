@@ -785,8 +785,7 @@ function Dashboard() {
       </div>
 
       {/* Linha inferior */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-2.5 mb-3">
-        <MonthlyEvolutionCard data={evolution} />
+      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-2.5 mb-3">
         <RankingCard rows={ranking} />
         <ChannelMixCard rows={canalMix} />
       </div>
