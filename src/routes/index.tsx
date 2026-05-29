@@ -1530,16 +1530,16 @@ function RankingCard({
           className="max-h-[200px] overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-neutral-600"
           style={{ scrollbarWidth: "thin", scrollbarColor: "#404040 transparent" }}
         >
-          <table className="w-full text-[11px]" style={{ tableLayout: "fixed" }}>
+          <table className="w-full text-[9px] sm:text-[11px]" style={{ tableLayout: "fixed" }}>
             <thead className="sticky top-0 bg-[#141416] z-10">
               <tr className="text-neutral-400 font-medium border-b border-neutral-800">
-                <th className="text-left pb-1.5 w-5 font-medium">#</th>
+                <th className="text-left pb-1.5 w-4 sm:w-5 font-medium">#</th>
                 <th className="text-left pb-1.5 font-medium">Rede</th>
-                <th className="text-center pb-1.5 w-12 font-medium">Sort.</th>
-                <th className="text-center pb-1.5 w-14 font-medium">Gap AGs</th>
-                <th className="text-center pb-1.5 w-20 font-medium">Gap p/ ≥90%</th>
-                <th className="text-center pb-1.5 w-16 font-medium">Potencial</th>
-                <th className="text-center pb-1.5 w-16 font-medium">Invest.</th>
+                <th className="text-center pb-1.5 w-9 sm:w-12 font-medium">Sort.</th>
+                <th className="text-center pb-1.5 w-9 sm:w-14 font-medium">Gap</th>
+                <th className="text-center pb-1.5 w-12 sm:w-20 font-medium">≥90%</th>
+                <th className="text-center pb-1.5 w-12 sm:w-16 font-medium">Potenc.</th>
+                <th className="text-center pb-1.5 w-12 sm:w-16 font-medium">Invest.</th>
               </tr>
             </thead>
             <tbody>
