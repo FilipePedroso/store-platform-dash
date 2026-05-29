@@ -244,20 +244,48 @@ export function computeEvolution(baseRows: Row[]): MonthPoint[] {
     .map(([mes, gerado]) => ({ mes, gerado }));
 }
 
-export type RankRow = { rede: string; sortimento: number; gerado: number };
+export type RankRow = {
+  rede: string;
+  sortimento: number;
+  gerado: number;
+  potencial: number;
+  qtdAG: number;
+  agBatidos: number;
+  gapAgs: number;
+  gapAgs90: number;
+};
 
 export function computeRanking(monthRows: Row[], topN = 5): RankRow[] {
-  const map = new Map<string, RankRow>();
+  const map = new Map<
+    string,
+    { rede: string; gerado: number; potencial: number; qtdAG: number; agBatidos: number }
+  >();
   for (const r of monthRows) {
     const cur = map.get(r.rede);
     if (cur) {
       cur.gerado += r.gerado;
-      cur.sortimento = Math.max(cur.sortimento, r.sortimento);
+      cur.potencial += r.potencial;
+      cur.qtdAG += r.qtdAG;
+      cur.agBatidos += r.agBatidos;
     } else {
-      map.set(r.rede, { rede: r.rede, sortimento: r.sortimento, gerado: r.gerado });
+      map.set(r.rede, {
+        rede: r.rede,
+        gerado: r.gerado,
+        potencial: r.potencial,
+        qtdAG: r.qtdAG,
+        agBatidos: r.agBatidos,
+      });
     }
   }
-  return [...map.values()].sort((a, b) => b.gerado - a.gerado).slice(0, topN);
+  return [...map.values()]
+    .map((v) => {
+      const sortimento = v.qtdAG > 0 ? v.agBatidos / v.qtdAG : 0;
+      const gapAgs = Math.max(0, v.qtdAG - v.agBatidos);
+      const gapAgs90 = Math.max(0, Math.ceil(0.9 * v.qtdAG) - v.agBatidos);
+      return { ...v, sortimento, gapAgs, gapAgs90 };
+    })
+    .sort((a, b) => b.sortimento - a.sortimento || b.gerado - a.gerado)
+    .slice(0, topN);
 }
 
 export type CanalMixBar = { canal: string; pct: number };

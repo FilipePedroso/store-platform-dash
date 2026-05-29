@@ -785,8 +785,7 @@ function Dashboard() {
       </div>
 
       {/* Linha inferior */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-2.5 mb-3">
-        <MonthlyEvolutionCard data={evolution} />
+      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-2.5 mb-3">
         <RankingCard rows={ranking} />
         <ChannelMixCard rows={canalMix} />
       </div>
@@ -1505,19 +1504,30 @@ function MonthlyEvolutionCard({ data }: { data: { mes: string; gerado: number }[
   );
 }
 
-function RankingCard({ rows }: { rows: { rede: string; sortimento: number; gerado: number }[] }) {
+function RankingCard({
+  rows,
+}: {
+  rows: {
+    rede: string;
+    sortimento: number;
+    gerado: number;
+    potencial: number;
+    gapAgs: number;
+    gapAgs90: number;
+  }[];
+}) {
   return (
     <Card>
       <CardTitle
         icon={<Star size={13} className="text-neutral-400" />}
         title="Ranking de redes"
-        sub="Top 5 por investimento gerado"
+        sub="Top redes por sortimento"
       />
       {rows.length === 0 ? (
         <Empty />
       ) : (
         <div
-          className="max-h-[150px] overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-neutral-600"
+          className="max-h-[200px] overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-neutral-600"
           style={{ scrollbarWidth: "thin", scrollbarColor: "#404040 transparent" }}
         >
           <table className="w-full text-[11px]" style={{ tableLayout: "fixed" }}>
@@ -1525,7 +1535,10 @@ function RankingCard({ rows }: { rows: { rede: string; sortimento: number; gerad
               <tr className="text-neutral-400 font-medium border-b border-neutral-800">
                 <th className="text-left pb-1.5 w-5 font-medium">#</th>
                 <th className="text-left pb-1.5 font-medium">Rede</th>
-                <th className="text-left pb-1.5 w-10 font-medium">Sort.</th>
+                <th className="text-right pb-1.5 w-12 font-medium">Sort.</th>
+                <th className="text-right pb-1.5 w-14 font-medium">Gap AGs</th>
+                <th className="text-right pb-1.5 w-20 font-medium">Gap p/ ≥90%</th>
+                <th className="text-right pb-1.5 w-16 font-medium">Potencial</th>
                 <th className="text-right pb-1.5 w-16 font-medium">Invest.</th>
               </tr>
             </thead>
@@ -1539,8 +1552,17 @@ function RankingCard({ rows }: { rows: { rede: string; sortimento: number; gerad
                     <td className="py-1 text-neutral-200 truncate" title={r.rede}>
                       {r.rede}
                     </td>
-                    <td className="py-1 font-medium" style={{ color }}>
+                    <td className="py-1 text-right font-medium" style={{ color }}>
                       {fmtPct(r.sortimento, 0)}
+                    </td>
+                    <td className="py-1 text-right text-neutral-200">
+                      {r.gapAgs.toLocaleString("pt-BR")}
+                    </td>
+                    <td className="py-1 text-right text-neutral-200">
+                      {r.gapAgs90.toLocaleString("pt-BR")}
+                    </td>
+                    <td className="py-1 text-right text-neutral-200">
+                      {fmtBRL(r.potencial)}
                     </td>
                     <td className="py-1 text-right font-medium text-neutral-200">
                       {fmtBRL(r.gerado)}
