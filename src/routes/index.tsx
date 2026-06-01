@@ -2551,7 +2551,7 @@ function ProductGroupHistoryCard({
                       <button
                         key={a}
                         type="button"
-                        onClick={() => toggle(a)}
+                        onClick={(e) => toggle(a, e)}
                         className={`flex w-full items-center gap-2 px-3 py-1 text-left hover:bg-neutral-800 ${checked ? "text-[#8BBEEC] font-medium" : "text-neutral-200"}`}
                       >
                         <span
