@@ -2202,8 +2202,8 @@ function LineHistoryCard(p: LineHistoryProps) {
               </text>
             </>
           )}
-          {/* Linha extra (potencial) — sempre como total */}
-          {p.extra && (
+          {/* Linha extra (potencial) — sempre como total, oculta no modo cluster */}
+          {p.extra && !showCluster && (
             <>
               <polyline
                 points={polylinePoints(p.extra.values)}
@@ -2221,12 +2221,29 @@ function LineHistoryCard(p: LineHistoryProps) {
           {showCluster ? (
             p.groups.map((g, idx) => {
               const c = colorForGroup(g.name, idx);
+              // Escalona o deslocamento vertical do rótulo por cluster para reduzir sobreposição
+              const labelDy = -6 - idx * 10;
               return (
                 <g key={g.name}>
                   <path d={areaPath(g.values)} fill={`url(#${gradId}-${idx})`} />
                   <polyline points={polylinePoints(g.values)} fill="none" stroke={c} strokeWidth="1.8" />
                   {g.values.map((v, i) => (
-                    <circle key={`${g.name}-${i}`} cx={xAt(i)} cy={yAt(v)} r="3" fill={c} />
+                    <g key={`${g.name}-${i}`}>
+                      <circle cx={xAt(i)} cy={yAt(v)} r="3" fill={c} />
+                      <text
+                        x={xAt(i)}
+                        y={yAt(v) + labelDy}
+                        textAnchor="middle"
+                        fontSize="8"
+                        fontWeight="600"
+                        fill={c}
+                        stroke="#0a0a0a"
+                        strokeWidth="2.5"
+                        style={{ paintOrder: "stroke" }}
+                      >
+                        {p.pointFormat(v)}
+                      </text>
+                    </g>
                   ))}
                 </g>
               );
