@@ -992,9 +992,15 @@ function FilterChip({
       ? fmt(values[0])
       : `${label}: ${values.length}`;
 
-  const toggle = (opt: string) => {
-    if (values.includes(opt)) onChange(values.filter((v) => v !== opt));
-    else onChange([...values, opt]);
+  const toggle = (opt: string, e?: React.MouseEvent) => {
+    const multi = !!(e && (e.ctrlKey || e.metaKey));
+    if (multi) {
+      if (values.includes(opt)) onChange(values.filter((v) => v !== opt));
+      else onChange([...values, opt]);
+    } else {
+      if (values.length === 1 && values[0] === opt) onChange([]);
+      else onChange([opt]);
+    }
   };
 
   return (
@@ -1056,7 +1062,7 @@ function FilterChip({
             return (
               <button
                 key={opt}
-                onClick={() => toggle(opt)}
+                onClick={(e) => toggle(opt, e)}
                 className={`flex items-center gap-2 w-full text-left px-3 py-1 hover:bg-neutral-800 ${
                   checked ? "text-[#8BBEEC] font-medium" : "text-neutral-200"
                 }`}
@@ -2454,9 +2460,14 @@ function ProductGroupHistoryCard({
   // Popover seleciona atributos "globais" (rede vazia). Chave: "||atributo".
   const popoverKey = (a: string) => `||${a}`;
   const popoverHas = (a: string) => selected.includes(popoverKey(a));
-  const toggle = (a: string) => {
+  const toggle = (a: string, e?: React.MouseEvent) => {
     const k = popoverKey(a);
-    setSelected((cur) => (cur.includes(k) ? cur.filter((x) => x !== k) : [...cur, k]));
+    const multi = !!(e && (e.ctrlKey || e.metaKey));
+    setSelected((cur) => {
+      if (multi) return cur.includes(k) ? cur.filter((x) => x !== k) : [...cur, k];
+      if (cur.length === 1 && cur[0] === k) return [];
+      return [k];
+    });
   };
   const groupCount = useMemo(
     () => new Set(selected.map((k) => (k.includes("||") ? k.slice(k.indexOf("||") + 2) : k))).size,
@@ -2540,7 +2551,7 @@ function ProductGroupHistoryCard({
                       <button
                         key={a}
                         type="button"
-                        onClick={() => toggle(a)}
+                        onClick={(e) => toggle(a, e)}
                         className={`flex w-full items-center gap-2 px-3 py-1 text-left hover:bg-neutral-800 ${checked ? "text-[#8BBEEC] font-medium" : "text-neutral-200"}`}
                       >
                         <span
