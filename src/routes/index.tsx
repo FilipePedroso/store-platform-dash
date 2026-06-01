@@ -1062,7 +1062,7 @@ function FilterChip({
             return (
               <button
                 key={opt}
-                onClick={() => toggle(opt)}
+                onClick={(e) => toggle(opt, e)}
                 className={`flex items-center gap-2 w-full text-left px-3 py-1 hover:bg-neutral-800 ${
                   checked ? "text-[#8BBEEC] font-medium" : "text-neutral-200"
                 }`}
