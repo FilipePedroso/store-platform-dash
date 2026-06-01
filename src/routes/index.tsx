@@ -2272,7 +2272,6 @@ function LineHistoryCard(p: LineHistoryProps) {
                 ));
               })}
             </>
-          )
           ) : (
             <>
               <path d={areaPath(p.total)} fill={`url(#${gradId})`} />
