@@ -726,6 +726,7 @@ function Dashboard() {
           pointFormat={(n) => fmtBRL(n)}
           badgeBg="#11402F"
           badgeFg="#7DE5BD"
+          distribuidores={dFilters.distribuidor}
         />
         <LineHistoryCard
           icon={<Check size={13} style={{ color: BLUE }} />}
@@ -745,6 +746,7 @@ function Dashboard() {
           }}
           badgeBg="#0E2E4D"
           badgeFg="#8BBEEC"
+          distribuidores={dFilters.distribuidor}
         />
         <LineHistoryCard
           icon={<Target size={13} style={{ color: ORANGE }} />}
@@ -761,6 +763,7 @@ function Dashboard() {
           deltaMode="pp"
           badgeBg="#3D2A10"
           badgeFg="#F1B257"
+          distribuidores={dFilters.distribuidor}
         />
         <LineHistoryCard
           icon={<Receipt size={13} style={{ color: PURPLE }} />}
@@ -774,6 +777,7 @@ function Dashboard() {
           pointFormat={(n) => fmtBRL(n)}
           badgeBg="#241F4D"
           badgeFg="#A39DE5"
+          distribuidores={dFilters.distribuidor}
         />
       </div>
 
@@ -2019,6 +2023,7 @@ type LineHistoryProps = {
   deltaMode?: "pct" | "pp";
   badgeBg: string;
   badgeFg: string;
+  distribuidores?: string[];
   pointSubLabel?: {
     values: number[];
     format: (n: number) => string;
@@ -2112,9 +2117,20 @@ function LineHistoryCard(p: LineHistoryProps) {
     <Card>
       <div className="flex items-start justify-between gap-2 mb-2">
         <div>
-          <div className="text-[12px] font-medium text-neutral-100 flex items-center gap-1.5">
+          <div className="text-[12px] font-medium text-neutral-100 flex items-center gap-1.5 flex-wrap">
             {p.icon}
             {p.title}
+            {p.distribuidores && p.distribuidores.length > 0 && (
+              <span
+                className="text-[10px] font-medium px-1.5 py-0.5 rounded"
+                style={{ background: p.badgeBg, color: p.badgeFg }}
+                title={p.distribuidores.join(", ")}
+              >
+                {p.distribuidores.length === 1
+                  ? p.distribuidores[0]
+                  : `${p.distribuidores.length} distribuidores`}
+              </span>
+            )}
           </div>
           <div className="text-[11px] text-neutral-400 mt-0.5">{p.sub}</div>
         </div>
