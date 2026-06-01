@@ -2291,7 +2291,7 @@ function LineHistoryCard(p: LineHistoryProps) {
             {p.groups.map((g, idx) => (
               <LineLegend
                 key={g.name}
-                color={PALETTE[idx % PALETTE.length]}
+                color={colorForGroup(g.name, idx)}
                 label={g.name}
               />
             ))}
