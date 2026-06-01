@@ -2156,7 +2156,7 @@ function LineHistoryCard(p: LineHistoryProps) {
       {n === 0 ? (
         <Empty />
       ) : (
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-[170px] overflow-visible">
+        <svg viewBox={`0 0 ${W} ${H}`} className={`w-full ${showCluster ? "h-[260px]" : "h-[170px]"} overflow-visible`}>
           <defs>
             <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={p.color} stopOpacity="0.45" />
