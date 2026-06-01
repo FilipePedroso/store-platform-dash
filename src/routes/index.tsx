@@ -2051,20 +2051,24 @@ function LineHistoryCard(p: LineHistoryProps) {
   const colorForGroup = (name: string, idx: number) =>
     CLUSTER_COLORS[name] ?? PALETTE[idx % PALETTE.length];
 
-  // Compute global y-max across visible series
+  // Compute y-domain (yMin..yMax) — no modo cluster usamos eixo "ajustado" (não parte do zero)
   const allValues: number[] = [];
   if (showCluster) {
     p.groups.forEach((g) => g.values.forEach((v) => allValues.push(v)));
   } else {
     p.total.forEach((v) => allValues.push(v));
   }
-  if (p.extra) p.extra.values.forEach((v) => allValues.push(v));
+  if (p.extra && !showCluster) p.extra.values.forEach((v) => allValues.push(v));
   if (p.reference) allValues.push(p.reference.value);
-  const yMax = p.forceMax ?? Math.max(1, ...allValues) * 1.1;
+  const rawMax = Math.max(1, ...allValues);
+  const rawMin = allValues.length ? Math.min(...allValues) : 0;
+  const yMax = p.forceMax ?? (showCluster ? rawMax * 1.05 : rawMax * 1.1);
+  const yMin = showCluster && !p.forceMax ? Math.max(0, rawMin * 0.9) : 0;
+  const ySpan = Math.max(1, yMax - yMin);
 
-  // SVG layout
+  // SVG layout — modo cluster ganha altura extra
   const W = 400;
-  const H = 170;
+  const H = showCluster ? 260 : 170;
   const padL = 44;
   const padR = 16;
   const padT = 10;
@@ -2074,7 +2078,8 @@ function LineHistoryCard(p: LineHistoryProps) {
   const n = p.months.length;
   const xAt = (i: number) =>
     n <= 1 ? padL + innerW / 2 : padL + (i * innerW) / (n - 1);
-  const yAt = (v: number) => padT + innerH - (v / yMax) * innerH;
+  const yAt = (v: number) => padT + innerH - ((v - yMin) / ySpan) * innerH;
+
 
   const lastTotal = p.total[p.total.length - 1] ?? 0;
   const prevTotal = p.total[p.total.length - 2] ?? 0;
@@ -2151,7 +2156,7 @@ function LineHistoryCard(p: LineHistoryProps) {
       {n === 0 ? (
         <Empty />
       ) : (
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-[170px] overflow-visible">
+        <svg viewBox={`0 0 ${W} ${H}`} className={`w-full ${showCluster ? "h-[260px]" : "h-[170px]"} overflow-visible`}>
           <defs>
             <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={p.color} stopOpacity="0.45" />
@@ -2176,8 +2181,8 @@ function LineHistoryCard(p: LineHistoryProps) {
           <line x1={padL} y1={padT + innerH / 2} x2={W - padR} y2={padT + innerH / 2} stroke="#2a2a2c" strokeWidth="0.5" strokeDasharray="3 3" />
           {/* Y labels */}
           <text x={padL - 6} y={padT + 4} textAnchor="end" fontSize="9" fill="#888780">{p.yFormat(yMax)}</text>
-          <text x={padL - 6} y={padT + innerH / 2 + 3} textAnchor="end" fontSize="9" fill="#888780">{p.yFormat(yMax / 2)}</text>
-          <text x={padL - 6} y={padT + innerH + 3} textAnchor="end" fontSize="9" fill="#888780">{p.yFormat(0)}</text>
+          <text x={padL - 6} y={padT + innerH / 2 + 3} textAnchor="end" fontSize="9" fill="#888780">{p.yFormat(yMin + ySpan / 2)}</text>
+          <text x={padL - 6} y={padT + innerH + 3} textAnchor="end" fontSize="9" fill="#888780">{p.yFormat(yMin)}</text>
           {/* X labels */}
           {p.months.map((m, i) => (
             <text key={m} x={xAt(i)} y={padT + innerH + 16} textAnchor="middle" fontSize="10" fill="#888780">
@@ -2219,35 +2224,54 @@ function LineHistoryCard(p: LineHistoryProps) {
           )}
           {/* Linhas principais */}
           {showCluster ? (
-            p.groups.map((g, idx) => {
-              const c = colorForGroup(g.name, idx);
-              // Escalona o deslocamento vertical do rótulo por cluster para reduzir sobreposição
-              const labelDy = -6 - idx * 10;
-              return (
-                <g key={g.name}>
-                  <path d={areaPath(g.values)} fill={`url(#${gradId}-${idx})`} />
-                  <polyline points={polylinePoints(g.values)} fill="none" stroke={c} strokeWidth="1.8" />
-                  {g.values.map((v, i) => (
-                    <g key={`${g.name}-${i}`}>
-                      <circle cx={xAt(i)} cy={yAt(v)} r="3" fill={c} />
-                      <text
-                        x={xAt(i)}
-                        y={yAt(v) + labelDy}
-                        textAnchor="middle"
-                        fontSize="8"
-                        fontWeight="600"
-                        fill={c}
-                        stroke="#0a0a0a"
-                        strokeWidth="2.5"
-                        style={{ paintOrder: "stroke" }}
-                      >
-                        {p.pointFormat(v)}
-                      </text>
-                    </g>
-                  ))}
-                </g>
-              );
-            })
+            <>
+              {p.groups.map((g, idx) => {
+                const c = colorForGroup(g.name, idx);
+                return (
+                  <g key={g.name}>
+                    <polyline points={polylinePoints(g.values)} fill="none" stroke={c} strokeWidth="1.8" />
+                    {g.values.map((v, i) => (
+                      <circle key={`${g.name}-${i}`} cx={xAt(i)} cy={yAt(v)} r="3" fill={c} />
+                    ))}
+                  </g>
+                );
+              })}
+              {/* Rótulos com anti-colisão: por mês, empilhar de cima para baixo respeitando espaçamento mínimo */}
+              {p.months.map((_, i) => {
+                const MIN_GAP = 11;
+                const items = p.groups
+                  .map((g, idx) => ({
+                    name: g.name,
+                    color: colorForGroup(g.name, idx),
+                    value: g.values[i],
+                    y: yAt(g.values[i]),
+                  }))
+                  .sort((a, b) => a.y - b.y); // do topo para a base
+                // Resolve colisões empurrando para baixo
+                const placedY: number[] = [];
+                items.forEach((it, k) => {
+                  let y = it.y - 6; // posição desejada acima do ponto
+                  if (k > 0 && y - placedY[k - 1] < MIN_GAP) y = placedY[k - 1] + MIN_GAP;
+                  placedY.push(y);
+                });
+                return items.map((it, k) => (
+                  <text
+                    key={`lbl-${i}-${it.name}`}
+                    x={xAt(i)}
+                    y={placedY[k]}
+                    textAnchor="middle"
+                    fontSize="8"
+                    fontWeight="600"
+                    fill={it.color}
+                    stroke="#0a0a0a"
+                    strokeWidth="2.5"
+                    style={{ paintOrder: "stroke" }}
+                  >
+                    {p.pointFormat(it.value)}
+                  </text>
+                ));
+              })}
+            </>
           ) : (
             <>
               <path d={areaPath(p.total)} fill={`url(#${gradId})`} />
