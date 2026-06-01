@@ -2312,7 +2312,6 @@ function LineHistoryCard(p: LineHistoryProps) {
                 label={g.name}
               />
             ))}
-            {p.extra && <LineLegend color={p.extra.color} label={p.extra.name} dashed={p.extra.dashed} />}
           </>
         ) : (
           <>
