@@ -2460,9 +2460,14 @@ function ProductGroupHistoryCard({
   // Popover seleciona atributos "globais" (rede vazia). Chave: "||atributo".
   const popoverKey = (a: string) => `||${a}`;
   const popoverHas = (a: string) => selected.includes(popoverKey(a));
-  const toggle = (a: string) => {
+  const toggle = (a: string, e?: React.MouseEvent) => {
     const k = popoverKey(a);
-    setSelected((cur) => (cur.includes(k) ? cur.filter((x) => x !== k) : [...cur, k]));
+    const multi = !!(e && (e.ctrlKey || e.metaKey));
+    setSelected((cur) => {
+      if (multi) return cur.includes(k) ? cur.filter((x) => x !== k) : [...cur, k];
+      if (cur.length === 1 && cur[0] === k) return [];
+      return [k];
+    });
   };
   const groupCount = useMemo(
     () => new Set(selected.map((k) => (k.includes("||") ? k.slice(k.indexOf("||") + 2) : k))).size,
