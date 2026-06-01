@@ -2051,20 +2051,24 @@ function LineHistoryCard(p: LineHistoryProps) {
   const colorForGroup = (name: string, idx: number) =>
     CLUSTER_COLORS[name] ?? PALETTE[idx % PALETTE.length];
 
-  // Compute global y-max across visible series
+  // Compute y-domain (yMin..yMax) — no modo cluster usamos eixo "ajustado" (não parte do zero)
   const allValues: number[] = [];
   if (showCluster) {
     p.groups.forEach((g) => g.values.forEach((v) => allValues.push(v)));
   } else {
     p.total.forEach((v) => allValues.push(v));
   }
-  if (p.extra) p.extra.values.forEach((v) => allValues.push(v));
+  if (p.extra && !showCluster) p.extra.values.forEach((v) => allValues.push(v));
   if (p.reference) allValues.push(p.reference.value);
-  const yMax = p.forceMax ?? Math.max(1, ...allValues) * 1.1;
+  const rawMax = Math.max(1, ...allValues);
+  const rawMin = allValues.length ? Math.min(...allValues) : 0;
+  const yMax = p.forceMax ?? (showCluster ? rawMax * 1.05 : rawMax * 1.1);
+  const yMin = showCluster && !p.forceMax ? Math.max(0, rawMin * 0.9) : 0;
+  const ySpan = Math.max(1, yMax - yMin);
 
-  // SVG layout
+  // SVG layout — modo cluster ganha altura extra
   const W = 400;
-  const H = 170;
+  const H = showCluster ? 260 : 170;
   const padL = 44;
   const padR = 16;
   const padT = 10;
@@ -2074,7 +2078,8 @@ function LineHistoryCard(p: LineHistoryProps) {
   const n = p.months.length;
   const xAt = (i: number) =>
     n <= 1 ? padL + innerW / 2 : padL + (i * innerW) / (n - 1);
-  const yAt = (v: number) => padT + innerH - (v / yMax) * innerH;
+  const yAt = (v: number) => padT + innerH - ((v - yMin) / ySpan) * innerH;
+
 
   const lastTotal = p.total[p.total.length - 1] ?? 0;
   const prevTotal = p.total[p.total.length - 2] ?? 0;
