@@ -2224,35 +2224,55 @@ function LineHistoryCard(p: LineHistoryProps) {
           )}
           {/* Linhas principais */}
           {showCluster ? (
-            p.groups.map((g, idx) => {
-              const c = colorForGroup(g.name, idx);
-              // Escalona o deslocamento vertical do rótulo por cluster para reduzir sobreposição
-              const labelDy = -6 - idx * 10;
-              return (
-                <g key={g.name}>
-                  <path d={areaPath(g.values)} fill={`url(#${gradId}-${idx})`} />
-                  <polyline points={polylinePoints(g.values)} fill="none" stroke={c} strokeWidth="1.8" />
-                  {g.values.map((v, i) => (
-                    <g key={`${g.name}-${i}`}>
-                      <circle cx={xAt(i)} cy={yAt(v)} r="3" fill={c} />
-                      <text
-                        x={xAt(i)}
-                        y={yAt(v) + labelDy}
-                        textAnchor="middle"
-                        fontSize="8"
-                        fontWeight="600"
-                        fill={c}
-                        stroke="#0a0a0a"
-                        strokeWidth="2.5"
-                        style={{ paintOrder: "stroke" }}
-                      >
-                        {p.pointFormat(v)}
-                      </text>
-                    </g>
-                  ))}
-                </g>
-              );
-            })
+            <>
+              {p.groups.map((g, idx) => {
+                const c = colorForGroup(g.name, idx);
+                return (
+                  <g key={g.name}>
+                    <polyline points={polylinePoints(g.values)} fill="none" stroke={c} strokeWidth="1.8" />
+                    {g.values.map((v, i) => (
+                      <circle key={`${g.name}-${i}`} cx={xAt(i)} cy={yAt(v)} r="3" fill={c} />
+                    ))}
+                  </g>
+                );
+              })}
+              {/* Rótulos com anti-colisão: por mês, empilhar de cima para baixo respeitando espaçamento mínimo */}
+              {p.months.map((_, i) => {
+                const MIN_GAP = 11;
+                const items = p.groups
+                  .map((g, idx) => ({
+                    name: g.name,
+                    color: colorForGroup(g.name, idx),
+                    value: g.values[i],
+                    y: yAt(g.values[i]),
+                  }))
+                  .sort((a, b) => a.y - b.y); // do topo para a base
+                // Resolve colisões empurrando para baixo
+                const placedY: number[] = [];
+                items.forEach((it, k) => {
+                  let y = it.y - 6; // posição desejada acima do ponto
+                  if (k > 0 && y - placedY[k - 1] < MIN_GAP) y = placedY[k - 1] + MIN_GAP;
+                  placedY.push(y);
+                });
+                return items.map((it, k) => (
+                  <text
+                    key={`lbl-${i}-${it.name}`}
+                    x={xAt(i)}
+                    y={placedY[k]}
+                    textAnchor="middle"
+                    fontSize="8"
+                    fontWeight="600"
+                    fill={it.color}
+                    stroke="#0a0a0a"
+                    strokeWidth="2.5"
+                    style={{ paintOrder: "stroke" }}
+                  >
+                    {p.pointFormat(it.value)}
+                  </text>
+                ));
+              })}
+            </>
+          )
           ) : (
             <>
               <path d={areaPath(p.total)} fill={`url(#${gradId})`} />
