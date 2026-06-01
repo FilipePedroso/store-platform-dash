@@ -992,9 +992,15 @@ function FilterChip({
       ? fmt(values[0])
       : `${label}: ${values.length}`;
 
-  const toggle = (opt: string) => {
-    if (values.includes(opt)) onChange(values.filter((v) => v !== opt));
-    else onChange([...values, opt]);
+  const toggle = (opt: string, e?: React.MouseEvent) => {
+    const multi = !!(e && (e.ctrlKey || e.metaKey));
+    if (multi) {
+      if (values.includes(opt)) onChange(values.filter((v) => v !== opt));
+      else onChange([...values, opt]);
+    } else {
+      if (values.length === 1 && values[0] === opt) onChange([]);
+      else onChange([opt]);
+    }
   };
 
   return (
