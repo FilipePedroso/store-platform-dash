@@ -726,6 +726,7 @@ function Dashboard() {
           pointFormat={(n) => fmtBRL(n)}
           badgeBg="#11402F"
           badgeFg="#7DE5BD"
+          distribuidores={dFilters.distribuidor}
         />
         <LineHistoryCard
           icon={<Check size={13} style={{ color: BLUE }} />}
@@ -745,6 +746,7 @@ function Dashboard() {
           }}
           badgeBg="#0E2E4D"
           badgeFg="#8BBEEC"
+          distribuidores={dFilters.distribuidor}
         />
         <LineHistoryCard
           icon={<Target size={13} style={{ color: ORANGE }} />}
@@ -761,6 +763,7 @@ function Dashboard() {
           deltaMode="pp"
           badgeBg="#3D2A10"
           badgeFg="#F1B257"
+          distribuidores={dFilters.distribuidor}
         />
         <LineHistoryCard
           icon={<Receipt size={13} style={{ color: PURPLE }} />}
@@ -774,6 +777,7 @@ function Dashboard() {
           pointFormat={(n) => fmtBRL(n)}
           badgeBg="#241F4D"
           badgeFg="#A39DE5"
+          distribuidores={dFilters.distribuidor}
         />
       </div>
 
