@@ -2220,7 +2220,7 @@ function LineHistoryCard(p: LineHistoryProps) {
           {/* Linhas principais */}
           {showCluster ? (
             p.groups.map((g, idx) => {
-              const c = PALETTE[idx % PALETTE.length];
+              const c = colorForGroup(g.name, idx);
               return (
                 <g key={g.name}>
                   <path d={areaPath(g.values)} fill={`url(#${gradId}-${idx})`} />
