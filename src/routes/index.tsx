@@ -2019,6 +2019,7 @@ type LineHistoryProps = {
   deltaMode?: "pct" | "pp";
   badgeBg: string;
   badgeFg: string;
+  distribuidores?: string[];
   pointSubLabel?: {
     values: number[];
     format: (n: number) => string;
