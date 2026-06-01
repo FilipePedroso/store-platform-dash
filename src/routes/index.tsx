@@ -2043,6 +2043,14 @@ function LineHistoryCard(p: LineHistoryProps) {
 
   const showCluster = mode === "cluster" && p.groups.length > 0;
 
+  const CLUSTER_COLORS: Record<string, string> = {
+    Diamante: PURPLE,
+    Ouro: "#F1C40F",
+    Prata: "#9CA3AF",
+  };
+  const colorForGroup = (name: string, idx: number) =>
+    CLUSTER_COLORS[name] ?? PALETTE[idx % PALETTE.length];
+
   // Compute global y-max across visible series
   const allValues: number[] = [];
   if (showCluster) {
@@ -2152,7 +2160,7 @@ function LineHistoryCard(p: LineHistoryProps) {
             </linearGradient>
             {showCluster &&
               p.groups.map((g, idx) => {
-                const c = PALETTE[idx % PALETTE.length];
+                const c = colorForGroup(g.name, idx);
                 return (
                   <linearGradient key={`${gradId}-${idx}`} id={`${gradId}-${idx}`} x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor={c} stopOpacity="0.35" />
@@ -2212,7 +2220,7 @@ function LineHistoryCard(p: LineHistoryProps) {
           {/* Linhas principais */}
           {showCluster ? (
             p.groups.map((g, idx) => {
-              const c = PALETTE[idx % PALETTE.length];
+              const c = colorForGroup(g.name, idx);
               return (
                 <g key={g.name}>
                   <path d={areaPath(g.values)} fill={`url(#${gradId}-${idx})`} />
@@ -2283,7 +2291,7 @@ function LineHistoryCard(p: LineHistoryProps) {
             {p.groups.map((g, idx) => (
               <LineLegend
                 key={g.name}
-                color={PALETTE[idx % PALETTE.length]}
+                color={colorForGroup(g.name, idx)}
                 label={g.name}
               />
             ))}
