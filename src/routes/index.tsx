@@ -2043,6 +2043,14 @@ function LineHistoryCard(p: LineHistoryProps) {
 
   const showCluster = mode === "cluster" && p.groups.length > 0;
 
+  const CLUSTER_COLORS: Record<string, string> = {
+    Diamante: PURPLE,
+    Ouro: "#F1C40F",
+    Prata: "#9CA3AF",
+  };
+  const colorForGroup = (name: string, idx: number) =>
+    CLUSTER_COLORS[name] ?? PALETTE[idx % PALETTE.length];
+
   // Compute global y-max across visible series
   const allValues: number[] = [];
   if (showCluster) {
