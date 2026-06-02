@@ -790,10 +790,11 @@ function Dashboard() {
       </div>
 
       {/* Linha inferior */}
-      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-2.5 mb-3">
+      <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-2.5 mb-3">
         <RankingCard rows={ranking} />
-        <ChannelMixCard rows={canalMix} />
+        <TeamPerformanceCard monthRows={monthRows} estrutura={estrutura} />
       </div>
+
 
       {/* Grupos não batidos (dataset 'dados ags') */}
       <div className="grid grid-cols-1 gap-2.5 mb-3">
