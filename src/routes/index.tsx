@@ -1803,7 +1803,7 @@ function TeamPerformanceCard({
             <tbody>
               {teamRows.map((r) => {
                 const totalPct = r.total.all > 0 ? r.total.ok / r.total.all : 0;
-                const totalPctColor = totalPct >= 0.6 ? "#22c55e" : "#5FA8E8";
+                const totalPctColor = "#5FA8E8";
                 return (
                   <tr key={r.label} className="border-b border-neutral-800 last:border-0">
                     <td
