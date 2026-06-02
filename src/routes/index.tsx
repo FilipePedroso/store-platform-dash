@@ -1715,7 +1715,7 @@ function TeamPerformanceCard({
       return <span className="text-neutral-500 tabular-nums">0 / 0</span>;
     }
     const pct = ok / all;
-    const pctColor = pct >= 0.6 ? "#22c55e" : color;
+    const pctColor = color;
     return (
       <span className="tabular-nums whitespace-nowrap">
         <span className="font-semibold" style={{ color }}>
@@ -1803,7 +1803,7 @@ function TeamPerformanceCard({
             <tbody>
               {teamRows.map((r) => {
                 const totalPct = r.total.all > 0 ? r.total.ok / r.total.all : 0;
-                const totalPctColor = totalPct >= 0.6 ? "#22c55e" : "#5FA8E8";
+                const totalPctColor = "#5FA8E8";
                 return (
                   <tr key={r.label} className="border-b border-neutral-800 last:border-0">
                     <td
