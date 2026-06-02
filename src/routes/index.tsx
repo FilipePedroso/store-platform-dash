@@ -1715,7 +1715,7 @@ function TeamPerformanceCard({
       return <span className="text-neutral-500 tabular-nums">0 / 0</span>;
     }
     const pct = ok / all;
-    const pctColor = pct >= 0.6 ? "#22c55e" : color;
+    const pctColor = color;
     return (
       <span className="tabular-nums whitespace-nowrap">
         <span className="font-semibold" style={{ color }}>
