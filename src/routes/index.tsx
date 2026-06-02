@@ -1600,44 +1600,211 @@ function RankingCard({
   );
 }
 
-function ChannelMixCard({ rows }: { rows: { canal: string; pct: number }[] }) {
+type TeamMode = "gv" | "sv" | "rv";
+const TEAM_LABELS: Record<TeamMode, string> = {
+  gv: "Cód. Gv/Cv",
+  sv: "Cód. Sv",
+  rv: "Cód. Rv",
+};
+
+function TeamPerformanceCard({
+  monthRows,
+  estrutura,
+}: {
+  monthRows: Row[];
+  estrutura: EstruturaRow[];
+}) {
+  const [mode, setMode] = useState<TeamMode>("gv");
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, [open]);
+
+  const CLUSTER_COLORS: Record<string, string> = {
+    Diamante: PURPLE,
+    Ouro: "#F1C40F",
+    Prata: "#9CA3AF",
+  };
+  const CLUSTER_ORDER = ["Diamante", "Ouro", "Prata"] as const;
+
+  const teamRows = useMemo(() => {
+    const compose = (code: string, name: string) =>
+      code ? (name ? `${code} - ${name}` : code) : "";
+    const nameKey = (mode + "Nome") as "gvNome" | "svNome" | "rvNome";
+    const teamMap = new Map<string, string>();
+    for (const e of estrutura) {
+      const label = compose(e[mode], e[nameKey]);
+      if (!label) continue;
+      teamMap.set(`${e.rede}||${e.distribuidor}`, label);
+    }
+
+    type Agg = {
+      label: string;
+      allTotal: Set<string>;
+      okTotal: Set<string>;
+      byCluster: Record<string, { all: Set<string>; ok: Set<string> }>;
+    };
+    const map = new Map<string, Agg>();
+    for (const r of monthRows) {
+      const teamLabel = teamMap.get(`${r.rede}||${r.distribuidor}`);
+      if (!teamLabel) continue;
+      let agg = map.get(teamLabel);
+      if (!agg) {
+        agg = {
+          label: teamLabel,
+          allTotal: new Set(),
+          okTotal: new Set(),
+          byCluster: {
+            Diamante: { all: new Set(), ok: new Set() },
+            Ouro: { all: new Set(), ok: new Set() },
+            Prata: { all: new Set(), ok: new Set() },
+          },
+        };
+        map.set(teamLabel, agg);
+      }
+      agg.allTotal.add(r.rede);
+      const isOk = r.sortimento >= 0.9;
+      if (isOk) agg.okTotal.add(r.rede);
+      const cl = agg.byCluster[r.cluster];
+      if (cl) {
+        cl.all.add(r.rede);
+        if (isOk) cl.ok.add(r.rede);
+      }
+    }
+    return [...map.values()]
+      .map((a) => ({
+        label: a.label,
+        total: { ok: a.okTotal.size, all: a.allTotal.size },
+        byCluster: CLUSTER_ORDER.map((c) => ({
+          label: c,
+          ok: a.byCluster[c].ok.size,
+          all: a.byCluster[c].all.size,
+          color: CLUSTER_COLORS[c],
+        })),
+      }))
+      .sort((a, b) => {
+        const numA = parseInt(a.label, 10);
+        const numB = parseInt(b.label, 10);
+        if (!isNaN(numA) && !isNaN(numB) && numA !== numB) return numA - numB;
+        return a.label.localeCompare(b.label);
+      });
+  }, [monthRows, estrutura, mode]);
+
+  const renderClusterCell = (ok: number, all: number, color: string) => {
+    if (all === 0) {
+      return <span className="text-neutral-500 tabular-nums">0 / 0</span>;
+    }
+    const pct = ok / all;
+    const pctColor = pct >= 0.6 ? "#22c55e" : color;
+    return (
+      <span className="tabular-nums whitespace-nowrap">
+        <span className="font-semibold" style={{ color }}>
+          {ok}
+        </span>
+        <span className="text-neutral-500"> / {all}</span>{" "}
+        <span className="font-semibold" style={{ color: pctColor }}>
+          {Math.round(pct * 100)}%
+        </span>
+      </span>
+    );
+  };
+
   return (
     <Card>
-      <CardTitle
-        icon={<Layers size={13} className="text-neutral-400" />}
-        title="AGs batidos por canal"
-        sub="% de atingimento do target por canal"
-      />
-      {rows.length === 0 && <Empty />}
-      <div className="flex flex-col gap-2">
-        {rows.map((r) => {
-          const color = r.pct >= 0.75 ? GREEN : r.pct >= 0.6 ? ORANGE : RED;
-          return (
-            <div key={r.canal} className="flex items-center gap-2">
-              <div className="text-[11px] text-neutral-400 w-[74px] text-right truncate" title={r.canal}>
-                {r.canal}
-              </div>
-              <div className="flex-1 h-[18px] bg-neutral-800 rounded overflow-hidden">
-                <div
-                  className="h-full rounded flex items-center justify-end pr-1.5"
-                  style={{ width: `${Math.min(100, r.pct * 100)}%`, background: color }}
+      <div className="flex items-start justify-between gap-2 mb-3">
+        <div>
+          <div className="text-[12px] font-medium text-neutral-100 mb-0.5 flex items-center gap-1.5">
+            <Users size={13} className="text-neutral-400" />
+            Performance por Equipe
+          </div>
+          <div className="text-[11px] text-neutral-400 flex items-center gap-1.5">
+            <Check size={11} style={{ color: BLUE }} />
+            Redes com sortimento ≥ 90%
+          </div>
+        </div>
+        <div className="relative shrink-0" ref={ref}>
+          <button
+            onClick={() => setOpen((v) => !v)}
+            className="rounded-full px-3 py-1 text-[11px] flex items-center gap-1.5 border transition-colors bg-[#0E2E4D] border-[#378ADD] text-[#8BBEEC] font-medium"
+          >
+            <Layers size={12} />
+            {TEAM_LABELS[mode]}
+            <ChevronDown size={12} />
+          </button>
+          {open && (
+            <div className="absolute right-0 z-20 mt-1 min-w-[140px] bg-[#1a1a1c] border border-neutral-800 rounded-md shadow-lg py-1 text-[11px]">
+              {(Object.keys(TEAM_LABELS) as TeamMode[]).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => {
+                    setMode(m);
+                    setOpen(false);
+                  }}
+                  className={`block w-full text-left px-3 py-1 hover:bg-neutral-800 ${
+                    mode === m ? "text-[#8BBEEC] font-medium" : "text-neutral-200"
+                  }`}
                 >
-                  <span className="text-[10px] font-medium text-white">{fmtPct(r.pct, 0)}</span>
-                </div>
-              </div>
+                  {TEAM_LABELS[m]}
+                </button>
+              ))}
             </div>
-          );
-        })}
+          )}
+        </div>
       </div>
-      <div className="h-px bg-neutral-800 my-2" />
-      <div className="flex gap-2.5">
-        <LegendDot color={GREEN} label="≥75%" />
-        <LegendDot color={ORANGE} label="60–74%" />
-        <LegendDot color={RED} label="<60%" />
-      </div>
+
+      {teamRows.length === 0 ? (
+        <Empty />
+      ) : (
+        <div
+          className="max-h-[260px] overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-neutral-600"
+          style={{ scrollbarWidth: "thin", scrollbarColor: "#404040 transparent" }}
+        >
+          <table className="w-full text-[10px] sm:text-[11px]">
+            <thead className="sticky top-0 bg-[#1a1a1c] z-10">
+              <tr className="text-neutral-400 font-medium border-b border-neutral-800">
+                <th className="text-left pb-1.5 font-medium">Equipe</th>
+                <th className="text-center pb-1.5 font-medium">Total</th>
+                <th className="text-center pb-1.5 font-medium">Diamante</th>
+                <th className="text-center pb-1.5 font-medium">Ouro</th>
+                <th className="text-center pb-1.5 font-medium">Prata</th>
+              </tr>
+            </thead>
+            <tbody>
+              {teamRows.map((r) => (
+                <tr key={r.label} className="border-b border-neutral-800 last:border-0">
+                  <td
+                    className="py-1 text-neutral-200 truncate pr-2 max-w-[140px]"
+                    title={r.label}
+                  >
+                    {r.label}
+                  </td>
+                  <td className="py-1 text-center tabular-nums whitespace-nowrap">
+                    <span className="font-semibold" style={{ color: "#5FA8E8" }}>
+                      {r.total.ok}
+                    </span>
+                    <span className="text-neutral-500"> / {r.total.all}</span>
+                  </td>
+                  {r.byCluster.map((c) => (
+                    <td key={c.label} className="py-1 text-center">
+                      {renderClusterCell(c.ok, c.all, c.color)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </Card>
   );
 }
+
 
 function GruposNaoBatidosCard({
   rows,
