@@ -792,7 +792,7 @@ function Dashboard() {
       {/* Linha inferior */}
       <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-2.5 mb-3">
         <RankingCard rows={ranking} />
-        <TeamPerformanceCard monthRows={monthRows} estrutura={estrutura} />
+        <TeamPerformanceCard monthRows={monthRows} estrutura={estrutura} filters={dFilters} />
       </div>
 
 
@@ -1610,9 +1610,11 @@ const TEAM_LABELS: Record<TeamMode, string> = {
 function TeamPerformanceCard({
   monthRows,
   estrutura,
+  filters,
 }: {
   monthRows: Row[];
   estrutura: EstruturaRow[];
+  filters: Filters;
 }) {
   const [mode, setMode] = useState<TeamMode>("gv");
   const [open, setOpen] = useState(false);
@@ -1636,12 +1638,20 @@ function TeamPerformanceCard({
   const teamRows = useMemo(() => {
     const compose = (code: string, name: string) =>
       code ? (name ? `${code} - ${name}` : code) : "";
+    const inList = (v: string, list: string[]) => list.length === 0 || list.includes(v);
+    const hasCodeFilter = filters.gv.length > 0 || filters.sv.length > 0 || filters.rv.length > 0;
+    const matchesCodeFilters = (e: EstruturaRow) =>
+      inList(compose(e.gv, e.gvNome), filters.gv) &&
+      inList(compose(e.sv, e.svNome), filters.sv) &&
+      inList(compose(e.rv, e.rvNome), filters.rv);
     const nameKey = (mode + "Nome") as "gvNome" | "svNome" | "rvNome";
     const teamMap = new Map<string, string>();
     for (const e of estrutura) {
+      if (hasCodeFilter && !matchesCodeFilters(e)) continue;
       const label = compose(e[mode], e[nameKey]);
       if (!label) continue;
-      teamMap.set(`${e.rede}||${e.distribuidor}`, label);
+      const key = `${e.rede}||${e.distribuidor}`;
+      if (!teamMap.has(key)) teamMap.set(key, label);
     }
 
     type Agg = {
@@ -1694,7 +1704,7 @@ function TeamPerformanceCard({
         if (!isNaN(numA) && !isNaN(numB) && numA !== numB) return numA - numB;
         return a.label.localeCompare(b.label);
       });
-  }, [monthRows, estrutura, mode]);
+  }, [monthRows, estrutura, mode, filters]);
 
   const renderClusterCell = (ok: number, all: number, color: string) => {
     if (all === 0) {
