@@ -131,9 +131,9 @@ function Dashboard() {
   // sem travar a interação.
   const dFilters = useDeferredValue(filters);
 
-  // Conjunto de redes permitidas pelos filtros de código (Gv/Sv/Rv).
-  // Se nenhum dos três estiver selecionado, allowedRedes = null (sem restrição).
-  const allowedRedes = useMemo<Set<string> | null>(() => {
+  // Conjunto de pares rede+distribuidor permitidos pelos filtros de código (Gv/Sv/Rv).
+  // Isso mantém o card principal e a tabela de equipe na mesma granularidade.
+  const allowedEstruturaKeys = useMemo<Set<string> | null>(() => {
     if (dFilters.gv.length === 0 && dFilters.sv.length === 0 && dFilters.rv.length === 0) return null;
     const inList = (v: string, list: string[]) => list.length === 0 || list.includes(v);
     const compose = (code: string, name: string) => (code ? (name ? `${code} - ${name}` : code) : "");
@@ -144,23 +144,23 @@ function Dashboard() {
         inList(compose(e.sv, e.svNome), dFilters.sv) &&
         inList(compose(e.rv, e.rvNome), dFilters.rv)
       ) {
-        set.add(e.rede);
+        set.add(`${e.rede}||${e.distribuidor}`);
       }
     }
     return set;
   }, [estrutura, dFilters.gv, dFilters.sv, dFilters.rv]);
 
   const rows = useMemo(
-    () => (allowedRedes ? allRows.filter((r) => allowedRedes.has(r.rede)) : allRows),
-    [allRows, allowedRedes],
+    () => (allowedEstruturaKeys ? allRows.filter((r) => allowedEstruturaKeys.has(`${r.rede}||${r.distribuidor}`)) : allRows),
+    [allRows, allowedEstruturaKeys],
   );
   const agRows = useMemo(
-    () => (allowedRedes ? allAgRows.filter((r) => allowedRedes.has(r.rede)) : allAgRows),
-    [allAgRows, allowedRedes],
+    () => (allowedEstruturaKeys ? allAgRows.filter((r) => allowedEstruturaKeys.has(`${r.rede}||${r.distribuidor}`)) : allAgRows),
+    [allAgRows, allowedEstruturaKeys],
   );
   const skuRows = useMemo(
-    () => (allowedRedes ? allSkuRows.filter((r) => allowedRedes.has(r.rede)) : allSkuRows),
-    [allSkuRows, allowedRedes],
+    () => (allowedEstruturaKeys ? allSkuRows.filter((r) => allowedEstruturaKeys.has(`${r.rede}||${r.distribuidor}`)) : allSkuRows),
+    [allSkuRows, allowedEstruturaKeys],
   );
 
 
@@ -227,16 +227,16 @@ function Dashboard() {
   // Filtra a aba "iniciativas" pelos mesmos filtros (sem mês — não há campo mês)
   const filteredIniciativas = useMemo(() => {
     const inList = (v: string, list: string[]) => list.length === 0 || list.includes(v);
-    const redeOk = allowedRedes;
+    const estruturaOk = allowedEstruturaKeys;
     return allIniciativas.filter(
       (r) =>
         inList(r.cluster, dFilters.cluster) &&
         inList(r.canal, dFilters.canal) &&
         inList(r.rede, dFilters.rede) &&
         inList(r.distribuidor, dFilters.distribuidor) &&
-        (redeOk == null || redeOk.has(r.rede)),
+        (estruturaOk == null || estruturaOk.has(`${r.rede}||${r.distribuidor}`)),
     );
-  }, [allIniciativas, dFilters, allowedRedes]);
+  }, [allIniciativas, dFilters, allowedEstruturaKeys]);
 
   // Métricas por iniciativa: total batido/total + breakdown por cluster
   const iniciativasStats = useMemo(() => {
