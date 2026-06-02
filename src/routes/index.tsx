@@ -21,6 +21,7 @@ import {
   Lock,
   Download,
   Rocket,
+  Users,
 
 } from "lucide-react";
 import {
