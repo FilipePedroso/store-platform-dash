@@ -1645,13 +1645,15 @@ function TeamPerformanceCard({
       inList(compose(e.sv, e.svNome), filters.sv) &&
       inList(compose(e.rv, e.rvNome), filters.rv);
     const nameKey = (mode + "Nome") as "gvNome" | "svNome" | "rvNome";
-    const teamMap = new Map<string, string>();
+    const teamMap = new Map<string, Set<string>>();
     for (const e of estrutura) {
       if (hasCodeFilter && !matchesCodeFilters(e)) continue;
       const label = compose(e[mode], e[nameKey]);
       if (!label) continue;
       const key = `${e.rede}||${e.distribuidor}`;
-      if (!teamMap.has(key)) teamMap.set(key, label);
+      const labels = teamMap.get(key) ?? new Set<string>();
+      labels.add(label);
+      teamMap.set(key, labels);
     }
 
     type Agg = {
@@ -1662,29 +1664,31 @@ function TeamPerformanceCard({
     };
     const map = new Map<string, Agg>();
     for (const r of monthRows) {
-      const teamLabel = teamMap.get(`${r.rede}||${r.distribuidor}`);
-      if (!teamLabel) continue;
-      let agg = map.get(teamLabel);
-      if (!agg) {
-        agg = {
-          label: teamLabel,
-          allTotal: new Set(),
-          okTotal: new Set(),
-          byCluster: {
-            Diamante: { all: new Set(), ok: new Set() },
-            Ouro: { all: new Set(), ok: new Set() },
-            Prata: { all: new Set(), ok: new Set() },
-          },
-        };
-        map.set(teamLabel, agg);
-      }
-      agg.allTotal.add(r.rede);
+      const teamLabels = teamMap.get(`${r.rede}||${r.distribuidor}`);
+      if (!teamLabels) continue;
       const isOk = r.sortimento >= 0.9;
-      if (isOk) agg.okTotal.add(r.rede);
-      const cl = agg.byCluster[r.cluster];
-      if (cl) {
-        cl.all.add(r.rede);
-        if (isOk) cl.ok.add(r.rede);
+      for (const teamLabel of teamLabels) {
+        let agg = map.get(teamLabel);
+        if (!agg) {
+          agg = {
+            label: teamLabel,
+            allTotal: new Set(),
+            okTotal: new Set(),
+            byCluster: {
+              Diamante: { all: new Set(), ok: new Set() },
+              Ouro: { all: new Set(), ok: new Set() },
+              Prata: { all: new Set(), ok: new Set() },
+            },
+          };
+          map.set(teamLabel, agg);
+        }
+        agg.allTotal.add(r.rede);
+        if (isOk) agg.okTotal.add(r.rede);
+        const cl = agg.byCluster[r.cluster];
+        if (cl) {
+          cl.all.add(r.rede);
+          if (isOk) cl.ok.add(r.rede);
+        }
       }
     }
     return [...map.values()]
