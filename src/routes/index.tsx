@@ -1784,33 +1784,56 @@ function TeamPerformanceCard({
               <tr className="text-neutral-400 font-medium border-b border-neutral-800">
                 <th className="text-left pb-1.5 font-medium">Equipe</th>
                 <th className="text-center pb-1.5 font-medium">Total</th>
-                <th className="text-center pb-1.5 font-medium">Diamante</th>
-                <th className="text-center pb-1.5 font-medium">Ouro</th>
-                <th className="text-center pb-1.5 font-medium">Prata</th>
+                {CLUSTER_ORDER.map((c) => (
+                  <th key={c} className="text-center pb-1.5 font-medium">
+                    <span
+                      className="inline-flex items-center gap-1"
+                      style={{ color: CLUSTER_COLORS[c] }}
+                    >
+                      <span
+                        className="inline-block rounded-full"
+                        style={{ width: 6, height: 6, backgroundColor: CLUSTER_COLORS[c] }}
+                      />
+                      {c}
+                    </span>
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {teamRows.map((r) => (
-                <tr key={r.label} className="border-b border-neutral-800 last:border-0">
-                  <td
-                    className="py-1 text-neutral-200 truncate pr-2 max-w-[140px]"
-                    title={r.label}
-                  >
-                    {r.label}
-                  </td>
-                  <td className="py-1 text-center tabular-nums whitespace-nowrap">
-                    <span className="font-semibold" style={{ color: "#5FA8E8" }}>
-                      {r.total.ok}
-                    </span>
-                    <span className="text-neutral-500"> / {r.total.all}</span>
-                  </td>
-                  {r.byCluster.map((c) => (
-                    <td key={c.label} className="py-1 text-center">
-                      {renderClusterCell(c.ok, c.all, c.color)}
+              {teamRows.map((r) => {
+                const totalPct = r.total.all > 0 ? r.total.ok / r.total.all : 0;
+                const totalPctColor = totalPct >= 0.6 ? "#22c55e" : "#5FA8E8";
+                return (
+                  <tr key={r.label} className="border-b border-neutral-800 last:border-0">
+                    <td
+                      className="py-1 text-neutral-200 truncate pr-2 max-w-[140px]"
+                      title={r.label}
+                    >
+                      {r.label}
                     </td>
-                  ))}
-                </tr>
-              ))}
+                    <td className="py-1 text-center tabular-nums whitespace-nowrap">
+                      <span className="font-semibold" style={{ color: "#5FA8E8" }}>
+                        {r.total.ok}
+                      </span>
+                      <span className="text-neutral-500"> / {r.total.all}</span>
+                      {r.total.all > 0 && (
+                        <>
+                          {" "}
+                          <span className="font-semibold" style={{ color: totalPctColor }}>
+                            {Math.round(totalPct * 100)}%
+                          </span>
+                        </>
+                      )}
+                    </td>
+                    {r.byCluster.map((c) => (
+                      <td key={c.label} className="py-1 text-center">
+                        {renderClusterCell(c.ok, c.all, c.color)}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
