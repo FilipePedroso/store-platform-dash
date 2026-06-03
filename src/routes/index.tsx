@@ -729,26 +729,58 @@ function Dashboard() {
           badgeFg="#7DE5BD"
           distribuidores={dFilters.distribuidor}
         />
-        <LineHistoryCard
-          icon={<Check size={13} style={{ color: BLUE }} />}
-          title="Redes com sortimento ≥ 90%"
-          sub="Qtd. de redes atingindo o mix mínimo"
-          color={BLUE}
-          months={histRedesOk.months}
-          total={histRedesOk.total}
-          groups={histRedesOk.groups}
-          yFormat={(n) => n.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
-          pointFormat={(n) => n.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
-          pointSubLabel={{
-            values: histConversao,
-            format: (n) => fmtPct(n, 0),
-            threshold: 0.6,
-            activeColor: "#22ff88",
-          }}
-          badgeBg="#0E2E4D"
-          badgeFg="#8BBEEC"
-          distribuidores={dFilters.distribuidor}
-        />
+        {(() => {
+          const singleRede = dFilters.rede.length === 1 ? dFilters.rede[0] : null;
+          if (singleRede) {
+            const sortPorMes = histRedesOk.months.map((m) => {
+              let v = 0;
+              for (const r of baseRows) {
+                if (r.mes === m && r.rede === singleRede && r.sortimento > v) v = r.sortimento;
+              }
+              return v;
+            });
+            return (
+              <LineHistoryCard
+                icon={<Check size={13} style={{ color: BLUE }} />}
+                title="Redes com sortimento ≥ 90%"
+                sub="Sortimento"
+                color={BLUE}
+                months={histRedesOk.months}
+                total={sortPorMes}
+                groups={[]}
+                yFormat={(n) => fmtPct(n, 0)}
+                pointFormat={(n) => fmtPct(n, 1)}
+                forceMax={1}
+                badgeBg="#0E2E4D"
+                badgeFg="#8BBEEC"
+                distribuidores={dFilters.distribuidor}
+              />
+            );
+          }
+          return (
+            <LineHistoryCard
+              icon={<Check size={13} style={{ color: BLUE }} />}
+              title="Redes com sortimento ≥ 90%"
+              sub="Qtd. de redes atingindo o mix mínimo"
+              color={BLUE}
+              months={histRedesOk.months}
+              total={histRedesOk.total}
+              groups={histRedesOk.groups}
+              yFormat={(n) => n.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
+              pointFormat={(n) => n.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
+              pointSubLabel={{
+                values: histConversao,
+                format: (n) => fmtPct(n, 0),
+                threshold: 0.6,
+                activeColor: "#22ff88",
+              }}
+              badgeBg="#0E2E4D"
+              badgeFg="#8BBEEC"
+              distribuidores={dFilters.distribuidor}
+            />
+          );
+        })()}
+
         <LineHistoryCard
           icon={<Target size={13} style={{ color: ORANGE }} />}
           title="% Atingimento da verba"
