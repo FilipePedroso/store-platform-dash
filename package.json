@@ -8,7 +8,7 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "build:data": "bun scripts/build_data.mjs",
-    "build:static": "bun scripts/build_data.mjs && vite build",
+    "build:static": "bun scripts/build_data.mjs && vite build --config vite.static.config.ts",
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write ."
