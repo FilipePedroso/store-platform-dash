@@ -16,9 +16,7 @@ import {
   Star,
   ChevronDown,
   ChevronRight,
-  Upload,
   X,
-  Lock,
   Download,
   Rocket,
   Users,
@@ -44,9 +42,8 @@ import {
   type EstruturaGrupoRow,
   type SkuRow,
 } from "@/lib/dashboard-data";
-import { updateDataset, appendAgsChunk, appendSkusChunk } from "@/lib/dataset.functions";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { useServerFn } from "@tanstack/react-start";
+
 import {
   EMPTY_FILTERS,
   applyAllFilters,
