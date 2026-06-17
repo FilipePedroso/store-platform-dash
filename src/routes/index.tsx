@@ -1331,7 +1331,7 @@ type IniciativaStat = {
 function IniciativasCard({ data }: { data: IniciativaStat[] }) {
   return (
     <div
-      className="bg-[#1a1a1c] rounded-b-xl border border-neutral-800/80 p-3.5 flex flex-col h-full min-h-0"
+      className="bg-[#1a1a1c] rounded-b-xl border border-neutral-800/80 p-3.5 flex flex-col h-[480px] md:h-full min-h-0"
       style={{ borderTop: `3px solid ${PURPLE}` }}
     >
       <div className="text-[11px] text-neutral-400 mb-2 flex items-center gap-1.5 tracking-wide uppercase">
