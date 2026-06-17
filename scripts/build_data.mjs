@@ -1,9 +1,8 @@
 import * as XLSX from "xlsx";
 import fs from "fs";
 import path from "path";
-import zlib from "zlib";
 
-const SRC = process.argv[2] || "public/data/historico.xlsx";
+const SRC = process.argv[2] || "/mnt/user-uploads/Histórico-5.xlsx";
 const OUT_DIR = "public/data";
 
 const buf = fs.readFileSync(SRC);
@@ -18,16 +17,14 @@ function excelDateToISO(v) {
   if (typeof v === "string") { const d = new Date(v); if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10); return v; }
   return "";
 }
-
 const COL_MAP = {"Rede":"rede","Distribuidor":"distribuidor","Cluster":"cluster","Cluster Mix":"clusterMix","Canal":"canal","Canal Mix":"canalMix","Nº de CNPJ's":"cnpjs","Nº de CNPJs":"cnpjs","Target de Unidades por Activation Group":"targetUnidades","Qtd. AG":"qtdAG","Ag. Batidos":"agBatidos","% Sortimento":"sortimento","Faturamento Mês Atual":"faturamento","Potencial de Investimento (Garantindo SOS & CKO)":"potencial","Investimento Gerado (Garantindo SOS & CKO)":"gerado","Mês":"mes"};
 const AG_COL_MAP = {"Rede":"rede","Distribuidor":"distribuidor","Cluster":"cluster","Cluster Mix":"clusterMix","Canal":"canal","Canal Mix":"canalMix","Nº de CNPJ's":"cnpjs","Nº de CNPJs":"cnpjs","Target de Unidades por Activation Group":"targetUnidades","Atributo":"atributo","Valor":"valor","Mês":"mes","loading dpp":"loadingDpp","Loading DPP":"loadingDpp","positivação":"positivacao","Positivação":"positivacao"};
-
 const findSheet = (...names) => wb.SheetNames.find(n => names.includes(n.toLowerCase()));
 const sheetJson = name => name ? XLSX.utils.sheet_to_json(wb.Sheets[name], { defval: null, raw: true }) : [];
+const norm = v => v == null ? "" : String(v).trim();
 
-const dadosName = findSheet("dados") || wb.SheetNames[0];
 const strCols = new Set(["rede","distribuidor","cluster","clusterMix","canal","canalMix"]);
-const rows = sheetJson(dadosName).map(raw => {
+const rows = sheetJson(findSheet("dados") || wb.SheetNames[0]).map(raw => {
   const out = {};
   for (const [k, v] of Object.entries(raw)) {
     const m = COL_MAP[k.trim()]; if (!m) continue;
@@ -49,8 +46,6 @@ const agRows = sheetJson(findSheet("dados ags")).map(raw => {
   }
   return out;
 }).filter(r => r.rede && r.mes);
-
-const norm = v => v == null ? "" : String(v).trim();
 
 const estrutura = sheetJson(findSheet("estrutura")).map(raw => {
   const out = { rede:"",rv:"",sv:"",gv:"",rvNome:"",svNome:"",gvNome:"",distribuidor:"" };
@@ -111,27 +106,45 @@ const skuRows = sheetJson(findSheet("dados_skus","dados skus")).map(raw => {
   return out;
 }).filter(r => r.rede && r.dsEan);
 
+fs.mkdirSync(OUT_DIR, { recursive: true });
+// Clean previous chunk files
+for (const f of fs.readdirSync(OUT_DIR)) {
+  if (/^(ags|skus)\.part\d+\.json$/.test(f) || /^(ags|skus|rows|estrutura|iniciativas|estrutura_grupos|meta)\.json$/.test(f))
+    fs.unlinkSync(path.join(OUT_DIR, f));
+}
+
+const CHUNK = 20000; // ~5-6 MB each
+function writeChunked(name, arr) {
+  const parts = Math.ceil(arr.length / CHUNK);
+  for (let i = 0; i < parts; i++) {
+    const slice = arr.slice(i * CHUNK, (i + 1) * CHUNK);
+    const json = JSON.stringify(slice);
+    fs.writeFileSync(path.join(OUT_DIR, `${name}.part${i}.json`), json);
+    console.log(`  ${name}.part${i}.json: ${(json.length/1024/1024).toFixed(2)} MB (${slice.length} rows)`);
+  }
+  return parts;
+}
+function writeOne(name, obj) {
+  const json = JSON.stringify(obj);
+  fs.writeFileSync(path.join(OUT_DIR, `${name}.json`), json);
+  console.log(`  ${name}.json: ${(json.length/1024/1024).toFixed(2)} MB`);
+}
+
+writeOne("rows", rows);
+const agsParts = writeChunked("ags", agRows);
+const skusParts = writeChunked("skus", skuRows);
+writeOne("estrutura", estrutura);
+writeOne("iniciativas", iniciativas);
+writeOne("estrutura_grupos", estruturaGrupos);
+
 const stat = fs.statSync(SRC);
 const meta = {
   updatedAt: stat.mtime.toISOString(),
   rowCount: rows.length,
   agsCount: agRows.length,
   skusCount: skuRows.length,
+  agsParts,
+  skusParts,
 };
-
-fs.mkdirSync(OUT_DIR, { recursive: true });
-const write = (name, obj) => {
-  const json = JSON.stringify(obj);
-  const p = path.join(OUT_DIR, name);
-  fs.writeFileSync(p, json);
-  const gz = zlib.gzipSync(json).length;
-  console.log(`  ${name}: ${(json.length/1024/1024).toFixed(2)} MB (gz ${(gz/1024/1024).toFixed(2)} MB)`);
-};
-write("rows.json", rows);
-write("ags.json", agRows);
-write("skus.json", skuRows);
-write("estrutura.json", estrutura);
-write("iniciativas.json", iniciativas);
-write("estrutura_grupos.json", estruturaGrupos);
-write("meta.json", meta);
+writeOne("meta", meta);
 console.log("OK");
