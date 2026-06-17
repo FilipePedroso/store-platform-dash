@@ -103,10 +103,6 @@ function Dashboard() {
   const [allSkuRows, setAllSkuRows] = useState<SkuRow[]>([]);
   const [meta, setMeta] = useState<DataMeta | null>(null);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
-  const updateDatasetFn = useServerFn(updateDataset);
-  const appendAgsChunkFn = useServerFn(appendAgsChunk);
-  const appendSkusChunkFn = useServerFn(appendSkusChunk);
-  const [uploadProgress, setUploadProgress] = useState<string | null>(null);
   const [selectedHistoryGroups, setSelectedHistoryGroups] = useState<string[]>([]);
   const [selectedHistorySkus, setSelectedHistorySkus] = useState<string[]>([]);
 
