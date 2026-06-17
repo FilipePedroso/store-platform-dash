@@ -23,6 +23,14 @@ jobs:
         with:
           bun-version: latest
       - run: bun install
+      - name: Regenerate JSON from Excel (if present)
+        run: |
+          if ls data-source/*.xlsx >/dev/null 2>&1; then
+            echo "Excel encontrado em data-source/, regenerando JSONs..."
+            bun scripts/build_data.mjs
+          else
+            echo "Nenhum Excel em data-source/, usando JSONs versionados."
+          fi
       # Configure base path for Project Pages (https://<user>.github.io/<repo>/)
       # Remove this env var if you deploy to a user/org root or custom domain.
       - name: Build static site

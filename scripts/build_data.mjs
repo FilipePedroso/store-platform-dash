@@ -2,7 +2,20 @@ import * as XLSX from "xlsx";
 import fs from "fs";
 import path from "path";
 
-const SRC = process.argv[2] || "/mnt/user-uploads/Histórico-5.xlsx";
+function resolveSrc() {
+  if (process.argv[2]) return process.argv[2];
+  const dir = "data-source";
+  if (fs.existsSync(dir)) {
+    const xlsx = fs.readdirSync(dir).filter(f => f.toLowerCase().endsWith(".xlsx") && !f.startsWith("~"));
+    if (xlsx.length) {
+      xlsx.sort();
+      return path.join(dir, xlsx[xlsx.length - 1]);
+    }
+  }
+  return "/mnt/user-uploads/Histórico-5.xlsx";
+}
+const SRC = resolveSrc();
+console.log(`[build_data] lendo ${SRC}`);
 const OUT_DIR = "public/data";
 
 const buf = fs.readFileSync(SRC);
