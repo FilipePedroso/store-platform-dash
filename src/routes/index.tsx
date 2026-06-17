@@ -91,7 +91,7 @@ const RED = "#E24B4A";
 const LIGHT_BLUE = "#B5D4F4";
 const PALETTE = [GREEN, PURPLE, ORANGE, BLUE, RED, LIGHT_BLUE, "#5DCAA5", "#F1B257"];
 
-function Dashboard() {
+export function Dashboard() {
   const [allRows, setAllRows] = useState<Row[]>([]);
   const [allAgRows, setAllAgRows] = useState<AgRow[]>([]);
   const [estrutura, setEstrutura] = useState<EstruturaRow[]>([]);
