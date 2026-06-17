@@ -16,9 +16,7 @@ import {
   Star,
   ChevronDown,
   ChevronRight,
-  Upload,
   X,
-  Lock,
   Download,
   Rocket,
   Users,
@@ -34,7 +32,6 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import {
   loadRowsFromCloud,
-  parseXlsxFile,
   formatUpdatedAt,
   type Row,
   type AgRow,
@@ -44,9 +41,8 @@ import {
   type EstruturaGrupoRow,
   type SkuRow,
 } from "@/lib/dashboard-data";
-import { updateDataset, appendAgsChunk, appendSkusChunk } from "@/lib/dataset.functions";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { useServerFn } from "@tanstack/react-start";
+
 import {
   EMPTY_FILTERS,
   applyAllFilters,
@@ -94,7 +90,7 @@ const RED = "#E24B4A";
 const LIGHT_BLUE = "#B5D4F4";
 const PALETTE = [GREEN, PURPLE, ORANGE, BLUE, RED, LIGHT_BLUE, "#5DCAA5", "#F1B257"];
 
-function Dashboard() {
+export function Dashboard() {
   const [allRows, setAllRows] = useState<Row[]>([]);
   const [allAgRows, setAllAgRows] = useState<AgRow[]>([]);
   const [estrutura, setEstrutura] = useState<EstruturaRow[]>([]);
@@ -103,10 +99,6 @@ function Dashboard() {
   const [allSkuRows, setAllSkuRows] = useState<SkuRow[]>([]);
   const [meta, setMeta] = useState<DataMeta | null>(null);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
-  const updateDatasetFn = useServerFn(updateDataset);
-  const appendAgsChunkFn = useServerFn(appendAgsChunk);
-  const appendSkusChunkFn = useServerFn(appendSkusChunk);
-  const [uploadProgress, setUploadProgress] = useState<string | null>(null);
   const [selectedHistoryGroups, setSelectedHistoryGroups] = useState<string[]>([]);
   const [selectedHistorySkus, setSelectedHistorySkus] = useState<string[]>([]);
 
@@ -455,85 +447,8 @@ function Dashboard() {
     return { gv: pick("gv"), sv: pick("sv"), rv: pick("rv") };
   }, [estrutura, dFilters.rede, dFilters.distribuidor, dFilters.gv, dFilters.sv, dFilters.rv]);
 
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [loginOpen, setLoginOpen] = useState(false);
-  const credsRef = useRef<{ email: string; password: string } | null>(null);
 
-  const handleUpload = async (file: File) => {
-    setUploadError(null);
-    const creds = credsRef.current;
-    if (!creds) {
-      setUploadError("Faça login novamente para atualizar");
-      return;
-    }
-    setUploading(true);
-    try {
-      const parsed = await parseXlsxFile(file);
-      setUploadProgress("Enviando dados principais...");
-      await updateDatasetFn({
-        data: {
-          ...creds,
-          rows: parsed.rows,
-          estrutura: parsed.estrutura,
-          iniciativas: parsed.iniciativas,
-          estruturaGrupos: parsed.estruturaGrupos,
-        },
-      });
-      // Envia a aba "dados ags" em chunks com paralelismo controlado
-      const CHUNK = 5000;
-      const CONCURRENCY = 5;
-      const total = Math.ceil(parsed.agRows.length / CHUNK);
-      let done = 0;
-      setUploadProgress(`Enviando grupos (0/${total})...`);
-      let next = 0;
-      const worker = async () => {
-        while (true) {
-          const i = next++;
-          if (i >= total) return;
-          const slice = parsed.agRows.slice(i * CHUNK, (i + 1) * CHUNK);
-          await appendAgsChunkFn({
-            data: { ...creds, chunkIndex: i, rows: slice },
-          });
-          done++;
-          setUploadProgress(`Enviando grupos (${done}/${total})...`);
-        }
-      };
-      await Promise.all(
-        Array.from({ length: Math.min(CONCURRENCY, total) }, () => worker()),
-      );
-      // Envia a aba "dados_skus" em chunks
-      const totalSku = Math.ceil(parsed.skuRows.length / CHUNK);
-      let doneSku = 0;
-      setUploadProgress(`Enviando SKUs (0/${totalSku})...`);
-      let nextSku = 0;
-      const workerSku = async () => {
-        while (true) {
-          const i = nextSku++;
-          if (i >= totalSku) return;
-          const slice = parsed.skuRows.slice(i * CHUNK, (i + 1) * CHUNK);
-          await appendSkusChunkFn({
-            data: { ...creds, chunkIndex: i, rows: slice },
-          });
-          doneSku++;
-          setUploadProgress(`Enviando SKUs (${doneSku}/${totalSku})...`);
-        }
-      };
-      await Promise.all(
-        Array.from({ length: Math.min(CONCURRENCY, totalSku) }, () => workerSku()),
-      );
-      setUploadProgress(null);
-      await refresh();
-      setFilters(EMPTY_FILTERS);
-    } catch (e) {
-      setUploadProgress(null);
-      setUploadError(e instanceof Error ? e.message : "Falha ao atualizar os dados");
-    } finally {
-      setUploading(false);
-      credsRef.current = null;
-    }
-  };
+
 
   if (!meta) {
     return <div className="min-h-screen bg-[#0f0f10]" />;
@@ -553,42 +468,10 @@ function Dashboard() {
             <span className="text-neutral-300">{meta.rowCount}</span> linhas · atualizado em{" "}
             {formatUpdatedAt(meta)}
           </p>
-          {uploadError && (
-            <p className="text-[11px] text-red-400 mt-1">⚠ {uploadError}</p>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".xlsx"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) handleUpload(f);
-              e.target.value = "";
-            }}
-          />
-          <button
-            onClick={() => setLoginOpen(true)}
-            disabled={uploading}
-            className="rounded-full px-3 py-1.5 text-[11px] flex items-center gap-1.5 border bg-[#0E2E4D] border-[#378ADD] text-[#8BBEEC] font-medium hover:bg-[#13395f] disabled:opacity-50"
-          >
-            <Upload size={12} /> {uploading ? (uploadProgress ?? "Enviando...") : "Atualizar dados (.xlsx)"}
-          </button>
         </div>
       </div>
 
-      {loginOpen && (
-        <LoginModal
-          onClose={() => setLoginOpen(false)}
-          onSuccess={(email, password) => {
-            credsRef.current = { email, password };
-            setLoginOpen(false);
-            fileRef.current?.click();
-          }}
-        />
-      )}
+
 
 
       {/* Filtros */}
@@ -2171,77 +2054,6 @@ function Empty() {
   );
 }
 
-function LoginModal({
-  onClose,
-  onSuccess,
-}: {
-  onClose: () => void;
-  onSuccess: (email: string, password: string) => void;
-}) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (email.trim().toLowerCase() === "filipe.pedroso@oniz.com.br" && password === "402139") {
-      onSuccess(email.trim(), password);
-    } else {
-      setError("Credenciais inválidas");
-    }
-  };
-
-  return (
-    <div
-      className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
-      onClick={onClose}
-    >
-      <form
-        onClick={(e) => e.stopPropagation()}
-        onSubmit={submit}
-        className="bg-[#1a1a1c] border border-neutral-800 rounded-xl p-5 w-full max-w-sm"
-      >
-        <div className="flex items-center gap-2 mb-3">
-          <Lock size={14} style={{ color: BLUE }} />
-          <h2 className="text-[13px] font-medium text-neutral-100">Acesso restrito</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="ml-auto text-neutral-500 hover:text-neutral-200"
-            aria-label="Fechar"
-          >
-            <X size={14} />
-          </button>
-        </div>
-        <p className="text-[11px] text-neutral-400 mb-4">
-          Informe suas credenciais para atualizar os dados.
-        </p>
-        <label className="block text-[11px] text-neutral-400 mb-1">E-mail</label>
-        <input
-          type="email"
-          autoFocus
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full bg-[#0f0f10] border border-neutral-800 rounded px-2 py-1.5 text-[12px] text-neutral-100 outline-none focus:border-[#378ADD] mb-3"
-        />
-        <label className="block text-[11px] text-neutral-400 mb-1">Senha</label>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full bg-[#0f0f10] border border-neutral-800 rounded px-2 py-1.5 text-[12px] text-neutral-100 outline-none focus:border-[#378ADD] mb-3"
-        />
-        {error && <p className="text-[11px] text-red-400 mb-2">⚠ {error}</p>}
-        <button
-          type="submit"
-          className="w-full rounded-md px-3 py-1.5 text-[12px] bg-[#0E2E4D] border border-[#378ADD] text-[#8BBEEC] font-medium hover:bg-[#13395f]"
-        >
-          Entrar
-        </button>
-      </form>
-    </div>
-  );
-}
 
 /* ---------------- Line History Card ---------------- */
 
