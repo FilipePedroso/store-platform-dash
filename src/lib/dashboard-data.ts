@@ -1,6 +1,4 @@
 import * as XLSX from "xlsx";
-import seed from "@/data/historico-seed.json";
-import { supabase } from "@/integrations/supabase/client";
 
 export type Row = {
   rede: string;
@@ -52,7 +50,6 @@ export type IniciativaRow = {
   cluster: string;
   canal: string;
   rede: string;
-  /** chave = nome da iniciativa, valor = 0 ou 1 */
   iniciativas: Record<string, number>;
 };
 
@@ -75,16 +72,34 @@ export type SkuRow = {
   cluster: string;
 };
 
-export type DataMeta = { updatedAt: string; rowCount: number; agsCount: number; skusCount: number };
-
-const SEED_META: DataMeta = {
-  updatedAt: "2025-01-01T00:00:00Z",
-  rowCount: (seed as Row[]).length,
-  agsCount: 0,
-  skusCount: 0,
+export type DataMeta = {
+  updatedAt: string;
+  rowCount: number;
+  agsCount: number;
+  skusCount: number;
+  agsParts?: number;
+  skusParts?: number;
 };
 
-/** Carrega o dataset compartilhado da Cloud. Se ainda não houver upload, usa o seed embarcado. */
+const BASE = (import.meta.env.BASE_URL ?? "/").replace(/\/?$/, "/");
+const dataUrl = (name: string) => `${BASE}data/${name}`;
+
+async function fetchJson<T>(name: string): Promise<T> {
+  const res = await fetch(dataUrl(name), { cache: "force-cache" });
+  if (!res.ok) throw new Error(`Falha ao carregar ${name}: ${res.status}`);
+  return (await res.json()) as T;
+}
+
+async function fetchChunked<T>(prefix: string, parts: number): Promise<T[]> {
+  const all = await Promise.all(
+    Array.from({ length: parts }, (_, i) => fetchJson<T[]>(`${prefix}.part${i}.json`)),
+  );
+  const out: T[] = [];
+  for (const arr of all) for (const r of arr) out.push(r);
+  return out;
+}
+
+/** Carrega o dataset estático bundleado com o site. */
 export async function loadRowsFromCloud(): Promise<{
   rows: Row[];
   agRows: AgRow[];
@@ -94,93 +109,16 @@ export async function loadRowsFromCloud(): Promise<{
   skuRows: SkuRow[];
   meta: DataMeta;
 }> {
-  try {
-    const { data, error } = await supabase
-      .from("dataset")
-      .select("rows, row_count, updated_at, estrutura, iniciativas, estrutura_grupos")
-      .eq("id", "main")
-      .maybeSingle();
-    if (error) throw error;
-    const rows = (data?.rows as Row[] | null) ?? [];
-    const estrutura = ((data as { estrutura?: EstruturaRow[] } | null)?.estrutura as EstruturaRow[] | null) ?? [];
-    const iniciativas = ((data as { iniciativas?: IniciativaRow[] } | null)?.iniciativas as IniciativaRow[] | null) ?? [];
-    const estruturaGrupos =
-      ((data as { estrutura_grupos?: EstruturaGrupoRow[] } | null)?.estrutura_grupos as EstruturaGrupoRow[] | null) ??
-      [];
-    if (rows.length === 0) {
-      return {
-        rows: seed as Row[],
-        agRows: [],
-        estrutura: [],
-        iniciativas: [],
-        estruturaGrupos: [],
-        skuRows: [],
-        meta: SEED_META,
-      };
-    }
-
-    // Carrega todos os chunks da aba "dados ags"
-    const agRows: AgRow[] = [];
-    const PAGE = 1000;
-    for (let from = 0; ; from += PAGE) {
-      const { data: chunks, error: chunkErr } = await supabase
-        .from("dataset_ags_chunks")
-        .select("rows")
-        .eq("id", "main")
-        .order("chunk_index", { ascending: true })
-        .range(from, from + PAGE - 1);
-      if (chunkErr) break;
-      if (!chunks || chunks.length === 0) break;
-      for (const c of chunks) {
-        const arr = (c.rows as AgRow[] | null) ?? [];
-        for (const r of arr) agRows.push(r);
-      }
-      if (chunks.length < PAGE) break;
-    }
-
-    // Carrega todos os chunks da aba "dados_skus"
-    const skuRows: SkuRow[] = [];
-    for (let from = 0; ; from += PAGE) {
-      const { data: chunks, error: chunkErr } = await supabase
-        .from("dataset_skus_chunks")
-        .select("rows")
-        .eq("id", "main")
-        .order("chunk_index", { ascending: true })
-        .range(from, from + PAGE - 1);
-      if (chunkErr) break;
-      if (!chunks || chunks.length === 0) break;
-      for (const c of chunks) {
-        const arr = (c.rows as SkuRow[] | null) ?? [];
-        for (const r of arr) skuRows.push(r);
-      }
-      if (chunks.length < PAGE) break;
-    }
-
-    return {
-      rows,
-      agRows,
-      estrutura,
-      iniciativas,
-      estruturaGrupos,
-      skuRows,
-      meta: {
-        updatedAt: data!.updated_at,
-        rowCount: data!.row_count ?? rows.length,
-        agsCount: agRows.length,
-        skusCount: skuRows.length,
-      },
-    };
-  } catch {
-    return {
-      rows: seed as Row[],
-      agRows: [],
-      estrutura: [],
-      iniciativas: [],
-      estruturaGrupos: [],
-      skuRows: [],
-      meta: SEED_META,
-    };
-  }
+  const meta = await fetchJson<DataMeta>("meta.json");
+  const [rows, estrutura, iniciativas, estruturaGrupos, agRows, skuRows] = await Promise.all([
+    fetchJson<Row[]>("rows.json"),
+    fetchJson<EstruturaRow[]>("estrutura.json"),
+    fetchJson<IniciativaRow[]>("iniciativas.json"),
+    fetchJson<EstruturaGrupoRow[]>("estrutura_grupos.json"),
+    fetchChunked<AgRow>("ags", meta.agsParts ?? 0),
+    fetchChunked<SkuRow>("skus", meta.skusParts ?? 0),
+  ]);
+  return { rows, agRows, estrutura, iniciativas, estruturaGrupos, skuRows, meta };
 }
 
 const COL_MAP: Record<string, keyof Row> = {
