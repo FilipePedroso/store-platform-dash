@@ -557,38 +557,9 @@ function Dashboard() {
             <p className="text-[11px] text-red-400 mt-1">⚠ {uploadError}</p>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".xlsx"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) handleUpload(f);
-              e.target.value = "";
-            }}
-          />
-          <button
-            onClick={() => setLoginOpen(true)}
-            disabled={uploading}
-            className="rounded-full px-3 py-1.5 text-[11px] flex items-center gap-1.5 border bg-[#0E2E4D] border-[#378ADD] text-[#8BBEEC] font-medium hover:bg-[#13395f] disabled:opacity-50"
-          >
-            <Upload size={12} /> {uploading ? (uploadProgress ?? "Enviando...") : "Atualizar dados (.xlsx)"}
-          </button>
-        </div>
       </div>
 
-      {loginOpen && (
-        <LoginModal
-          onClose={() => setLoginOpen(false)}
-          onSuccess={(email, password) => {
-            credsRef.current = { email, password };
-            setLoginOpen(false);
-            fileRef.current?.click();
-          }}
-        />
-      )}
+
 
 
       {/* Filtros */}
