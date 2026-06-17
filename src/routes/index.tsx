@@ -476,9 +476,6 @@ function Dashboard() {
             <span className="text-neutral-300">{meta.rowCount}</span> linhas · atualizado em{" "}
             {formatUpdatedAt(meta)}
           </p>
-          {uploadError && (
-            <p className="text-[11px] text-red-400 mt-1">⚠ {uploadError}</p>
-          )}
         </div>
       </div>
 
