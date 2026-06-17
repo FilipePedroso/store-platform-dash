@@ -32,7 +32,6 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import {
   loadRowsFromCloud,
-  parseXlsxFile,
   formatUpdatedAt,
   type Row,
   type AgRow,
