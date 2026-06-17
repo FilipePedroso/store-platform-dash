@@ -455,85 +455,8 @@ function Dashboard() {
     return { gv: pick("gv"), sv: pick("sv"), rv: pick("rv") };
   }, [estrutura, dFilters.rede, dFilters.distribuidor, dFilters.gv, dFilters.sv, dFilters.rv]);
 
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [loginOpen, setLoginOpen] = useState(false);
-  const credsRef = useRef<{ email: string; password: string } | null>(null);
 
-  const handleUpload = async (file: File) => {
-    setUploadError(null);
-    const creds = credsRef.current;
-    if (!creds) {
-      setUploadError("Faça login novamente para atualizar");
-      return;
-    }
-    setUploading(true);
-    try {
-      const parsed = await parseXlsxFile(file);
-      setUploadProgress("Enviando dados principais...");
-      await updateDatasetFn({
-        data: {
-          ...creds,
-          rows: parsed.rows,
-          estrutura: parsed.estrutura,
-          iniciativas: parsed.iniciativas,
-          estruturaGrupos: parsed.estruturaGrupos,
-        },
-      });
-      // Envia a aba "dados ags" em chunks com paralelismo controlado
-      const CHUNK = 5000;
-      const CONCURRENCY = 5;
-      const total = Math.ceil(parsed.agRows.length / CHUNK);
-      let done = 0;
-      setUploadProgress(`Enviando grupos (0/${total})...`);
-      let next = 0;
-      const worker = async () => {
-        while (true) {
-          const i = next++;
-          if (i >= total) return;
-          const slice = parsed.agRows.slice(i * CHUNK, (i + 1) * CHUNK);
-          await appendAgsChunkFn({
-            data: { ...creds, chunkIndex: i, rows: slice },
-          });
-          done++;
-          setUploadProgress(`Enviando grupos (${done}/${total})...`);
-        }
-      };
-      await Promise.all(
-        Array.from({ length: Math.min(CONCURRENCY, total) }, () => worker()),
-      );
-      // Envia a aba "dados_skus" em chunks
-      const totalSku = Math.ceil(parsed.skuRows.length / CHUNK);
-      let doneSku = 0;
-      setUploadProgress(`Enviando SKUs (0/${totalSku})...`);
-      let nextSku = 0;
-      const workerSku = async () => {
-        while (true) {
-          const i = nextSku++;
-          if (i >= totalSku) return;
-          const slice = parsed.skuRows.slice(i * CHUNK, (i + 1) * CHUNK);
-          await appendSkusChunkFn({
-            data: { ...creds, chunkIndex: i, rows: slice },
-          });
-          doneSku++;
-          setUploadProgress(`Enviando SKUs (${doneSku}/${totalSku})...`);
-        }
-      };
-      await Promise.all(
-        Array.from({ length: Math.min(CONCURRENCY, totalSku) }, () => workerSku()),
-      );
-      setUploadProgress(null);
-      await refresh();
-      setFilters(EMPTY_FILTERS);
-    } catch (e) {
-      setUploadProgress(null);
-      setUploadError(e instanceof Error ? e.message : "Falha ao atualizar os dados");
-    } finally {
-      setUploading(false);
-      credsRef.current = null;
-    }
-  };
+
 
   if (!meta) {
     return <div className="min-h-screen bg-[#0f0f10]" />;
