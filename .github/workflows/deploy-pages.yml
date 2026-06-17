@@ -22,7 +22,7 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
-      - run: bun install --frozen-lockfile
+      - run: bun install
       # Configure base path for Project Pages (https://<user>.github.io/<repo>/)
       # Remove this env var if you deploy to a user/org root or custom domain.
       - name: Build static site
