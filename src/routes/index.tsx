@@ -1439,6 +1439,8 @@ function RankingCard({
     sortimento: number;
     gerado: number;
     potencial: number;
+    qtdAG: number;
+    agBatidos: number;
     gapAgs: number;
     gapAgs90: number;
   }[];
