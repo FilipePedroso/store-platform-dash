@@ -1618,6 +1618,9 @@ function TeamPerformanceCard({
         })),
       }))
       .sort((a, b) => {
+        const pctA = a.total.all > 0 ? a.total.ok / a.total.all : 0;
+        const pctB = b.total.all > 0 ? b.total.ok / b.total.all : 0;
+        if (pctB !== pctA) return pctB - pctA;
         const numA = parseInt(a.label, 10);
         const numB = parseInt(b.label, 10);
         if (!isNaN(numA) && !isNaN(numB) && numA !== numB) return numA - numB;
