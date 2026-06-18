@@ -1466,7 +1466,7 @@ function RankingCard({
                 <th className="text-left pb-1.5 font-medium">Rede</th>
                 <th className="text-center pb-1.5 w-9 sm:w-12 font-medium">Sort.</th>
                 <th className="text-center pb-1.5 w-12 sm:w-16 font-medium leading-tight">
-                  <div>Gap</div><div>Ags</div>
+                  <div>Ags</div><div>atingidos</div>
                 </th>
                 <th className="text-center pb-1.5 w-14 sm:w-20 font-medium leading-tight">
                   <div>Gap Ags</div><div>.p ≥ 90%</div>
