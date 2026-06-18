@@ -1489,7 +1489,7 @@ function RankingCard({
                       {fmtPct(r.sortimento, 0)}
                     </td>
                     <td className="py-1 text-center text-neutral-200">
-                      {r.gapAgs.toLocaleString("pt-BR")}
+                      {r.qtdAG} / {r.agBatidos}
                     </td>
                     <td className="py-1 text-center text-neutral-200">
                       {r.gapAgs90.toLocaleString("pt-BR")}
