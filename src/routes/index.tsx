@@ -1488,8 +1488,8 @@ function RankingCard({
                     <td className="py-1 text-center font-medium" style={{ color }}>
                       {fmtPct(r.sortimento, 0)}
                     </td>
-                    <td className="py-1 text-center text-neutral-200">
-                      {r.qtdAG} / {r.agBatidos}
+                    <td className="py-1 text-center font-medium" style={{ color: "#3B82F6" }}>
+                      {r.agBatidos} / {r.qtdAG}
                     </td>
                     <td className="py-1 text-center text-neutral-200">
                       {r.gapAgs90.toLocaleString("pt-BR")}
