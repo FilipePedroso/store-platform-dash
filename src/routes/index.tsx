@@ -1844,6 +1844,8 @@ function GruposNaoBatidosCard({
     doc.text("Grupos não batidos", 40, 40);
     const body = visibleRows.map((r) => {
       const faltante = Math.max(0, r.target - r.valor);
+      const skus = skusByGroup.get(r.atributo) ?? [];
+      const skusText = skus.map((s) => `${s.ean} - ${s.descricao}`).join(", ");
       return [
         r.rede,
         fmtPct(r.sortimento, 0),
@@ -1851,11 +1853,12 @@ function GruposNaoBatidosCard({
         fmtInt(r.target),
         fmtInt(r.valor),
         fmtInt(faltante),
+        skusText,
       ];
     });
     autoTable(doc, {
       startY: 60,
-      head: [["Rede", "Sortimento", "Grupo", "Target", "Vendido(Un)", "Faltante"]],
+      head: [["Rede", "Sortimento", "Grupo", "Target", "Vendido(Un)", "Faltante", "SKUs"]],
       body,
       styles: { fontSize: 8, cellPadding: 4 },
       headStyles: { fillColor: [38, 38, 40], textColor: 255 },
