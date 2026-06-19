@@ -1,6 +1,7 @@
 import * as XLSX from "xlsx";
 import fs from "fs";
 import path from "path";
+import { execSync } from "child_process";
 
 function resolveSrc() {
   if (process.argv[2]) return process.argv[2];
@@ -150,9 +151,17 @@ writeOne("estrutura", estrutura);
 writeOne("iniciativas", iniciativas);
 writeOne("estrutura_grupos", estruturaGrupos);
 
-const stat = fs.statSync(SRC);
+function resolveUpdatedAt() {
+  try {
+    const iso = execSync("git log -1 --format=%cI", { encoding: "utf8" }).trim();
+    if (iso) return new Date(iso).toISOString();
+  } catch (e) {
+    console.warn("[build_data] git log falhou, usando mtime:", e.message);
+  }
+  return fs.statSync(SRC).mtime.toISOString();
+}
 const meta = {
-  updatedAt: stat.mtime.toISOString(),
+  updatedAt: resolveUpdatedAt(),
   rowCount: rows.length,
   agsCount: agRows.length,
   skusCount: skuRows.length,
