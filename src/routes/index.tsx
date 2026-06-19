@@ -1819,7 +1819,7 @@ function GruposNaoBatidosCard({
     for (const r of visibleRows) {
       const faltante = Math.max(0, r.target - r.valor);
       lines.push(
-        [r.rede, fmtPct(r.sortimento, 0), r.atributo, "", "", r.target, r.valor, faltante]
+        [r.rede, fmtPct(r.sortimento, 0), r.atributo, "Total", "Total", r.target, r.valor, faltante]
           .map(escape)
           .join(";"),
       );
@@ -1856,8 +1856,8 @@ function GruposNaoBatidosCard({
         r.rede,
         fmtPct(r.sortimento, 0),
         r.atributo,
-        "",
-        "",
+        "Total",
+        "Total",
         fmtInt(r.target),
         fmtInt(r.valor),
         fmtInt(faltante),
