@@ -1,6 +1,7 @@
 import * as XLSX from "xlsx";
 import fs from "fs";
 import path from "path";
+import { execSync } from "child_process";
 
 function resolveSrc() {
   if (process.argv[2]) return process.argv[2];
