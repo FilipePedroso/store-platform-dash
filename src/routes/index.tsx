@@ -1810,7 +1810,7 @@ function GruposNaoBatidosCard({
   };
 
   const handleDownloadCsv = () => {
-    const headers = ["Rede", "Sortimento", "Grupo", "Target", "Vendido(Un)", "Faltante", "SKUs"];
+    const headers = ["Rede", "Sortimento", "Grupo", "EAN", "Descrição SKU", "Target", "Vendido(Un)", "Faltante"];
     const escape = (v: string | number) => {
       const s = String(v ?? "");
       return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
@@ -1818,13 +1818,20 @@ function GruposNaoBatidosCard({
     const lines = [headers.join(";")];
     for (const r of visibleRows) {
       const faltante = Math.max(0, r.target - r.valor);
-      const skus = skusByGroup.get(r.atributo) ?? [];
-      const skusText = skus.map((s) => `${s.ean} - ${s.descricao}`).join(", ");
       lines.push(
-        [r.rede, fmtPct(r.sortimento, 0), r.atributo, r.target, r.valor, faltante, skusText]
+        [r.rede, fmtPct(r.sortimento, 0), r.atributo, "", "", r.target, r.valor, faltante]
           .map(escape)
           .join(";"),
       );
+      const skus = skusByGroup.get(r.atributo) ?? [];
+      for (const sku of skus) {
+        const vol = skuVolumeMap.get(`${r.rede}|${r.atributo}|${sku.ean}`) ?? 0;
+        lines.push(
+          [r.rede, fmtPct(r.sortimento, 0), r.atributo, sku.ean, sku.descricao ?? "", "", vol, ""]
+            .map(escape)
+            .join(";"),
+        );
+      }
     }
     const csv = "\uFEFF" + lines.join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -1842,23 +1849,37 @@ function GruposNaoBatidosCard({
     const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
     doc.setFontSize(14);
     doc.text("Grupos não batidos", 40, 40);
-    const body = visibleRows.map((r) => {
+    const body: (string | number)[][] = [];
+    visibleRows.forEach((r) => {
       const faltante = Math.max(0, r.target - r.valor);
-      const skus = skusByGroup.get(r.atributo) ?? [];
-      const skusText = skus.map((s) => `${s.ean} - ${s.descricao}`).join(", ");
-      return [
+      body.push([
         r.rede,
         fmtPct(r.sortimento, 0),
         r.atributo,
+        "",
+        "",
         fmtInt(r.target),
         fmtInt(r.valor),
         fmtInt(faltante),
-        skusText,
-      ];
+      ]);
+      const skus = skusByGroup.get(r.atributo) ?? [];
+      for (const sku of skus) {
+        const vol = skuVolumeMap.get(`${r.rede}|${r.atributo}|${sku.ean}`) ?? 0;
+        body.push([
+          r.rede,
+          fmtPct(r.sortimento, 0),
+          r.atributo,
+          sku.ean,
+          sku.descricao ?? "",
+          "",
+          fmtInt(vol),
+          "",
+        ]);
+      }
     });
     autoTable(doc, {
       startY: 60,
-      head: [["Rede", "Sortimento", "Grupo", "Target", "Vendido(Un)", "Faltante", "SKUs"]],
+      head: [["Rede", "Sortimento", "Grupo", "EAN", "Descrição SKU", "Target", "Vendido(Un)", "Faltante"]],
       body,
       styles: { fontSize: 8, cellPadding: 4 },
       headStyles: { fillColor: [38, 38, 40], textColor: 255 },
