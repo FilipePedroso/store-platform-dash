@@ -1810,7 +1810,7 @@ function GruposNaoBatidosCard({
   };
 
   const handleDownloadCsv = () => {
-    const headers = ["Rede", "Sortimento", "Grupo", "Target", "Vendido(Un)", "Faltante"];
+    const headers = ["Rede", "Sortimento", "Grupo", "Target", "Vendido(Un)", "Faltante", "SKUs"];
     const escape = (v: string | number) => {
       const s = String(v ?? "");
       return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
@@ -1818,8 +1818,10 @@ function GruposNaoBatidosCard({
     const lines = [headers.join(";")];
     for (const r of visibleRows) {
       const faltante = Math.max(0, r.target - r.valor);
+      const skus = skusByGroup.get(r.atributo) ?? [];
+      const skusText = skus.map((s) => `${s.ean} - ${s.descricao}`).join(", ");
       lines.push(
-        [r.rede, fmtPct(r.sortimento, 0), r.atributo, r.target, r.valor, faltante]
+        [r.rede, fmtPct(r.sortimento, 0), r.atributo, r.target, r.valor, faltante, skusText]
           .map(escape)
           .join(";"),
       );
