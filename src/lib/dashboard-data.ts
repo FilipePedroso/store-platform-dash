@@ -85,7 +85,9 @@ const BASE = (import.meta.env.BASE_URL ?? "/").replace(/\/?$/, "/");
 const dataUrl = (name: string) => `${BASE}data/${name}`;
 
 async function fetchJson<T>(name: string): Promise<T> {
-  const res = await fetch(dataUrl(name), { cache: "force-cache" });
+  // "no-cache" força revalidação no servidor (via ETag) a cada carregamento,
+  // evitando que o navegador sirva JSONs antigos após um novo deploy.
+  const res = await fetch(dataUrl(name), { cache: "no-cache" });
   if (!res.ok) throw new Error(`Falha ao carregar ${name}: ${res.status}`);
   return (await res.json()) as T;
 }
