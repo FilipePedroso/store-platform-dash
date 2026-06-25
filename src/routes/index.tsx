@@ -1821,8 +1821,9 @@ function GruposNaoBatidosCard({
   title?: string;
   subtitleMode?: "default" | "count";
 }) {
-
+  const fileSlug = title.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
   const selectedSkuSet = useMemo(() => new Set(selectedSkus), [selectedSkus]);
   const toggleExpand = (key: string) =>
     setExpanded((cur) => {
