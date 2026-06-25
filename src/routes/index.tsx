@@ -384,6 +384,25 @@ export function Dashboard() {
       .sort((a, b) => a.rede.localeCompare(b.rede) || a.atributo.localeCompare(b.atributo));
   }, [agMonthRows, monthRows]);
 
+  // Tabela "Sortimento de Mix": todos os grupos (batidos ou não)
+  const sortimentoMix = useMemo(() => {
+    const sortMap = new Map<string, number>();
+    for (const r of monthRows) {
+      const cur = sortMap.get(r.rede);
+      sortMap.set(r.rede, cur == null ? r.sortimento : Math.max(cur, r.sortimento));
+    }
+    return agMonthRows
+      .map((r) => ({
+        rede: r.rede,
+        sortimento: sortMap.get(r.rede) ?? 0,
+        target: r.targetUnidades,
+        atributo: r.atributo,
+        valor: r.valor,
+      }))
+      .sort((a, b) => a.rede.localeCompare(b.rede) || a.atributo.localeCompare(b.atributo));
+  }, [agMonthRows, monthRows]);
+
+
   // Históricos mês a mês (gráficos de linha) — usam baseRows (sem filtro de mês)
   const histGerado = useMemo(
     () => computeMonthlySeries(baseRows, reduceSumGerado, "cluster"),
@@ -724,6 +743,23 @@ export function Dashboard() {
         />
 
       </div>
+
+      {/* Sortimento de Mix — todos os grupos */}
+      <div className="grid grid-cols-1 gap-2.5 mb-3">
+        <GruposNaoBatidosCard
+          rows={sortimentoMix}
+          selectedGroups={selectedHistoryGroups}
+          setSelectedGroups={setSelectedHistoryGroups}
+          skusByGroup={skusByGroup}
+          skuVolumeMap={skuVolumeMap}
+          selectedSkus={selectedHistorySkus}
+          setSelectedSkus={setSelectedHistorySkus}
+          title="Sortimento de Mix"
+          subtitleMode="count"
+        />
+
+      </div>
+
 
       {/* Históricos Grupos de Produto */}
       <div className="grid grid-cols-1 gap-2.5">
@@ -1772,6 +1808,8 @@ function GruposNaoBatidosCard({
   skuVolumeMap,
   selectedSkus,
   setSelectedSkus,
+  title = "Grupos não batidos",
+  subtitleMode = "default",
 }: {
   rows: { rede: string; sortimento: number; target: number; atributo: string; valor: number }[];
   selectedGroups: string[];
@@ -1780,8 +1818,12 @@ function GruposNaoBatidosCard({
   skuVolumeMap: Map<string, number>;
   selectedSkus: string[];
   setSelectedSkus: React.Dispatch<React.SetStateAction<string[]>>;
+  title?: string;
+  subtitleMode?: "default" | "count";
 }) {
+  const fileSlug = title.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
   const selectedSkuSet = useMemo(() => new Set(selectedSkus), [selectedSkus]);
   const toggleExpand = (key: string) =>
     setExpanded((cur) => {
@@ -1838,7 +1880,7 @@ function GruposNaoBatidosCard({
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `grupos-nao-batidos-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `${fileSlug}-${new Date().toISOString().slice(0, 10)}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -1848,7 +1890,7 @@ function GruposNaoBatidosCard({
   const handleDownloadPdf = () => {
     const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
     doc.setFontSize(14);
-    doc.text("Grupos não batidos", 40, 40);
+    doc.text(title, 40, 40);
     const body: (string | number)[][] = [];
     visibleRows.forEach((r) => {
       const faltante = Math.max(0, r.target - r.valor);
@@ -1885,7 +1927,7 @@ function GruposNaoBatidosCard({
       headStyles: { fillColor: [38, 38, 40], textColor: 255 },
       alternateRowStyles: { fillColor: [245, 245, 245] },
     });
-    doc.save(`grupos-nao-batidos-${new Date().toISOString().slice(0, 10)}.pdf`);
+    doc.save(`${fileSlug}-${new Date().toISOString().slice(0, 10)}.pdf`);
   };
 
   return (
@@ -1894,10 +1936,13 @@ function GruposNaoBatidosCard({
         <div>
           <div className="text-[12px] font-medium text-neutral-100 mb-0.5 flex items-center gap-1.5">
             <Star size={13} className="text-neutral-400" />
-            Grupos não batidos
+            {title}
           </div>
           <div className="text-[11px] text-neutral-400">
-            {`${visibleRows.length.toLocaleString("pt-BR")} grupos faltantes`}
+            {subtitleMode === "count"
+              ? `${visibleRows.length.toLocaleString("pt-BR")} grupos`
+              : `${visibleRows.length.toLocaleString("pt-BR")} grupos faltantes`}
+
           </div>
         </div>
         <DropdownMenu>
