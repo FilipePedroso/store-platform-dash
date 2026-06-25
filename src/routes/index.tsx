@@ -2047,7 +2047,21 @@ function VirtualizedGruposList({
         const v = skuVolumeMap.get(`${r.rede}|${r.atributo}|${sku.ean}`) ?? 0;
         if (v > 0) cadastrados += 1;
       }
-      out.push({ kind: "group", row: r, rowKey, skuCount: skus.length, cadastrados, index: i });
+      const qtdLabel =
+        skus.length === 0
+          ? "—"
+          : cadastrados >= skus.length
+            ? "Todos Itens do AG cadastrados"
+            : `${cadastrados} Itens cadastrados dentro do AG`;
+      const qtdColor =
+        skus.length === 0
+          ? "#F87171"
+          : cadastrados >= skus.length
+            ? "#22C55E"
+            : cadastrados === 0
+              ? "#F87171"
+              : "#FBBF24";
+      out.push({ kind: "group", row: r, rowKey, skuCount: skus.length, cadastrados, index: i, qtdLabel, qtdColor });
       if (expanded.has(rowKey)) {
         for (const sku of skus) {
           const vol = skuVolumeMap.get(`${r.rede}|${r.atributo}|${sku.ean}`) ?? 0;
@@ -2057,6 +2071,8 @@ function VirtualizedGruposList({
             descricao: sku.descricao,
             vol,
             parentKey: rowKey,
+            parentQtdLabel: qtdLabel,
+            parentQtdColor: qtdColor,
           });
         }
       }
