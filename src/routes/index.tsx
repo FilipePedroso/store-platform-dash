@@ -751,18 +751,6 @@ export function Dashboard() {
       </div>
 
 
-      {/* Históricos Grupos de Produto */}
-      <div className="grid grid-cols-1 gap-2.5">
-        <ProductGroupHistoryCard
-          rows={baseAgRows}
-          skuRows={baseSkuRows}
-          selected={selectedHistoryGroups}
-          setSelected={setSelectedHistoryGroups}
-          selectedSkus={selectedHistorySkus}
-          setSelectedSkus={setSelectedHistorySkus}
-          skusByGroup={skusByGroup}
-        />
-      </div>
     </div>
   );
 }
