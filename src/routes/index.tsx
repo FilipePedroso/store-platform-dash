@@ -1830,7 +1830,7 @@ function GruposNaoBatidosCard({
         const cadastroLabel = vol > 0 ? "Item Cadastrado" : "Item não Cadastrado";
         if (showCadastroL3M) {
           lines.push(
-            [r.rede, fmtPct(r.sortimento, 0), r.atributo, sku.ean, sku.descricao ?? "", vol, cadastroLabel, ""]
+            [r.rede, fmtPct(r.sortimento, 0), r.atributo, sku.ean, sku.descricao ?? "", vol, cadastroLabel, qtdLabel]
               .map(escape)
               .join(";"),
           );
