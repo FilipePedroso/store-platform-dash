@@ -99,8 +99,6 @@ export function Dashboard() {
   const [allSkuRows, setAllSkuRows] = useState<SkuRow[]>([]);
   const [meta, setMeta] = useState<DataMeta | null>(null);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
-  const [selectedHistoryGroups, setSelectedHistoryGroups] = useState<string[]>([]);
-  const [selectedHistorySkus, setSelectedHistorySkus] = useState<string[]>([]);
 
   const refresh = async () => {
     const { rows, agRows, estrutura, iniciativas, estruturaGrupos, skuRows, meta } =
