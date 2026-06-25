@@ -1812,13 +1812,7 @@ function GruposNaoBatidosCard({
           : cadastrados >= skus.length
             ? "Todos Itens do AG cadastrados"
             : `${cadastrados} Itens cadastrados dentro do AG`;
-      if (showCadastroL3M) {
-        lines.push(
-          [r.rede, fmtPct(r.sortimento, 0), r.atributo, "Total", "Total", r.valor, "—", qtdLabel]
-            .map(escape)
-            .join(";"),
-        );
-      } else {
+      if (!showCadastroL3M) {
         lines.push(
           [r.rede, fmtPct(r.sortimento, 0), r.atributo, "Total", "Total", r.target, r.valor, faltante]
             .map(escape)
@@ -1874,18 +1868,7 @@ function GruposNaoBatidosCard({
           : cadastrados >= skus.length
             ? "Todos Itens do AG cadastrados"
             : `${cadastrados} Itens cadastrados dentro do AG`;
-      if (showCadastroL3M) {
-        body.push([
-          r.rede,
-          fmtPct(r.sortimento, 0),
-          r.atributo,
-          "Total",
-          "Total",
-          fmtInt(r.valor),
-          "—",
-          qtdLabel,
-        ]);
-      } else {
+      if (!showCadastroL3M) {
         body.push([
           r.rede,
           fmtPct(r.sortimento, 0),
