@@ -2159,15 +2159,20 @@ function VirtualizedGruposList({
                 >
                   {fmtPct(r.sortimento, 0)}
                 </div>
-                <div className="py-0.5 sm:py-1 text-right tabular-nums text-neutral-300">
-                  {fmtInt(r.target)}
-                </div>
+                {!showCadastroL3M && (
+                  <div className="py-0.5 sm:py-1 text-right tabular-nums text-neutral-300">
+                    {fmtInt(r.target)}
+                  </div>
+                )}
                 <div className="py-0.5 sm:py-1 text-right tabular-nums font-medium text-neutral-200">
                   {fmtInt(r.valor)}
                 </div>
-                <div className="py-0.5 sm:py-1 text-right tabular-nums font-medium text-[#F87171]">
-                  {fmtInt(faltante)}
-                </div>
+                {!showCadastroL3M && (
+                  <div className="py-0.5 sm:py-1 text-right tabular-nums font-medium text-[#F87171]">
+                    {fmtInt(faltante)}
+                  </div>
+                )}
+
                 {showCadastroL3M && (
                   <>
                     <div className="py-0.5 sm:py-1 pl-2 truncate text-neutral-400" title={qtdLabel}>
