@@ -1919,109 +1919,183 @@ function GruposNaoBatidosCard({
       {visibleRows.length === 0 ? (
         <Empty />
       ) : (
-        <div
-          className="max-h-[420px] overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full"
-          style={{ scrollbarWidth: "thin", scrollbarColor: "#404040 transparent" }}
-        >
-          <table className="w-full text-[9px] sm:text-[11px] table-fixed">
-            <thead className="sticky top-0 bg-[#141416] z-10">
-              <tr className="text-neutral-400 font-medium border-b border-neutral-800">
-                <th className="text-left pb-1 sm:pb-1.5 font-medium w-[28%] sm:w-[26%]">Rede</th>
-                <th className="text-left pb-1 sm:pb-1.5 font-medium pl-1 sm:pl-2">Grupo</th>
-                <th className="text-center pb-1 sm:pb-1.5 font-medium w-9 sm:w-12">%</th>
-                <th className="text-right pb-1 sm:pb-1.5 w-12 sm:w-16 font-medium">Target</th>
-                <th className="text-right pb-1 sm:pb-1.5 w-14 sm:w-20 font-medium">Vendido(Un)</th>
-                <th className="text-right pb-1 sm:pb-1.5 w-12 sm:w-16 font-medium">Faltante</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visibleRows.map((r, i) => {
-                const faltante = Math.max(0, r.target - r.valor);
-                const sortColor =
-                  r.sortimento >= 0.9 ? "#22C55E" : r.sortimento >= 0.85 ? ORANGE : RED;
-                const rowKey = `${r.rede}-${r.atributo}-${i}`;
-                const isExpanded = expanded.has(rowKey);
-                const skus = skusByGroup.get(r.atributo) ?? [];
-                return (
-                  <React.Fragment key={rowKey}>
-                    <tr className="border-b border-neutral-800 transition-colors hover:bg-neutral-800/40">
-                      <td
-                        className="py-0.5 sm:py-1 truncate pr-1 sm:pr-2 overflow-hidden whitespace-nowrap text-neutral-200"
-                        title={r.rede}
-                      >
-                        {r.rede}
-                      </td>
-                      <td
-                        className="py-0.5 sm:py-1 truncate pr-1 sm:pr-2 pl-1 sm:pl-2 overflow-hidden whitespace-nowrap text-neutral-200"
-                        title={r.atributo}
-                      >
-                        <span className="inline-flex items-center gap-1">
-                          {skus.length > 0 ? (
-                            <button
-                              type="button"
-                              onClick={() => toggleExpand(rowKey)}
-                              className="text-neutral-400 hover:text-neutral-100 -ml-1"
-                              aria-label="Expandir SKUs"
-                            >
-                              {isExpanded ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
-                            </button>
-                          ) : (
-                            <span className="w-[11px] inline-block" />
-                          )}
-                          <span className="truncate">{r.atributo}</span>
-                        </span>
-                      </td>
-                      <td
-                        className="py-0.5 sm:py-1 text-center tabular-nums font-medium"
-                        style={{ color: sortColor }}
-                      >
-                        {fmtPct(r.sortimento, 0)}
-                      </td>
-                      <td className="py-0.5 sm:py-1 text-right tabular-nums text-neutral-300">
-                        {fmtInt(r.target)}
-                      </td>
-                      <td className="py-0.5 sm:py-1 text-right tabular-nums font-medium text-neutral-200">
-                        {fmtInt(r.valor)}
-                      </td>
-                      <td className="py-0.5 sm:py-1 text-right tabular-nums font-medium text-[#F87171]">
-                        {fmtInt(faltante)}
-                      </td>
-                    </tr>
-                    {isExpanded &&
-                      skus.map((sku) => {
-                        const vol = skuVolumeMap.get(`${r.rede}|${r.atributo}|${sku.ean}`) ?? 0;
-                        return (
-                          <tr
-                            key={`${rowKey}-${sku.ean}`}
-                            className="border-b border-neutral-800/60 transition-colors hover:bg-neutral-800/30"
-                          >
-                            <td className="py-0.5 sm:py-1" />
-                            <td
-                              className="py-0.5 sm:py-1 truncate pr-1 sm:pr-2 pl-5 sm:pl-7 overflow-hidden whitespace-nowrap text-[10px] text-neutral-400"
-                              title={`${sku.ean} - ${sku.descricao}`}
-                            >
-                              {sku.ean}{sku.descricao ? ` - ${sku.descricao}` : ""}
-                            </td>
-                            <td />
-                            <td />
-                            <td className="py-0.5 sm:py-1 text-right tabular-nums text-[10px] text-neutral-300">
-                              {fmtInt(vol)}
-                            </td>
-                            <td />
-                          </tr>
-                        );
-                      })}
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-
-          </table>
-        </div>
+        <VirtualizedGruposList
+          rows={visibleRows}
+          skusByGroup={skusByGroup}
+          skuVolumeMap={skuVolumeMap}
+          expanded={expanded}
+          toggleExpand={toggleExpand}
+          fmtInt={fmtInt}
+        />
       )}
     </div>
   );
 }
+
+const GRUPOS_GRID_COLS =
+  "grid-cols-[28%_1fr_36px_48px_56px_48px] sm:grid-cols-[26%_1fr_48px_64px_80px_64px]";
+
+type GruposRow = { rede: string; sortimento: number; target: number; atributo: string; valor: number };
+type FlatItem =
+  | { kind: "group"; row: GruposRow; rowKey: string; skuCount: number; index: number }
+  | { kind: "sku"; ean: string; descricao: string; vol: number; parentKey: string };
+
+function VirtualizedGruposList({
+  rows,
+  skusByGroup,
+  skuVolumeMap,
+  expanded,
+  toggleExpand,
+  fmtInt,
+}: {
+  rows: GruposRow[];
+  skusByGroup: Map<string, { ean: string; descricao: string }[]>;
+  skuVolumeMap: Map<string, number>;
+  expanded: Set<string>;
+  toggleExpand: (key: string) => void;
+  fmtInt: (n: number) => string;
+}) {
+  const items = useMemo<FlatItem[]>(() => {
+    const out: FlatItem[] = [];
+    rows.forEach((r, i) => {
+      const rowKey = `${r.rede}-${r.atributo}-${i}`;
+      const skus = skusByGroup.get(r.atributo) ?? [];
+      out.push({ kind: "group", row: r, rowKey, skuCount: skus.length, index: i });
+      if (expanded.has(rowKey)) {
+        for (const sku of skus) {
+          const vol = skuVolumeMap.get(`${r.rede}|${r.atributo}|${sku.ean}`) ?? 0;
+          out.push({
+            kind: "sku",
+            ean: sku.ean,
+            descricao: sku.descricao,
+            vol,
+            parentKey: rowKey,
+          });
+        }
+      }
+    });
+    return out;
+  }, [rows, skusByGroup, skuVolumeMap, expanded]);
+
+  const parentRef = useRef<HTMLDivElement>(null);
+  const virtualizer = useVirtualizer({
+    count: items.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 22,
+    overscan: 12,
+  });
+
+  return (
+    <div
+      ref={parentRef}
+      className="max-h-[420px] overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full text-[9px] sm:text-[11px]"
+      style={{ scrollbarWidth: "thin", scrollbarColor: "#404040 transparent" }}
+    >
+      <div
+        className={`grid ${GRUPOS_GRID_COLS} sticky top-0 bg-[#141416] z-10 text-neutral-400 font-medium border-b border-neutral-800`}
+      >
+        <div className="text-left pb-1 sm:pb-1.5 pr-1 sm:pr-2">Rede</div>
+        <div className="text-left pb-1 sm:pb-1.5 pl-1 sm:pl-2">Grupo</div>
+        <div className="text-center pb-1 sm:pb-1.5">%</div>
+        <div className="text-right pb-1 sm:pb-1.5">Target</div>
+        <div className="text-right pb-1 sm:pb-1.5">Vendido(Un)</div>
+        <div className="text-right pb-1 sm:pb-1.5">Faltante</div>
+      </div>
+      <div style={{ height: virtualizer.getTotalSize(), position: "relative", width: "100%" }}>
+        {virtualizer.getVirtualItems().map((v) => {
+          const it = items[v.index];
+          const common: React.CSSProperties = {
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "100%",
+            transform: `translateY(${v.start}px)`,
+          };
+          if (it.kind === "group") {
+            const r = it.row;
+            const faltante = Math.max(0, r.target - r.valor);
+            const sortColor =
+              r.sortimento >= 0.9 ? "#22C55E" : r.sortimento >= 0.85 ? ORANGE : RED;
+            const isExpanded = expanded.has(it.rowKey);
+            return (
+              <div
+                key={it.rowKey}
+                ref={virtualizer.measureElement}
+                data-index={v.index}
+                style={common}
+                className={`grid ${GRUPOS_GRID_COLS} border-b border-neutral-800 hover:bg-neutral-800/40 transition-colors`}
+              >
+                <div
+                  className="py-0.5 sm:py-1 truncate pr-1 sm:pr-2 text-neutral-200"
+                  title={r.rede}
+                >
+                  {r.rede}
+                </div>
+                <div
+                  className="py-0.5 sm:py-1 pr-1 sm:pr-2 pl-1 sm:pl-2 text-neutral-200 min-w-0"
+                  title={r.atributo}
+                >
+                  <span className="inline-flex items-center gap-1 max-w-full">
+                    {it.skuCount > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => toggleExpand(it.rowKey)}
+                        className="text-neutral-400 hover:text-neutral-100 -ml-1 shrink-0"
+                        aria-label="Expandir SKUs"
+                      >
+                        {isExpanded ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+                      </button>
+                    ) : (
+                      <span className="w-[11px] inline-block shrink-0" />
+                    )}
+                    <span className="truncate">{r.atributo}</span>
+                  </span>
+                </div>
+                <div
+                  className="py-0.5 sm:py-1 text-center tabular-nums font-medium"
+                  style={{ color: sortColor }}
+                >
+                  {fmtPct(r.sortimento, 0)}
+                </div>
+                <div className="py-0.5 sm:py-1 text-right tabular-nums text-neutral-300">
+                  {fmtInt(r.target)}
+                </div>
+                <div className="py-0.5 sm:py-1 text-right tabular-nums font-medium text-neutral-200">
+                  {fmtInt(r.valor)}
+                </div>
+                <div className="py-0.5 sm:py-1 text-right tabular-nums font-medium text-[#F87171]">
+                  {fmtInt(faltante)}
+                </div>
+              </div>
+            );
+          }
+          return (
+            <div
+              key={`${it.parentKey}-${it.ean}`}
+              ref={virtualizer.measureElement}
+              data-index={v.index}
+              style={common}
+              className={`grid ${GRUPOS_GRID_COLS} border-b border-neutral-800/60 hover:bg-neutral-800/30 transition-colors`}
+            >
+              <div className="py-0.5 sm:py-1" />
+              <div
+                className="py-0.5 sm:py-1 truncate pr-1 sm:pr-2 pl-5 sm:pl-7 text-[10px] text-neutral-400"
+                title={`${it.ean} - ${it.descricao}`}
+              >
+                {it.ean}
+                {it.descricao ? ` - ${it.descricao}` : ""}
+              </div>
+              <div />
+              <div />
+              <div className="py-0.5 sm:py-1 text-right tabular-nums text-[10px] text-neutral-300">
+                {fmtInt(it.vol)}
+              </div>
+              <div />
+            </div>
+          );
+        })}
+      </div>
+
 
 function LegendDot({ color, label }: { color: string; label: string }) {
   return (
