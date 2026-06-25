@@ -744,6 +744,23 @@ export function Dashboard() {
 
       </div>
 
+      {/* Sortimento de Mix — todos os grupos */}
+      <div className="grid grid-cols-1 gap-2.5 mb-3">
+        <GruposNaoBatidosCard
+          rows={sortimentoMix}
+          selectedGroups={selectedHistoryGroups}
+          setSelectedGroups={setSelectedHistoryGroups}
+          skusByGroup={skusByGroup}
+          skuVolumeMap={skuVolumeMap}
+          selectedSkus={selectedHistorySkus}
+          setSelectedSkus={setSelectedHistorySkus}
+          title="Sortimento de Mix"
+          subtitleMode="count"
+        />
+
+      </div>
+
+
       {/* Históricos Grupos de Produto */}
       <div className="grid grid-cols-1 gap-2.5">
         <ProductGroupHistoryCard
