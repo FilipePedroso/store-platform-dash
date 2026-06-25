@@ -1912,7 +1912,7 @@ function GruposNaoBatidosCard({
       startY: 60,
       head: [
         showCadastroL3M
-          ? ["Rede", "Sort.", "Grupo", "EAN", "Descrição SKU", "Vendido(Un)", "Cadastro L3M", "Qtd. Cadastro L3M"]
+          ? ["Rede", "Sort.", "Grupo", "EAN", "Descrição SKU", "Vendido(Un)", "Cadastro", "Qtd. Cadastro"]
           : ["Rede", "Sortimento", "Grupo", "EAN", "Descrição SKU", "Target", "Vendido(Un)", "Faltante"],
       ],
       body,
