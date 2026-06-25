@@ -976,19 +976,21 @@ function FilterChip({
               <button
                 key={opt}
                 onClick={(e) => toggle(opt, e)}
+                title={fmt(opt)}
                 className={`flex items-center gap-2 w-full text-left px-3 py-1 hover:bg-neutral-800 ${
                   checked ? "text-[#8BBEEC] font-medium" : "text-neutral-200"
                 }`}
               >
                 <span
-                  className={`inline-flex items-center justify-center w-3 h-3 rounded-sm border ${
+                  className={`inline-flex items-center justify-center w-3 h-3 rounded-sm border shrink-0 ${
                     checked ? "bg-[#378ADD] border-[#378ADD]" : "border-neutral-600"
                   }`}
                 >
                   {checked && <Check size={9} className="text-white" />}
                 </span>
-                {fmt(opt)}
+                <span className="truncate min-w-0 flex-1">{fmt(opt)}</span>
               </button>
+
             );
           })}
           {filtered.length === 0 && (
