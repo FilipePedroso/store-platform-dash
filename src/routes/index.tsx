@@ -2129,12 +2129,6 @@ function VirtualizedGruposList({
             const sortColor =
               r.sortimento >= 0.9 ? "#22C55E" : r.sortimento >= 0.85 ? ORANGE : RED;
             const isExpanded = expanded.has(it.rowKey);
-            const qtdLabel =
-              it.skuCount === 0
-                ? "—"
-                : it.cadastrados >= it.skuCount
-                  ? "Todos Itens do AG cadastrados"
-                  : `${it.cadastrados} Itens cadastrados dentro do AG`;
             return (
               <div
                 key={it.rowKey}
