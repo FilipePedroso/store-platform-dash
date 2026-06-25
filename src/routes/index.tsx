@@ -41,7 +41,7 @@ import {
   type EstruturaGrupoRow,
   type SkuRow,
 } from "@/lib/dashboard-data";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+
 
 import {
   EMPTY_FILTERS,
@@ -99,8 +99,6 @@ export function Dashboard() {
   const [allSkuRows, setAllSkuRows] = useState<SkuRow[]>([]);
   const [meta, setMeta] = useState<DataMeta | null>(null);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
-  const [selectedHistoryGroups, setSelectedHistoryGroups] = useState<string[]>([]);
-  const [selectedHistorySkus, setSelectedHistorySkus] = useState<string[]>([]);
 
   const refresh = async () => {
     const { rows, agRows, estrutura, iniciativas, estruturaGrupos, skuRows, meta } =
@@ -292,17 +290,6 @@ export function Dashboard() {
     );
   }, [agRows, dFilters, selectedMonths]);
 
-  // Mesmos filtros sem o mês — usado para o histórico de Grupos de Produto
-  const baseAgRows = useMemo(() => {
-    const inList = (v: string, list: string[]) => list.length === 0 || list.includes(v);
-    return agRows.filter(
-      (r) =>
-        inList(r.cluster, dFilters.cluster) &&
-        inList(r.canal, dFilters.canal) &&
-        inList(r.rede, dFilters.rede) &&
-        inList(r.distribuidor, dFilters.distribuidor),
-    );
-  }, [agRows, dFilters]);
 
   // Filtros aplicados ao dataset de SKUs (com mês — usado na tabela de Grupos não batidos)
   const skuMonthRows = useMemo(() => {
@@ -318,17 +305,6 @@ export function Dashboard() {
     );
   }, [skuRows, dFilters, selectedMonths]);
 
-  // Mesmos filtros sem mês — usado para o histórico de SKUs
-  const baseSkuRows = useMemo(() => {
-    const inList = (v: string, list: string[]) => list.length === 0 || list.includes(v);
-    return skuRows.filter(
-      (r) =>
-        inList(r.cluster, dFilters.cluster) &&
-        inList(r.canal, dFilters.canal) &&
-        inList(r.rede, dFilters.rede) &&
-        inList(r.distribuidor, dFilters.distribuidor),
-    );
-  }, [skuRows, dFilters]);
 
   // Mapa: activationGroup -> lista de SKUs (ean + descricao)
   const skusByGroup = useMemo(() => {
@@ -734,12 +710,8 @@ export function Dashboard() {
       <div className="grid grid-cols-1 gap-2.5 mb-3">
         <GruposNaoBatidosCard
           rows={gruposNaoBatidos}
-          selectedGroups={selectedHistoryGroups}
-          setSelectedGroups={setSelectedHistoryGroups}
           skusByGroup={skusByGroup}
           skuVolumeMap={skuVolumeMap}
-          selectedSkus={selectedHistorySkus}
-          setSelectedSkus={setSelectedHistorySkus}
         />
 
       </div>
@@ -748,12 +720,8 @@ export function Dashboard() {
       <div className="grid grid-cols-1 gap-2.5 mb-3">
         <GruposNaoBatidosCard
           rows={sortimentoMix}
-          selectedGroups={selectedHistoryGroups}
-          setSelectedGroups={setSelectedHistoryGroups}
           skusByGroup={skusByGroup}
           skuVolumeMap={skuVolumeMap}
-          selectedSkus={selectedHistorySkus}
-          setSelectedSkus={setSelectedHistorySkus}
           title="Sortimento de Mix"
           subtitleMode="count"
         />
@@ -761,18 +729,6 @@ export function Dashboard() {
       </div>
 
 
-      {/* Históricos Grupos de Produto */}
-      <div className="grid grid-cols-1 gap-2.5">
-        <ProductGroupHistoryCard
-          rows={baseAgRows}
-          skuRows={baseSkuRows}
-          selected={selectedHistoryGroups}
-          setSelected={setSelectedHistoryGroups}
-          selectedSkus={selectedHistorySkus}
-          setSelectedSkus={setSelectedHistorySkus}
-          skusByGroup={skusByGroup}
-        />
-      </div>
     </div>
   );
 }
@@ -1802,29 +1758,20 @@ function TeamPerformanceCard({
 
 function GruposNaoBatidosCard({
   rows,
-  selectedGroups,
-  setSelectedGroups,
   skusByGroup,
   skuVolumeMap,
-  selectedSkus,
-  setSelectedSkus,
   title = "Grupos não batidos",
   subtitleMode = "default",
 }: {
   rows: { rede: string; sortimento: number; target: number; atributo: string; valor: number }[];
-  selectedGroups: string[];
-  setSelectedGroups: React.Dispatch<React.SetStateAction<string[]>>;
   skusByGroup: Map<string, { ean: string; descricao: string }[]>;
   skuVolumeMap: Map<string, number>;
-  selectedSkus: string[];
-  setSelectedSkus: React.Dispatch<React.SetStateAction<string[]>>;
   title?: string;
   subtitleMode?: "default" | "count";
 }) {
   const fileSlug = title.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-  const selectedSkuSet = useMemo(() => new Set(selectedSkus), [selectedSkus]);
   const toggleExpand = (key: string) =>
     setExpanded((cur) => {
       const next = new Set(cur);
@@ -1832,24 +1779,9 @@ function GruposNaoBatidosCard({
       else next.add(key);
       return next;
     });
-  const toggleSku = (rede: string, ean: string) => {
-    if (!ean) return;
-    const key = `${rede}||${ean}`;
-    setSelectedSkus((cur) =>
-      cur.includes(key) ? cur.filter((x) => x !== key) : [...cur, key],
-    );
-  };
   const fmtInt = (n: number) =>
     n.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
   const visibleRows = rows;
-  const selectedSet = useMemo(() => new Set(selectedGroups), [selectedGroups]);
-  const toggleOne = (rede: string, atributo: string) => {
-    if (!atributo) return;
-    const key = `${rede}||${atributo}`;
-    setSelectedGroups((cur) =>
-      cur.includes(key) ? cur.filter((x) => x !== key) : [...cur, key],
-    );
-  };
 
   const handleDownloadCsv = () => {
     const headers = ["Rede", "Sortimento", "Grupo", "EAN", "Descrição SKU", "Target", "Vendido(Un)", "Faltante"];
@@ -2004,35 +1936,27 @@ function GruposNaoBatidosCard({
                 const faltante = Math.max(0, r.target - r.valor);
                 const sortColor =
                   r.sortimento >= 0.9 ? "#22C55E" : r.sortimento >= 0.85 ? ORANGE : RED;
-                const rowKeyComp = `${r.rede}||${r.atributo}`;
-                const checked = selectedSet.has(rowKeyComp);
                 const rowKey = `${r.rede}-${r.atributo}-${i}`;
                 const isExpanded = expanded.has(rowKey);
                 const skus = skusByGroup.get(r.atributo) ?? [];
                 return (
                   <React.Fragment key={rowKey}>
-                    <tr
-                      className={`border-b border-neutral-800 cursor-pointer transition-colors ${checked ? "bg-[#0E2E4D] ring-1 ring-inset ring-[#378ADD]/60 shadow-[inset_3px_0_0_0_#378ADD]" : "hover:bg-neutral-800/40"}`}
-                    >
+                    <tr className="border-b border-neutral-800 transition-colors hover:bg-neutral-800/40">
                       <td
-                        className={`py-0.5 sm:py-1 truncate pr-1 sm:pr-2 overflow-hidden whitespace-nowrap ${checked ? "text-white font-medium" : "text-neutral-200"}`}
+                        className="py-0.5 sm:py-1 truncate pr-1 sm:pr-2 overflow-hidden whitespace-nowrap text-neutral-200"
                         title={r.rede}
-                        onClick={() => toggleOne(r.rede, r.atributo)}
                       >
                         {r.rede}
                       </td>
                       <td
-                        className={`py-0.5 sm:py-1 truncate pr-1 sm:pr-2 pl-1 sm:pl-2 overflow-hidden whitespace-nowrap ${checked ? "text-white font-medium" : "text-neutral-200"}`}
+                        className="py-0.5 sm:py-1 truncate pr-1 sm:pr-2 pl-1 sm:pl-2 overflow-hidden whitespace-nowrap text-neutral-200"
                         title={r.atributo}
                       >
                         <span className="inline-flex items-center gap-1">
                           {skus.length > 0 ? (
                             <button
                               type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleExpand(rowKey);
-                              }}
+                              onClick={() => toggleExpand(rowKey)}
                               className="text-neutral-400 hover:text-neutral-100 -ml-1"
                               aria-label="Expandir SKUs"
                             >
@@ -2041,61 +1965,43 @@ function GruposNaoBatidosCard({
                           ) : (
                             <span className="w-[11px] inline-block" />
                           )}
-                          <span
-                            onClick={() => toggleOne(r.rede, r.atributo)}
-                            className="truncate"
-                          >
-                            {r.atributo}
-                          </span>
+                          <span className="truncate">{r.atributo}</span>
                         </span>
                       </td>
                       <td
                         className="py-0.5 sm:py-1 text-center tabular-nums font-medium"
                         style={{ color: sortColor }}
-                        onClick={() => toggleOne(r.rede, r.atributo)}
                       >
                         {fmtPct(r.sortimento, 0)}
                       </td>
-                      <td
-                        className={`py-0.5 sm:py-1 text-right tabular-nums ${checked ? "text-white" : "text-neutral-300"}`}
-                        onClick={() => toggleOne(r.rede, r.atributo)}
-                      >
+                      <td className="py-0.5 sm:py-1 text-right tabular-nums text-neutral-300">
                         {fmtInt(r.target)}
                       </td>
-                      <td
-                        className={`py-0.5 sm:py-1 text-right tabular-nums font-medium ${checked ? "text-white" : "text-neutral-200"}`}
-                        onClick={() => toggleOne(r.rede, r.atributo)}
-                      >
+                      <td className="py-0.5 sm:py-1 text-right tabular-nums font-medium text-neutral-200">
                         {fmtInt(r.valor)}
                       </td>
-                      <td
-                        className="py-0.5 sm:py-1 text-right tabular-nums font-medium text-[#F87171]"
-                        onClick={() => toggleOne(r.rede, r.atributo)}
-                      >
+                      <td className="py-0.5 sm:py-1 text-right tabular-nums font-medium text-[#F87171]">
                         {fmtInt(faltante)}
                       </td>
                     </tr>
                     {isExpanded &&
                       skus.map((sku) => {
                         const vol = skuVolumeMap.get(`${r.rede}|${r.atributo}|${sku.ean}`) ?? 0;
-                        const skuKey = `${r.rede}||${sku.ean}`;
-                        const skuChecked = selectedSkuSet.has(skuKey);
                         return (
                           <tr
                             key={`${rowKey}-${sku.ean}`}
-                            className={`border-b border-neutral-800/60 cursor-pointer transition-colors ${skuChecked ? "bg-[#0E2E4D] ring-1 ring-inset ring-[#378ADD]/60 shadow-[inset_3px_0_0_0_#378ADD]" : "hover:bg-neutral-800/30"}`}
-                            onClick={() => toggleSku(r.rede, sku.ean)}
+                            className="border-b border-neutral-800/60 transition-colors hover:bg-neutral-800/30"
                           >
                             <td className="py-0.5 sm:py-1" />
                             <td
-                              className={`py-0.5 sm:py-1 truncate pr-1 sm:pr-2 pl-5 sm:pl-7 overflow-hidden whitespace-nowrap text-[10px] ${skuChecked ? "text-white font-medium" : "text-neutral-400"}`}
+                              className="py-0.5 sm:py-1 truncate pr-1 sm:pr-2 pl-5 sm:pl-7 overflow-hidden whitespace-nowrap text-[10px] text-neutral-400"
                               title={`${sku.ean} - ${sku.descricao}`}
                             >
                               {sku.ean}{sku.descricao ? ` - ${sku.descricao}` : ""}
                             </td>
                             <td />
                             <td />
-                            <td className={`py-0.5 sm:py-1 text-right tabular-nums text-[10px] ${skuChecked ? "text-white" : "text-neutral-300"}`}>
+                            <td className="py-0.5 sm:py-1 text-right tabular-nums text-[10px] text-neutral-300">
                               {fmtInt(vol)}
                             </td>
                             <td />
@@ -2516,306 +2422,5 @@ function LineLegend({ color, label, dashed }: { color: string; label: string; da
   );
 }
 
-function ProductGroupHistoryCard({
-  rows,
-  skuRows,
-  selected,
-  setSelected,
-  selectedSkus,
-  setSelectedSkus,
-  skusByGroup,
-}: {
-  rows: AgRow[];
-  skuRows: SkuRow[];
-  selected: string[];
-  setSelected: React.Dispatch<React.SetStateAction<string[]>>;
-  selectedSkus: string[];
-  setSelectedSkus: React.Dispatch<React.SetStateAction<string[]>>;
-  skusByGroup: Map<string, { ean: string; descricao: string }[]>;
-}) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-
-  // Descrição lookup para os EANs selecionados
-  const eanDesc = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const arr of skusByGroup.values()) {
-      for (const s of arr) if (!m.has(s.ean)) m.set(s.ean, s.descricao);
-    }
-    return m;
-  }, [skusByGroup]);
-
-  const atributos = useMemo(() => {
-    const s = new Set<string>();
-    for (const r of rows) if (r.atributo) s.add(r.atributo);
-    return [...s].sort((a, b) => a.localeCompare(b));
-  }, [rows]);
-
-  const filteredAtributos = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return q ? atributos.filter((a) => a.toLowerCase().includes(q)) : atributos;
-  }, [atributos, query]);
-
-  const months = useMemo(() => {
-    const s = new Set<string>();
-    for (const r of rows) if (r.mes) s.add(r.mes);
-    for (const r of skuRows) if (r.mes) s.add(r.mes);
-    return [...s].sort();
-  }, [rows, skuRows]);
-
-  const hasAny = selected.length > 0 || selectedSkus.length > 0;
-
-  const series = useMemo(() => {
-    if (!hasAny) return [] as { name: string; values: number[] }[];
-    const out: { name: string; values: number[] }[] = [];
-    const monthIdx = new Map(months.map((m, i) => [m, i]));
-
-    // Parse seleções compostas "rede||valor". Rede vazia = todas as redes.
-    const groupSels = selected.map((k) => {
-      const idx = k.indexOf("||");
-      return idx >= 0
-        ? { rede: k.slice(0, idx), atributo: k.slice(idx + 2) }
-        : { rede: "", atributo: k };
-    });
-    const skuSels = selectedSkus.map((k) => {
-      const idx = k.indexOf("||");
-      return idx >= 0
-        ? { rede: k.slice(0, idx), ean: k.slice(idx + 2) }
-        : { rede: "", ean: k };
-    });
-
-    const addSkuSeries = (rede: string, ean: string, suffix: string) => {
-      const values = new Array(months.length).fill(0);
-      for (const r of skuRows) {
-        if (r.dsEan !== ean) continue;
-        if (rede && r.rede !== rede) continue;
-        const i = monthIdx.get(r.mes);
-        if (i == null) continue;
-        values[i] += Number(r.volume) || 0;
-      }
-      const desc = eanDesc.get(ean);
-      const base = desc ? `${ean} - ${desc}` : ean;
-      out.push({ name: `${base}${suffix}`, values });
-    };
-
-    // Para cada grupo selecionado: mostra uma linha por SKU do grupo (filtrado pela Rede).
-    // Sem SKUs cadastrados → cai para o total agregado do grupo.
-    for (const g of groupSels) {
-      const suffix = g.rede ? ` • ${g.rede}` : "";
-      const skus = skusByGroup.get(g.atributo) ?? [];
-      if (skus.length === 0) {
-        const values = new Array(months.length).fill(0);
-        for (const r of rows) {
-          if (r.atributo !== g.atributo) continue;
-          if (g.rede && r.rede !== g.rede) continue;
-          const i = monthIdx.get(r.mes);
-          if (i == null) continue;
-          values[i] += Number(r.valor) || 0;
-        }
-        out.push({ name: `${g.atributo}${suffix}`, values });
-      } else {
-        for (const sku of skus) addSkuSeries(g.rede, sku.ean, suffix);
-      }
-    }
-
-    // SKUs selecionados explicitamente (apenas aquele SKU, filtrado pela Rede)
-    for (const s of skuSels) {
-      const suffix = s.rede ? ` • ${s.rede}` : "";
-      addSkuSeries(s.rede, s.ean, suffix);
-    }
-
-    return out;
-  }, [rows, skuRows, selected, selectedSkus, months, hasAny, eanDesc, skusByGroup]);
-
-  const W = 800;
-  const H = 220;
-  const padL = 56;
-  const padR = 16;
-  const padT = 12;
-  const padB = 32;
-  const innerW = W - padL - padR;
-  const innerH = H - padT - padB;
-  const n = months.length;
-  const allVals = series.flatMap((s) => s.values);
-  const yMax = Math.max(1, ...allVals) * 1.1;
-  const xAt = (i: number) =>
-    n <= 1 ? padL + innerW / 2 : padL + (i * innerW) / (n - 1);
-  const yAt = (v: number) => padT + innerH - (v / yMax) * innerH;
-  const fmtY = (v: number) =>
-    v >= 1000
-      ? `${(v / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}k`
-      : v.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
-  const fmtInt = (v: number) =>
-    v.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
-
-  // Popover seleciona atributos "globais" (rede vazia). Chave: "||atributo".
-  const popoverKey = (a: string) => `||${a}`;
-  const popoverHas = (a: string) => selected.includes(popoverKey(a));
-  const toggle = (a: string, e?: React.MouseEvent) => {
-    const k = popoverKey(a);
-    const multi = !!(e && (e.ctrlKey || e.metaKey));
-    setSelected((cur) => {
-      if (multi) return cur.includes(k) ? cur.filter((x) => x !== k) : [...cur, k];
-      if (cur.length === 1 && cur[0] === k) return [];
-      return [k];
-    });
-  };
-  const groupCount = useMemo(
-    () => new Set(selected.map((k) => (k.includes("||") ? k.slice(k.indexOf("||") + 2) : k))).size,
-    [selected],
-  );
-  const clearAll = () => {
-    setSelected([]);
-    setSelectedSkus([]);
-  };
-
-  return (
-    <Card>
-      <div className="flex items-start justify-between gap-3 mb-2">
-        <div>
-          <div className="text-[12px] font-medium text-neutral-100 flex items-center gap-1.5">
-            <BarChart3 size={13} className="text-neutral-400" />
-            Históricos Grupos de Produto
-          </div>
-          <div className="text-[11px] text-neutral-400 mt-0.5">
-            Quantidade vendida por mês
-          </div>
-        </div>
-        <div className="shrink-0">
-          <Popover open={open} onOpenChange={setOpen}>
-            <PopoverTrigger asChild>
-              <button
-                className={`rounded-full px-3 py-1 text-[11px] flex items-center gap-1.5 border transition-colors ${
-                  hasAny
-                    ? "bg-[#0E2E4D] border-[#378ADD] text-[#8BBEEC] font-medium"
-                    : "bg-[#1a1a1c] border-neutral-800 text-neutral-400 hover:border-neutral-700"
-                }`}
-              >
-                <Layers size={12} />
-                {!hasAny
-                  ? "Selecionar grupo"
-                  : `${groupCount + selectedSkus.length} selecionado${groupCount + selectedSkus.length > 1 ? "s" : ""}`}
-                <ChevronDown size={12} />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent
-              align="end"
-              sideOffset={4}
-              collisionPadding={12}
-              className="w-[280px] p-0 bg-[#1a1a1c] border-neutral-800 text-[11px]"
-            >
-              <div className="p-2 border-b border-neutral-800">
-                <input
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Buscar grupo..."
-                  className="w-full bg-[#0f0f10] border border-neutral-800 rounded px-2 py-1 text-[11px] text-neutral-100 outline-none focus:border-[#378ADD]"
-                />
-                <div className="flex items-center justify-between mt-2">
-                  <button
-                    type="button"
-                    className="text-[10px] text-[#8BBEEC] hover:underline"
-                    onClick={() => setSelected(filteredAtributos.map(popoverKey))}
-                  >
-                    Selecionar todos
-                  </button>
-                  <button
-                    type="button"
-                    className="text-[10px] text-neutral-400 hover:text-neutral-200 hover:underline"
-                    onClick={clearAll}
-                  >
-                    Limpar
-                  </button>
-                </div>
-              </div>
-              <div
-                className="max-h-[240px] overflow-y-auto py-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full"
-                style={{ scrollbarWidth: "thin", scrollbarColor: "#404040 transparent" }}
-              >
-                {filteredAtributos.length === 0 ? (
-                  <div className="px-3 py-2 text-neutral-500">Sem grupos disponíveis</div>
-                ) : (
-                  filteredAtributos.map((a) => {
-                    const checked = popoverHas(a);
-                    return (
-                      <button
-                        key={a}
-                        type="button"
-                        onClick={(e) => toggle(a, e)}
-                        className={`flex w-full items-center gap-2 px-3 py-1 text-left hover:bg-neutral-800 ${checked ? "text-[#8BBEEC] font-medium" : "text-neutral-200"}`}
-                      >
-                        <span
-                          className={`w-3 h-3 rounded-sm border flex items-center justify-center shrink-0 ${checked ? "bg-[#378ADD] border-[#378ADD]" : "border-neutral-600"}`}
-                        >
-                          {checked && <Check size={9} className="text-white" />}
-                        </span>
-                        <span className="truncate" title={a}>
-                          {a}
-                        </span>
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-            </PopoverContent>
-          </Popover>
-        </div>
-      </div>
-
-      {!hasAny || n === 0 ? (
-        <div className="text-[11px] text-neutral-500 text-center py-12">
-          Selecione um grupo de produto no filtro à direita para visualizar o histórico.
-        </div>
-      ) : (
-        <>
-          <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-[240px] overflow-visible">
-            <line x1={padL} y1={padT} x2={padL} y2={padT + innerH} stroke="#2a2a2c" strokeWidth="0.5" />
-            <line x1={padL} y1={padT + innerH} x2={W - padR} y2={padT + innerH} stroke="#2a2a2c" strokeWidth="0.5" />
-            <line x1={padL} y1={padT} x2={W - padR} y2={padT} stroke="#2a2a2c" strokeWidth="0.5" strokeDasharray="3 3" />
-            <line x1={padL} y1={padT + innerH / 2} x2={W - padR} y2={padT + innerH / 2} stroke="#2a2a2c" strokeWidth="0.5" strokeDasharray="3 3" />
-            <text x={padL - 6} y={padT + 4} textAnchor="end" fontSize="9" fill="#888780">{fmtY(yMax)}</text>
-            <text x={padL - 6} y={padT + innerH / 2 + 3} textAnchor="end" fontSize="9" fill="#888780">{fmtY(yMax / 2)}</text>
-            <text x={padL - 6} y={padT + innerH + 3} textAnchor="end" fontSize="9" fill="#888780">{fmtY(0)}</text>
-            {months.map((m, i) => (
-              <text key={m} x={xAt(i)} y={padT + innerH + 16} textAnchor="middle" fontSize="10" fill="#888780">
-                {fmtMonth(m)}
-              </text>
-            ))}
-            {series.map((s, idx) => {
-              const c = PALETTE[idx % PALETTE.length];
-              const pts = s.values.map((v, i) => `${xAt(i)},${yAt(v)}`).join(" ");
-              return (
-                <g key={s.name}>
-                  <polyline points={pts} fill="none" stroke={c} strokeWidth="1.8" />
-                  {s.values.map((v, i) => (
-                    <g key={i}>
-                      <circle cx={xAt(i)} cy={yAt(v)} r="3" fill={c} />
-                      <text
-                        x={xAt(i)}
-                        y={yAt(v) - 7}
-                        textAnchor="middle"
-                        fontSize="9"
-                        fontWeight="500"
-                        fill="#fff"
-                      >
-                        {fmtInt(v)}
-                      </text>
-                    </g>
-                  ))}
-                </g>
-              );
-            })}
-          </svg>
-          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
-            {series.map((s, idx) => (
-              <LineLegend key={s.name} color={PALETTE[idx % PALETTE.length]} label={s.name} />
-            ))}
-          </div>
-        </>
-      )}
-    </Card>
-  );
-}
 
 
