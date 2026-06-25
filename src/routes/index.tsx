@@ -725,6 +725,7 @@ export function Dashboard() {
           skuVolumeMap={skuVolumeMap}
           title="Sortimento de Mix"
           subtitleMode="count"
+          showCadastroL3M
         />
 
       </div>
