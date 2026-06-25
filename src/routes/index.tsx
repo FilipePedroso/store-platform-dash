@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   loadRowsFromCloud,
   formatUpdatedAt,
