@@ -41,7 +41,7 @@ import {
   type EstruturaGrupoRow,
   type SkuRow,
 } from "@/lib/dashboard-data";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+
 
 import {
   EMPTY_FILTERS,
