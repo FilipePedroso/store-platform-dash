@@ -2012,7 +2012,8 @@ function GruposNaoBatidosCard({
 const GRUPOS_GRID_COLS =
   "grid-cols-[28%_1fr_36px_48px_56px_48px] sm:grid-cols-[26%_1fr_48px_64px_80px_64px]";
 const GRUPOS_GRID_COLS_EXT =
-  "grid-cols-[180px_minmax(220px,1fr)_44px_64px_80px_64px_140px_200px] sm:grid-cols-[220px_minmax(260px,1fr)_48px_72px_88px_72px_160px_240px]";
+  "grid-cols-[180px_minmax(220px,1fr)_48px_80px_140px_200px] sm:grid-cols-[220px_minmax(260px,1fr)_56px_88px_160px_240px]";
+
 
 type GruposRow = { rede: string; sortimento: number; target: number; atributo: string; valor: number };
 type FlatItem =
