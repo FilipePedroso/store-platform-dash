@@ -2017,8 +2017,8 @@ const GRUPOS_GRID_COLS_EXT =
 
 type GruposRow = { rede: string; sortimento: number; target: number; atributo: string; valor: number };
 type FlatItem =
-  | { kind: "group"; row: GruposRow; rowKey: string; skuCount: number; cadastrados: number; index: number }
-  | { kind: "sku"; ean: string; descricao: string; vol: number; parentKey: string };
+  | { kind: "group"; row: GruposRow; rowKey: string; skuCount: number; cadastrados: number; index: number; qtdLabel: string; qtdColor: string }
+  | { kind: "sku"; ean: string; descricao: string; vol: number; parentKey: string; parentQtdLabel?: string; parentQtdColor?: string };
 
 function VirtualizedGruposList({
   rows,
