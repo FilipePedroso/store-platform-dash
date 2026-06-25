@@ -1909,7 +1909,7 @@ function GruposNaoBatidosCard({
             sku.descricao ?? "",
             fmtInt(vol),
             cadastroLabel,
-            "",
+            qtdLabel,
           ]);
         } else {
           body.push([
