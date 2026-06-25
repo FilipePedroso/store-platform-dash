@@ -1791,7 +1791,7 @@ function GruposNaoBatidosCard({
 
   const handleDownloadCsv = () => {
     const headers = showCadastroL3M
-      ? ["Rede", "Sort.", "Grupo", "EAN", "Descrição SKU", "Vendido(Un)", "Cadastro L3M", "Qtd. Cadastro L3M"]
+      ? ["Rede", "Sort.", "Grupo", "EAN", "Descrição SKU", "Vendido(Un)", "Cadastro", "Qtd. Cadastro"]
       : ["Rede", "Sortimento", "Grupo", "EAN", "Descrição SKU", "Target", "Vendido(Un)", "Faltante"];
     const escape = (v: string | number) => {
       const s = String(v ?? "");
@@ -1912,7 +1912,7 @@ function GruposNaoBatidosCard({
       startY: 60,
       head: [
         showCadastroL3M
-          ? ["Rede", "Sort.", "Grupo", "EAN", "Descrição SKU", "Vendido(Un)", "Cadastro L3M", "Qtd. Cadastro L3M"]
+          ? ["Rede", "Sort.", "Grupo", "EAN", "Descrição SKU", "Vendido(Un)", "Cadastro", "Qtd. Cadastro"]
           : ["Rede", "Sortimento", "Grupo", "EAN", "Descrição SKU", "Target", "Vendido(Un)", "Faltante"],
       ],
       body,
@@ -2090,8 +2090,8 @@ function VirtualizedGruposList({
         {!showCadastroL3M && <div className="text-right pb-1 sm:pb-1.5">Faltante</div>}
         {showCadastroL3M && (
           <>
-            <div className="text-center pb-1 sm:pb-1.5 pl-2">Cadastro L3M</div>
-            <div className="text-left pb-1 sm:pb-1.5 pl-2">Qtd. Cadastro L3M</div>
+            <div className="text-center pb-1 sm:pb-1.5 pl-2">Cadastro</div>
+            <div className="text-left pb-1 sm:pb-1.5 pl-2">Qtd. Cadastro</div>
           </>
         )}
       </div>
