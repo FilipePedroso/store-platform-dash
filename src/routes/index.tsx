@@ -1791,7 +1791,7 @@ function GruposNaoBatidosCard({
 
   const handleDownloadCsv = () => {
     const headers = showCadastroL3M
-      ? ["Rede", "Sort.", "Grupo", "EAN", "Descrição SKU", "Vendido(Un)", "Cadastro L3M", "Qtd. Cadastro L3M"]
+      ? ["Rede", "Sort.", "Grupo", "EAN", "Descrição SKU", "Vendido(Un)", "Cadastro", "Qtd. Cadastro"]
       : ["Rede", "Sortimento", "Grupo", "EAN", "Descrição SKU", "Target", "Vendido(Un)", "Faltante"];
     const escape = (v: string | number) => {
       const s = String(v ?? "");
