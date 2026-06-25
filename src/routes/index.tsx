@@ -1780,29 +1780,20 @@ function TeamPerformanceCard({
 
 function GruposNaoBatidosCard({
   rows,
-  selectedGroups,
-  setSelectedGroups,
   skusByGroup,
   skuVolumeMap,
-  selectedSkus,
-  setSelectedSkus,
   title = "Grupos não batidos",
   subtitleMode = "default",
 }: {
   rows: { rede: string; sortimento: number; target: number; atributo: string; valor: number }[];
-  selectedGroups: string[];
-  setSelectedGroups: React.Dispatch<React.SetStateAction<string[]>>;
   skusByGroup: Map<string, { ean: string; descricao: string }[]>;
   skuVolumeMap: Map<string, number>;
-  selectedSkus: string[];
-  setSelectedSkus: React.Dispatch<React.SetStateAction<string[]>>;
   title?: string;
   subtitleMode?: "default" | "count";
 }) {
   const fileSlug = title.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-  const selectedSkuSet = useMemo(() => new Set(selectedSkus), [selectedSkus]);
   const toggleExpand = (key: string) =>
     setExpanded((cur) => {
       const next = new Set(cur);
@@ -1810,24 +1801,9 @@ function GruposNaoBatidosCard({
       else next.add(key);
       return next;
     });
-  const toggleSku = (rede: string, ean: string) => {
-    if (!ean) return;
-    const key = `${rede}||${ean}`;
-    setSelectedSkus((cur) =>
-      cur.includes(key) ? cur.filter((x) => x !== key) : [...cur, key],
-    );
-  };
   const fmtInt = (n: number) =>
     n.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
   const visibleRows = rows;
-  const selectedSet = useMemo(() => new Set(selectedGroups), [selectedGroups]);
-  const toggleOne = (rede: string, atributo: string) => {
-    if (!atributo) return;
-    const key = `${rede}||${atributo}`;
-    setSelectedGroups((cur) =>
-      cur.includes(key) ? cur.filter((x) => x !== key) : [...cur, key],
-    );
-  };
 
   const handleDownloadCsv = () => {
     const headers = ["Rede", "Sortimento", "Grupo", "EAN", "Descrição SKU", "Target", "Vendido(Un)", "Faltante"];
