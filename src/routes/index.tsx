@@ -732,12 +732,8 @@ export function Dashboard() {
       <div className="grid grid-cols-1 gap-2.5 mb-3">
         <GruposNaoBatidosCard
           rows={gruposNaoBatidos}
-          selectedGroups={selectedHistoryGroups}
-          setSelectedGroups={setSelectedHistoryGroups}
           skusByGroup={skusByGroup}
           skuVolumeMap={skuVolumeMap}
-          selectedSkus={selectedHistorySkus}
-          setSelectedSkus={setSelectedHistorySkus}
         />
 
       </div>
