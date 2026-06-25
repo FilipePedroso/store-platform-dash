@@ -1790,7 +1790,9 @@ function GruposNaoBatidosCard({
   const visibleRows = rows;
 
   const handleDownloadCsv = () => {
-    const headers = ["Rede", "Sortimento", "Grupo", "EAN", "Descrição SKU", "Target", "Vendido(Un)", "Faltante"];
+    const headers = showCadastroL3M
+      ? ["Rede", "Sort.", "Grupo", "EAN", "Descrição SKU", "Vendido(Un)", "Cadastro L3M", "Qtd. Cadastro L3M"]
+      : ["Rede", "Sortimento", "Grupo", "EAN", "Descrição SKU", "Target", "Vendido(Un)", "Faltante"];
     const escape = (v: string | number) => {
       const s = String(v ?? "");
       return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
@@ -1798,19 +1800,47 @@ function GruposNaoBatidosCard({
     const lines = [headers.join(";")];
     for (const r of visibleRows) {
       const faltante = Math.max(0, r.target - r.valor);
-      lines.push(
-        [r.rede, fmtPct(r.sortimento, 0), r.atributo, "Total", "Total", r.target, r.valor, faltante]
-          .map(escape)
-          .join(";"),
-      );
       const skus = skusByGroup.get(r.atributo) ?? [];
+      let cadastrados = 0;
       for (const sku of skus) {
-        const vol = skuVolumeMap.get(`${r.rede}|${r.atributo}|${sku.ean}`) ?? 0;
+        const v = skuVolumeMap.get(`${r.rede}|${r.atributo}|${sku.ean}`) ?? 0;
+        if (v > 0) cadastrados += 1;
+      }
+      const qtdLabel =
+        skus.length === 0
+          ? "—"
+          : cadastrados >= skus.length
+            ? "Todos Itens do AG cadastrados"
+            : `${cadastrados} Itens cadastrados dentro do AG`;
+      if (showCadastroL3M) {
         lines.push(
-          [r.rede, fmtPct(r.sortimento, 0), r.atributo, sku.ean, sku.descricao ?? "", "", vol, ""]
+          [r.rede, fmtPct(r.sortimento, 0), r.atributo, "Total", "Total", r.valor, "—", qtdLabel]
             .map(escape)
             .join(";"),
         );
+      } else {
+        lines.push(
+          [r.rede, fmtPct(r.sortimento, 0), r.atributo, "Total", "Total", r.target, r.valor, faltante]
+            .map(escape)
+            .join(";"),
+        );
+      }
+      for (const sku of skus) {
+        const vol = skuVolumeMap.get(`${r.rede}|${r.atributo}|${sku.ean}`) ?? 0;
+        const cadastroLabel = vol > 0 ? "Item Cadastrado" : "Item não Cadastrado";
+        if (showCadastroL3M) {
+          lines.push(
+            [r.rede, fmtPct(r.sortimento, 0), r.atributo, sku.ean, sku.descricao ?? "", vol, cadastroLabel, ""]
+              .map(escape)
+              .join(";"),
+          );
+        } else {
+          lines.push(
+            [r.rede, fmtPct(r.sortimento, 0), r.atributo, sku.ean, sku.descricao ?? "", "", vol, ""]
+              .map(escape)
+              .join(";"),
+          );
+        }
       }
     }
     const csv = "\uFEFF" + lines.join("\n");
@@ -1832,34 +1862,76 @@ function GruposNaoBatidosCard({
     const body: (string | number)[][] = [];
     visibleRows.forEach((r) => {
       const faltante = Math.max(0, r.target - r.valor);
-      body.push([
-        r.rede,
-        fmtPct(r.sortimento, 0),
-        r.atributo,
-        "Total",
-        "Total",
-        fmtInt(r.target),
-        fmtInt(r.valor),
-        fmtInt(faltante),
-      ]);
       const skus = skusByGroup.get(r.atributo) ?? [];
+      let cadastrados = 0;
       for (const sku of skus) {
-        const vol = skuVolumeMap.get(`${r.rede}|${r.atributo}|${sku.ean}`) ?? 0;
+        const v = skuVolumeMap.get(`${r.rede}|${r.atributo}|${sku.ean}`) ?? 0;
+        if (v > 0) cadastrados += 1;
+      }
+      const qtdLabel =
+        skus.length === 0
+          ? "—"
+          : cadastrados >= skus.length
+            ? "Todos Itens do AG cadastrados"
+            : `${cadastrados} Itens cadastrados dentro do AG`;
+      if (showCadastroL3M) {
         body.push([
           r.rede,
           fmtPct(r.sortimento, 0),
           r.atributo,
-          sku.ean,
-          sku.descricao ?? "",
-          "",
-          fmtInt(vol),
-          "",
+          "Total",
+          "Total",
+          fmtInt(r.valor),
+          "—",
+          qtdLabel,
         ]);
+      } else {
+        body.push([
+          r.rede,
+          fmtPct(r.sortimento, 0),
+          r.atributo,
+          "Total",
+          "Total",
+          fmtInt(r.target),
+          fmtInt(r.valor),
+          fmtInt(faltante),
+        ]);
+      }
+      for (const sku of skus) {
+        const vol = skuVolumeMap.get(`${r.rede}|${r.atributo}|${sku.ean}`) ?? 0;
+        const cadastroLabel = vol > 0 ? "Item Cadastrado" : "Item não Cadastrado";
+        if (showCadastroL3M) {
+          body.push([
+            r.rede,
+            fmtPct(r.sortimento, 0),
+            r.atributo,
+            sku.ean,
+            sku.descricao ?? "",
+            fmtInt(vol),
+            cadastroLabel,
+            "",
+          ]);
+        } else {
+          body.push([
+            r.rede,
+            fmtPct(r.sortimento, 0),
+            r.atributo,
+            sku.ean,
+            sku.descricao ?? "",
+            "",
+            fmtInt(vol),
+            "",
+          ]);
+        }
       }
     });
     autoTable(doc, {
       startY: 60,
-      head: [["Rede", "Sortimento", "Grupo", "EAN", "Descrição SKU", "Target", "Vendido(Un)", "Faltante"]],
+      head: [
+        showCadastroL3M
+          ? ["Rede", "Sort.", "Grupo", "EAN", "Descrição SKU", "Vendido(Un)", "Cadastro L3M", "Qtd. Cadastro L3M"]
+          : ["Rede", "Sortimento", "Grupo", "EAN", "Descrição SKU", "Target", "Vendido(Un)", "Faltante"],
+      ],
       body,
       styles: { fontSize: 8, cellPadding: 4 },
       headStyles: { fillColor: [38, 38, 40], textColor: 255 },
@@ -1867,6 +1939,7 @@ function GruposNaoBatidosCard({
     });
     doc.save(`${fileSlug}-${new Date().toISOString().slice(0, 10)}.pdf`);
   };
+
 
   return (
     <div className="bg-[#1a1a1c] rounded-xl border border-neutral-800/80 p-3.5">
@@ -1939,7 +2012,8 @@ function GruposNaoBatidosCard({
 const GRUPOS_GRID_COLS =
   "grid-cols-[28%_1fr_36px_48px_56px_48px] sm:grid-cols-[26%_1fr_48px_64px_80px_64px]";
 const GRUPOS_GRID_COLS_EXT =
-  "grid-cols-[180px_minmax(220px,1fr)_44px_64px_80px_64px_140px_200px] sm:grid-cols-[220px_minmax(260px,1fr)_48px_72px_88px_72px_160px_240px]";
+  "grid-cols-[180px_minmax(220px,1fr)_48px_80px_140px_200px] sm:grid-cols-[220px_minmax(260px,1fr)_56px_88px_160px_240px]";
+
 
 type GruposRow = { rede: string; sortimento: number; target: number; atributo: string; valor: number };
 type FlatItem =
@@ -2011,10 +2085,10 @@ function VirtualizedGruposList({
       >
         <div className="text-left pb-1 sm:pb-1.5 pr-1 sm:pr-2">Rede</div>
         <div className="text-left pb-1 sm:pb-1.5 pl-1 sm:pl-2">Grupo</div>
-        <div className="text-center pb-1 sm:pb-1.5">%</div>
-        <div className="text-right pb-1 sm:pb-1.5">Target</div>
+        <div className="text-center pb-1 sm:pb-1.5">{showCadastroL3M ? "Sort." : "%"}</div>
+        {!showCadastroL3M && <div className="text-right pb-1 sm:pb-1.5">Target</div>}
         <div className="text-right pb-1 sm:pb-1.5">Vendido(Un)</div>
-        <div className="text-right pb-1 sm:pb-1.5">Faltante</div>
+        {!showCadastroL3M && <div className="text-right pb-1 sm:pb-1.5">Faltante</div>}
         {showCadastroL3M && (
           <>
             <div className="text-left pb-1 sm:pb-1.5 pl-2">Cadastro L3M</div>
@@ -2022,6 +2096,7 @@ function VirtualizedGruposList({
           </>
         )}
       </div>
+
       <div style={{ height: virtualizer.getTotalSize(), position: "relative", width: "100%" }}>
         {virtualizer.getVirtualItems().map((v) => {
           const it = items[v.index];
@@ -2084,15 +2159,20 @@ function VirtualizedGruposList({
                 >
                   {fmtPct(r.sortimento, 0)}
                 </div>
-                <div className="py-0.5 sm:py-1 text-right tabular-nums text-neutral-300">
-                  {fmtInt(r.target)}
-                </div>
+                {!showCadastroL3M && (
+                  <div className="py-0.5 sm:py-1 text-right tabular-nums text-neutral-300">
+                    {fmtInt(r.target)}
+                  </div>
+                )}
                 <div className="py-0.5 sm:py-1 text-right tabular-nums font-medium text-neutral-200">
                   {fmtInt(r.valor)}
                 </div>
-                <div className="py-0.5 sm:py-1 text-right tabular-nums font-medium text-[#F87171]">
-                  {fmtInt(faltante)}
-                </div>
+                {!showCadastroL3M && (
+                  <div className="py-0.5 sm:py-1 text-right tabular-nums font-medium text-[#F87171]">
+                    {fmtInt(faltante)}
+                  </div>
+                )}
+
                 {showCadastroL3M && (
                   <>
                     <div className="py-0.5 sm:py-1 pl-2 truncate text-neutral-400" title={qtdLabel}>
@@ -2128,11 +2208,12 @@ function VirtualizedGruposList({
                 {it.descricao ? ` - ${it.descricao}` : ""}
               </div>
               <div />
-              <div />
+              {!showCadastroL3M && <div />}
               <div className="py-0.5 sm:py-1 text-right tabular-nums text-[10px] text-neutral-300">
                 {fmtInt(it.vol)}
               </div>
-              <div />
+              {!showCadastroL3M && <div />}
+
               {showCadastroL3M && (
                 <>
                   <div
