@@ -305,17 +305,6 @@ export function Dashboard() {
     );
   }, [skuRows, dFilters, selectedMonths]);
 
-  // Mesmos filtros sem mês — usado para o histórico de SKUs
-  const baseSkuRows = useMemo(() => {
-    const inList = (v: string, list: string[]) => list.length === 0 || list.includes(v);
-    return skuRows.filter(
-      (r) =>
-        inList(r.cluster, dFilters.cluster) &&
-        inList(r.canal, dFilters.canal) &&
-        inList(r.rede, dFilters.rede) &&
-        inList(r.distribuidor, dFilters.distribuidor),
-    );
-  }, [skuRows, dFilters]);
 
   // Mapa: activationGroup -> lista de SKUs (ean + descricao)
   const skusByGroup = useMemo(() => {
