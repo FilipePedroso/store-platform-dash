@@ -2090,8 +2090,8 @@ function VirtualizedGruposList({
         {!showCadastroL3M && <div className="text-right pb-1 sm:pb-1.5">Faltante</div>}
         {showCadastroL3M && (
           <>
-            <div className="text-center pb-1 sm:pb-1.5 pl-2">Cadastro L3M</div>
-            <div className="text-left pb-1 sm:pb-1.5 pl-2">Qtd. Cadastro L3M</div>
+            <div className="text-center pb-1 sm:pb-1.5 pl-2">Cadastro</div>
+            <div className="text-left pb-1 sm:pb-1.5 pl-2">Qtd. Cadastro</div>
           </>
         )}
       </div>
