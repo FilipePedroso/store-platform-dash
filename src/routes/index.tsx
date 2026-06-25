@@ -2185,14 +2185,15 @@ function VirtualizedGruposList({
 
                 {showCadastroL3M && (
                   <>
-                    <div className="py-0.5 sm:py-1 pl-2 truncate text-neutral-400" title={qtdLabel}>
+                    <div className="py-0.5 sm:py-1 text-center truncate text-neutral-400" title={it.qtdLabel}>
                       —
                     </div>
                     <div
-                      className="py-0.5 sm:py-1 pl-2 truncate text-neutral-300"
-                      title={qtdLabel}
+                      className="py-0.5 sm:py-1 pl-2 truncate font-medium"
+                      style={{ color: it.qtdColor }}
+                      title={it.qtdLabel}
                     >
-                      {qtdLabel}
+                      {it.qtdLabel}
                     </div>
                   </>
                 )}
