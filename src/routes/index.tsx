@@ -1927,7 +1927,7 @@ function GruposNaoBatidosCard({
       headStyles: { fillColor: [38, 38, 40], textColor: 255 },
       alternateRowStyles: { fillColor: [245, 245, 245] },
     });
-    doc.save(`grupos-nao-batidos-${new Date().toISOString().slice(0, 10)}.pdf`);
+    doc.save(`${fileSlug}-${new Date().toISOString().slice(0, 10)}.pdf`);
   };
 
   return (
