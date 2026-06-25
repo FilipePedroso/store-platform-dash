@@ -384,6 +384,25 @@ export function Dashboard() {
       .sort((a, b) => a.rede.localeCompare(b.rede) || a.atributo.localeCompare(b.atributo));
   }, [agMonthRows, monthRows]);
 
+  // Tabela "Sortimento de Mix": todos os grupos (batidos ou não)
+  const sortimentoMix = useMemo(() => {
+    const sortMap = new Map<string, number>();
+    for (const r of monthRows) {
+      const cur = sortMap.get(r.rede);
+      sortMap.set(r.rede, cur == null ? r.sortimento : Math.max(cur, r.sortimento));
+    }
+    return agMonthRows
+      .map((r) => ({
+        rede: r.rede,
+        sortimento: sortMap.get(r.rede) ?? 0,
+        target: r.targetUnidades,
+        atributo: r.atributo,
+        valor: r.valor,
+      }))
+      .sort((a, b) => a.rede.localeCompare(b.rede) || a.atributo.localeCompare(b.atributo));
+  }, [agMonthRows, monthRows]);
+
+
   // Históricos mês a mês (gráficos de linha) — usam baseRows (sem filtro de mês)
   const histGerado = useMemo(
     () => computeMonthlySeries(baseRows, reduceSumGerado, "cluster"),
