@@ -1958,35 +1958,27 @@ function GruposNaoBatidosCard({
                 const faltante = Math.max(0, r.target - r.valor);
                 const sortColor =
                   r.sortimento >= 0.9 ? "#22C55E" : r.sortimento >= 0.85 ? ORANGE : RED;
-                const rowKeyComp = `${r.rede}||${r.atributo}`;
-                const checked = selectedSet.has(rowKeyComp);
                 const rowKey = `${r.rede}-${r.atributo}-${i}`;
                 const isExpanded = expanded.has(rowKey);
                 const skus = skusByGroup.get(r.atributo) ?? [];
                 return (
                   <React.Fragment key={rowKey}>
-                    <tr
-                      className={`border-b border-neutral-800 cursor-pointer transition-colors ${checked ? "bg-[#0E2E4D] ring-1 ring-inset ring-[#378ADD]/60 shadow-[inset_3px_0_0_0_#378ADD]" : "hover:bg-neutral-800/40"}`}
-                    >
+                    <tr className="border-b border-neutral-800 transition-colors hover:bg-neutral-800/40">
                       <td
-                        className={`py-0.5 sm:py-1 truncate pr-1 sm:pr-2 overflow-hidden whitespace-nowrap ${checked ? "text-white font-medium" : "text-neutral-200"}`}
+                        className="py-0.5 sm:py-1 truncate pr-1 sm:pr-2 overflow-hidden whitespace-nowrap text-neutral-200"
                         title={r.rede}
-                        onClick={() => toggleOne(r.rede, r.atributo)}
                       >
                         {r.rede}
                       </td>
                       <td
-                        className={`py-0.5 sm:py-1 truncate pr-1 sm:pr-2 pl-1 sm:pl-2 overflow-hidden whitespace-nowrap ${checked ? "text-white font-medium" : "text-neutral-200"}`}
+                        className="py-0.5 sm:py-1 truncate pr-1 sm:pr-2 pl-1 sm:pl-2 overflow-hidden whitespace-nowrap text-neutral-200"
                         title={r.atributo}
                       >
                         <span className="inline-flex items-center gap-1">
                           {skus.length > 0 ? (
                             <button
                               type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleExpand(rowKey);
-                              }}
+                              onClick={() => toggleExpand(rowKey)}
                               className="text-neutral-400 hover:text-neutral-100 -ml-1"
                               aria-label="Expandir SKUs"
                             >
@@ -1995,61 +1987,43 @@ function GruposNaoBatidosCard({
                           ) : (
                             <span className="w-[11px] inline-block" />
                           )}
-                          <span
-                            onClick={() => toggleOne(r.rede, r.atributo)}
-                            className="truncate"
-                          >
-                            {r.atributo}
-                          </span>
+                          <span className="truncate">{r.atributo}</span>
                         </span>
                       </td>
                       <td
                         className="py-0.5 sm:py-1 text-center tabular-nums font-medium"
                         style={{ color: sortColor }}
-                        onClick={() => toggleOne(r.rede, r.atributo)}
                       >
                         {fmtPct(r.sortimento, 0)}
                       </td>
-                      <td
-                        className={`py-0.5 sm:py-1 text-right tabular-nums ${checked ? "text-white" : "text-neutral-300"}`}
-                        onClick={() => toggleOne(r.rede, r.atributo)}
-                      >
+                      <td className="py-0.5 sm:py-1 text-right tabular-nums text-neutral-300">
                         {fmtInt(r.target)}
                       </td>
-                      <td
-                        className={`py-0.5 sm:py-1 text-right tabular-nums font-medium ${checked ? "text-white" : "text-neutral-200"}`}
-                        onClick={() => toggleOne(r.rede, r.atributo)}
-                      >
+                      <td className="py-0.5 sm:py-1 text-right tabular-nums font-medium text-neutral-200">
                         {fmtInt(r.valor)}
                       </td>
-                      <td
-                        className="py-0.5 sm:py-1 text-right tabular-nums font-medium text-[#F87171]"
-                        onClick={() => toggleOne(r.rede, r.atributo)}
-                      >
+                      <td className="py-0.5 sm:py-1 text-right tabular-nums font-medium text-[#F87171]">
                         {fmtInt(faltante)}
                       </td>
                     </tr>
                     {isExpanded &&
                       skus.map((sku) => {
                         const vol = skuVolumeMap.get(`${r.rede}|${r.atributo}|${sku.ean}`) ?? 0;
-                        const skuKey = `${r.rede}||${sku.ean}`;
-                        const skuChecked = selectedSkuSet.has(skuKey);
                         return (
                           <tr
                             key={`${rowKey}-${sku.ean}`}
-                            className={`border-b border-neutral-800/60 cursor-pointer transition-colors ${skuChecked ? "bg-[#0E2E4D] ring-1 ring-inset ring-[#378ADD]/60 shadow-[inset_3px_0_0_0_#378ADD]" : "hover:bg-neutral-800/30"}`}
-                            onClick={() => toggleSku(r.rede, sku.ean)}
+                            className="border-b border-neutral-800/60 transition-colors hover:bg-neutral-800/30"
                           >
                             <td className="py-0.5 sm:py-1" />
                             <td
-                              className={`py-0.5 sm:py-1 truncate pr-1 sm:pr-2 pl-5 sm:pl-7 overflow-hidden whitespace-nowrap text-[10px] ${skuChecked ? "text-white font-medium" : "text-neutral-400"}`}
+                              className="py-0.5 sm:py-1 truncate pr-1 sm:pr-2 pl-5 sm:pl-7 overflow-hidden whitespace-nowrap text-[10px] text-neutral-400"
                               title={`${sku.ean} - ${sku.descricao}`}
                             >
                               {sku.ean}{sku.descricao ? ` - ${sku.descricao}` : ""}
                             </td>
                             <td />
                             <td />
-                            <td className={`py-0.5 sm:py-1 text-right tabular-nums text-[10px] ${skuChecked ? "text-white" : "text-neutral-300"}`}>
+                            <td className="py-0.5 sm:py-1 text-right tabular-nums text-[10px] text-neutral-300">
                               {fmtInt(vol)}
                             </td>
                             <td />
