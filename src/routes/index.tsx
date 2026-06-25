@@ -2084,10 +2084,10 @@ function VirtualizedGruposList({
       >
         <div className="text-left pb-1 sm:pb-1.5 pr-1 sm:pr-2">Rede</div>
         <div className="text-left pb-1 sm:pb-1.5 pl-1 sm:pl-2">Grupo</div>
-        <div className="text-center pb-1 sm:pb-1.5">%</div>
-        <div className="text-right pb-1 sm:pb-1.5">Target</div>
+        <div className="text-center pb-1 sm:pb-1.5">{showCadastroL3M ? "Sort." : "%"}</div>
+        {!showCadastroL3M && <div className="text-right pb-1 sm:pb-1.5">Target</div>}
         <div className="text-right pb-1 sm:pb-1.5">Vendido(Un)</div>
-        <div className="text-right pb-1 sm:pb-1.5">Faltante</div>
+        {!showCadastroL3M && <div className="text-right pb-1 sm:pb-1.5">Faltante</div>}
         {showCadastroL3M && (
           <>
             <div className="text-left pb-1 sm:pb-1.5 pl-2">Cadastro L3M</div>
@@ -2095,6 +2095,7 @@ function VirtualizedGruposList({
           </>
         )}
       </div>
+
       <div style={{ height: virtualizer.getTotalSize(), position: "relative", width: "100%" }}>
         {virtualizer.getVirtualItems().map((v) => {
           const it = items[v.index];
