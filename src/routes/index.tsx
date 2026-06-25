@@ -2208,11 +2208,12 @@ function VirtualizedGruposList({
                 {it.descricao ? ` - ${it.descricao}` : ""}
               </div>
               <div />
-              <div />
+              {!showCadastroL3M && <div />}
               <div className="py-0.5 sm:py-1 text-right tabular-nums text-[10px] text-neutral-300">
                 {fmtInt(it.vol)}
               </div>
-              <div />
+              {!showCadastroL3M && <div />}
+
               {showCadastroL3M && (
                 <>
                   <div
