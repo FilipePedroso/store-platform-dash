@@ -725,6 +725,7 @@ export function Dashboard() {
           skuVolumeMap={skuVolumeMap}
           title="Sortimento de Mix"
           subtitleMode="count"
+          showCadastroL3M
         />
 
       </div>
@@ -1765,12 +1766,14 @@ function GruposNaoBatidosCard({
   skuVolumeMap,
   title = "Grupos não batidos",
   subtitleMode = "default",
+  showCadastroL3M = false,
 }: {
   rows: { rede: string; sortimento: number; target: number; atributo: string; valor: number }[];
   skusByGroup: Map<string, { ean: string; descricao: string }[]>;
   skuVolumeMap: Map<string, number>;
   title?: string;
   subtitleMode?: "default" | "count";
+  showCadastroL3M?: boolean;
 }) {
   const fileSlug = title.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -1926,6 +1929,7 @@ function GruposNaoBatidosCard({
           expanded={expanded}
           toggleExpand={toggleExpand}
           fmtInt={fmtInt}
+          showCadastroL3M={showCadastroL3M}
         />
       )}
     </div>
@@ -1934,10 +1938,12 @@ function GruposNaoBatidosCard({
 
 const GRUPOS_GRID_COLS =
   "grid-cols-[28%_1fr_36px_48px_56px_48px] sm:grid-cols-[26%_1fr_48px_64px_80px_64px]";
+const GRUPOS_GRID_COLS_EXT =
+  "grid-cols-[180px_minmax(220px,1fr)_44px_64px_80px_64px_140px_200px] sm:grid-cols-[220px_minmax(260px,1fr)_48px_72px_88px_72px_160px_240px]";
 
 type GruposRow = { rede: string; sortimento: number; target: number; atributo: string; valor: number };
 type FlatItem =
-  | { kind: "group"; row: GruposRow; rowKey: string; skuCount: number; index: number }
+  | { kind: "group"; row: GruposRow; rowKey: string; skuCount: number; cadastrados: number; index: number }
   | { kind: "sku"; ean: string; descricao: string; vol: number; parentKey: string };
 
 function VirtualizedGruposList({
@@ -1947,6 +1953,7 @@ function VirtualizedGruposList({
   expanded,
   toggleExpand,
   fmtInt,
+  showCadastroL3M = false,
 }: {
   rows: GruposRow[];
   skusByGroup: Map<string, { ean: string; descricao: string }[]>;
@@ -1954,13 +1961,19 @@ function VirtualizedGruposList({
   expanded: Set<string>;
   toggleExpand: (key: string) => void;
   fmtInt: (n: number) => string;
+  showCadastroL3M?: boolean;
 }) {
   const items = useMemo<FlatItem[]>(() => {
     const out: FlatItem[] = [];
     rows.forEach((r, i) => {
       const rowKey = `${r.rede}-${r.atributo}-${i}`;
       const skus = skusByGroup.get(r.atributo) ?? [];
-      out.push({ kind: "group", row: r, rowKey, skuCount: skus.length, index: i });
+      let cadastrados = 0;
+      for (const sku of skus) {
+        const v = skuVolumeMap.get(`${r.rede}|${r.atributo}|${sku.ean}`) ?? 0;
+        if (v > 0) cadastrados += 1;
+      }
+      out.push({ kind: "group", row: r, rowKey, skuCount: skus.length, cadastrados, index: i });
       if (expanded.has(rowKey)) {
         for (const sku of skus) {
           const vol = skuVolumeMap.get(`${r.rede}|${r.atributo}|${sku.ean}`) ?? 0;
@@ -1985,14 +1998,16 @@ function VirtualizedGruposList({
     overscan: 12,
   });
 
+  const gridCols = showCadastroL3M ? GRUPOS_GRID_COLS_EXT : GRUPOS_GRID_COLS;
+
   return (
     <div
       ref={parentRef}
-      className="max-h-[420px] overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full text-[9px] sm:text-[11px]"
+      className="max-h-[420px] overflow-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full text-[9px] sm:text-[11px]"
       style={{ scrollbarWidth: "thin", scrollbarColor: "#404040 transparent" }}
     >
       <div
-        className={`grid ${GRUPOS_GRID_COLS} sticky top-0 bg-[#141416] z-10 text-neutral-400 font-medium border-b border-neutral-800`}
+        className={`grid ${gridCols} sticky top-0 bg-[#141416] z-10 text-neutral-400 font-medium border-b border-neutral-800`}
       >
         <div className="text-left pb-1 sm:pb-1.5 pr-1 sm:pr-2">Rede</div>
         <div className="text-left pb-1 sm:pb-1.5 pl-1 sm:pl-2">Grupo</div>
@@ -2000,6 +2015,12 @@ function VirtualizedGruposList({
         <div className="text-right pb-1 sm:pb-1.5">Target</div>
         <div className="text-right pb-1 sm:pb-1.5">Vendido(Un)</div>
         <div className="text-right pb-1 sm:pb-1.5">Faltante</div>
+        {showCadastroL3M && (
+          <>
+            <div className="text-left pb-1 sm:pb-1.5 pl-2">Cadastro L3M</div>
+            <div className="text-left pb-1 sm:pb-1.5 pl-2">Qtd. Cadastro L3M</div>
+          </>
+        )}
       </div>
       <div style={{ height: virtualizer.getTotalSize(), position: "relative", width: "100%" }}>
         {virtualizer.getVirtualItems().map((v) => {
@@ -2017,13 +2038,19 @@ function VirtualizedGruposList({
             const sortColor =
               r.sortimento >= 0.9 ? "#22C55E" : r.sortimento >= 0.85 ? ORANGE : RED;
             const isExpanded = expanded.has(it.rowKey);
+            const qtdLabel =
+              it.skuCount === 0
+                ? "—"
+                : it.cadastrados >= it.skuCount
+                  ? "Todos Itens do AG cadastrados"
+                  : `${it.cadastrados} Itens cadastrados dentro do AG`;
             return (
               <div
                 key={it.rowKey}
                 ref={virtualizer.measureElement}
                 data-index={v.index}
                 style={common}
-                className={`grid ${GRUPOS_GRID_COLS} border-b border-neutral-800 hover:bg-neutral-800/40 transition-colors`}
+                className={`grid ${gridCols} border-b border-neutral-800 hover:bg-neutral-800/40 transition-colors`}
               >
                 <div
                   className="py-0.5 sm:py-1 truncate pr-1 sm:pr-2 text-neutral-200"
@@ -2066,16 +2093,31 @@ function VirtualizedGruposList({
                 <div className="py-0.5 sm:py-1 text-right tabular-nums font-medium text-[#F87171]">
                   {fmtInt(faltante)}
                 </div>
+                {showCadastroL3M && (
+                  <>
+                    <div className="py-0.5 sm:py-1 pl-2 truncate text-neutral-400" title={qtdLabel}>
+                      —
+                    </div>
+                    <div
+                      className="py-0.5 sm:py-1 pl-2 truncate text-neutral-300"
+                      title={qtdLabel}
+                    >
+                      {qtdLabel}
+                    </div>
+                  </>
+                )}
               </div>
             );
           }
+          const cadastroLabel = it.vol > 0 ? "Item Cadastrado" : "Item não Cadastrado";
+          const cadastroColor = it.vol > 0 ? "#22C55E" : "#F87171";
           return (
             <div
               key={`${it.parentKey}-${it.ean}`}
               ref={virtualizer.measureElement}
               data-index={v.index}
               style={common}
-              className={`grid ${GRUPOS_GRID_COLS} border-b border-neutral-800/60 hover:bg-neutral-800/30 transition-colors`}
+              className={`grid ${gridCols} border-b border-neutral-800/60 hover:bg-neutral-800/30 transition-colors`}
             >
               <div className="py-0.5 sm:py-1" />
               <div
@@ -2091,6 +2133,18 @@ function VirtualizedGruposList({
                 {fmtInt(it.vol)}
               </div>
               <div />
+              {showCadastroL3M && (
+                <>
+                  <div
+                    className="py-0.5 sm:py-1 pl-2 truncate text-[10px] font-medium"
+                    style={{ color: cadastroColor }}
+                    title={cadastroLabel}
+                  >
+                    {cadastroLabel}
+                  </div>
+                  <div />
+                </>
+              )}
             </div>
           );
         })}
