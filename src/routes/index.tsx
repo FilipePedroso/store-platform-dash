@@ -1889,7 +1889,7 @@ function GruposNaoBatidosCard({
   const handleDownloadPdf = () => {
     const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
     doc.setFontSize(14);
-    doc.text("Grupos não batidos", 40, 40);
+    doc.text(title, 40, 40);
     const body: (string | number)[][] = [];
     visibleRows.forEach((r) => {
       const faltante = Math.max(0, r.target - r.valor);
