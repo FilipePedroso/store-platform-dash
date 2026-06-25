@@ -2017,8 +2017,8 @@ const GRUPOS_GRID_COLS_EXT =
 
 type GruposRow = { rede: string; sortimento: number; target: number; atributo: string; valor: number };
 type FlatItem =
-  | { kind: "group"; row: GruposRow; rowKey: string; skuCount: number; cadastrados: number; index: number }
-  | { kind: "sku"; ean: string; descricao: string; vol: number; parentKey: string };
+  | { kind: "group"; row: GruposRow; rowKey: string; skuCount: number; cadastrados: number; index: number; qtdLabel: string; qtdColor: string }
+  | { kind: "sku"; ean: string; descricao: string; vol: number; parentKey: string; parentQtdLabel?: string; parentQtdColor?: string };
 
 function VirtualizedGruposList({
   rows,
@@ -2047,7 +2047,21 @@ function VirtualizedGruposList({
         const v = skuVolumeMap.get(`${r.rede}|${r.atributo}|${sku.ean}`) ?? 0;
         if (v > 0) cadastrados += 1;
       }
-      out.push({ kind: "group", row: r, rowKey, skuCount: skus.length, cadastrados, index: i });
+      const qtdLabel =
+        skus.length === 0
+          ? "—"
+          : cadastrados >= skus.length
+            ? "Todos Itens do AG cadastrados"
+            : `${cadastrados} Itens cadastrados dentro do AG`;
+      const qtdColor =
+        skus.length === 0
+          ? "#F87171"
+          : cadastrados >= skus.length
+            ? "#22C55E"
+            : cadastrados === 0
+              ? "#F87171"
+              : "#FBBF24";
+      out.push({ kind: "group", row: r, rowKey, skuCount: skus.length, cadastrados, index: i, qtdLabel, qtdColor });
       if (expanded.has(rowKey)) {
         for (const sku of skus) {
           const vol = skuVolumeMap.get(`${r.rede}|${r.atributo}|${sku.ean}`) ?? 0;
@@ -2057,6 +2071,8 @@ function VirtualizedGruposList({
             descricao: sku.descricao,
             vol,
             parentKey: rowKey,
+            parentQtdLabel: qtdLabel,
+            parentQtdColor: qtdColor,
           });
         }
       }
@@ -2091,7 +2107,7 @@ function VirtualizedGruposList({
         {!showCadastroL3M && <div className="text-right pb-1 sm:pb-1.5">Faltante</div>}
         {showCadastroL3M && (
           <>
-            <div className="text-left pb-1 sm:pb-1.5 pl-2">Cadastro L3M</div>
+            <div className="text-center pb-1 sm:pb-1.5 pl-2">Cadastro L3M</div>
             <div className="text-left pb-1 sm:pb-1.5 pl-2">Qtd. Cadastro L3M</div>
           </>
         )}
@@ -2113,12 +2129,6 @@ function VirtualizedGruposList({
             const sortColor =
               r.sortimento >= 0.9 ? "#22C55E" : r.sortimento >= 0.85 ? ORANGE : RED;
             const isExpanded = expanded.has(it.rowKey);
-            const qtdLabel =
-              it.skuCount === 0
-                ? "—"
-                : it.cadastrados >= it.skuCount
-                  ? "Todos Itens do AG cadastrados"
-                  : `${it.cadastrados} Itens cadastrados dentro do AG`;
             return (
               <div
                 key={it.rowKey}
@@ -2175,14 +2185,15 @@ function VirtualizedGruposList({
 
                 {showCadastroL3M && (
                   <>
-                    <div className="py-0.5 sm:py-1 pl-2 truncate text-neutral-400" title={qtdLabel}>
+                    <div className="py-0.5 sm:py-1 text-center truncate text-neutral-400" title={it.qtdLabel}>
                       —
                     </div>
                     <div
-                      className="py-0.5 sm:py-1 pl-2 truncate text-neutral-300"
-                      title={qtdLabel}
+                      className="py-0.5 sm:py-1 pl-2 truncate font-medium"
+                      style={{ color: it.qtdColor }}
+                      title={it.qtdLabel}
                     >
-                      {qtdLabel}
+                      {it.qtdLabel}
                     </div>
                   </>
                 )}
@@ -2217,13 +2228,19 @@ function VirtualizedGruposList({
               {showCadastroL3M && (
                 <>
                   <div
-                    className="py-0.5 sm:py-1 pl-2 truncate text-[10px] font-medium"
+                    className="py-0.5 sm:py-1 text-center truncate text-[10px] font-medium"
                     style={{ color: cadastroColor }}
                     title={cadastroLabel}
                   >
                     {cadastroLabel}
                   </div>
-                  <div />
+                  <div
+                    className="py-0.5 sm:py-1 pl-2 truncate text-[10px] font-medium"
+                    style={{ color: it.parentQtdColor || "#9CA3AF" }}
+                    title={it.parentQtdLabel || ""}
+                  >
+                    {it.parentQtdLabel || ""}
+                  </div>
                 </>
               )}
             </div>
