@@ -1935,10 +1935,13 @@ function GruposNaoBatidosCard({
         <div>
           <div className="text-[12px] font-medium text-neutral-100 mb-0.5 flex items-center gap-1.5">
             <Star size={13} className="text-neutral-400" />
-            Grupos não batidos
+            {title}
           </div>
           <div className="text-[11px] text-neutral-400">
-            {`${visibleRows.length.toLocaleString("pt-BR")} grupos faltantes`}
+            {subtitleMode === "count"
+              ? `${visibleRows.length.toLocaleString("pt-BR")} grupos`
+              : `${visibleRows.length.toLocaleString("pt-BR")} grupos faltantes`}
+
           </div>
         </div>
         <DropdownMenu>
