@@ -1929,6 +1929,7 @@ function GruposNaoBatidosCard({
           expanded={expanded}
           toggleExpand={toggleExpand}
           fmtInt={fmtInt}
+          showCadastroL3M={showCadastroL3M}
         />
       )}
     </div>
