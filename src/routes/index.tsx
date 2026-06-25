@@ -2228,13 +2228,19 @@ function VirtualizedGruposList({
               {showCadastroL3M && (
                 <>
                   <div
-                    className="py-0.5 sm:py-1 pl-2 truncate text-[10px] font-medium"
+                    className="py-0.5 sm:py-1 text-center truncate text-[10px] font-medium"
                     style={{ color: cadastroColor }}
                     title={cadastroLabel}
                   >
                     {cadastroLabel}
                   </div>
-                  <div />
+                  <div
+                    className="py-0.5 sm:py-1 pl-2 truncate text-[10px] font-medium"
+                    style={{ color: it.parentQtdColor || "#9CA3AF" }}
+                    title={it.parentQtdLabel || ""}
+                  >
+                    {it.parentQtdLabel || ""}
+                  </div>
                 </>
               )}
             </div>
