@@ -1766,12 +1766,14 @@ function GruposNaoBatidosCard({
   skuVolumeMap,
   title = "Grupos não batidos",
   subtitleMode = "default",
+  showCadastroL3M = false,
 }: {
   rows: { rede: string; sortimento: number; target: number; atributo: string; valor: number }[];
   skusByGroup: Map<string, { ean: string; descricao: string }[]>;
   skuVolumeMap: Map<string, number>;
   title?: string;
   subtitleMode?: "default" | "count";
+  showCadastroL3M?: boolean;
 }) {
   const fileSlug = title.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
