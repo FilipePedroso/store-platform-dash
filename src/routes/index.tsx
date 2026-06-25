@@ -1808,6 +1808,8 @@ function GruposNaoBatidosCard({
   skuVolumeMap,
   selectedSkus,
   setSelectedSkus,
+  title = "Grupos não batidos",
+  subtitleMode = "default",
 }: {
   rows: { rede: string; sortimento: number; target: number; atributo: string; valor: number }[];
   selectedGroups: string[];
@@ -1816,7 +1818,10 @@ function GruposNaoBatidosCard({
   skuVolumeMap: Map<string, number>;
   selectedSkus: string[];
   setSelectedSkus: React.Dispatch<React.SetStateAction<string[]>>;
+  title?: string;
+  subtitleMode?: "default" | "count";
 }) {
+
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const selectedSkuSet = useMemo(() => new Set(selectedSkus), [selectedSkus]);
   const toggleExpand = (key: string) =>
