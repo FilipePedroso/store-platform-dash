@@ -1441,13 +1441,56 @@ function RankingCard({
     gapAgs90: number;
   }[];
 }) {
+  const fmtInt = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
+  const handleDownloadCsv = () => {
+    const headers = ["#", "Rede", "Sortimento", "Ags batidos", "Qtd AG", "Gap Ags p>=90%", "Potencial", "Investimento"];
+    const escape = (v: string | number) => {
+      const s = String(v ?? "");
+      return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const lines = [headers.join(";")];
+    rows.forEach((r, i) => {
+      lines.push([i + 1, r.rede, fmtPct(r.sortimento, 0), r.agBatidos, r.qtdAG, r.gapAgs90, r.potencial, r.gerado].map(escape).join(";"));
+    });
+    const csv = "\uFEFF" + lines.join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `ranking-redes-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+  const handleDownloadPdf = () => {
+    const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+    doc.setFontSize(14);
+    doc.text("Ranking de redes", 40, 40);
+    const body = rows.map((r, i) => [
+      i + 1, r.rede, fmtPct(r.sortimento, 0),
+      `${r.agBatidos} / ${r.qtdAG}`, fmtInt(r.gapAgs90), fmtBRL(r.potencial), fmtBRL(r.gerado),
+    ]);
+    autoTable(doc, {
+      startY: 60,
+      head: [["#", "Rede", "Sortimento", "Ags atingidos", "Gap Ags p>=90%", "Potencial", "Investimento"]],
+      body,
+      styles: { fontSize: 9, cellPadding: 4 },
+      headStyles: { fillColor: [38, 38, 40], textColor: 255 },
+      alternateRowStyles: { fillColor: [245, 245, 245] },
+    });
+    doc.save(`ranking-redes-${new Date().toISOString().slice(0, 10)}.pdf`);
+  };
   return (
     <Card>
-      <CardTitle
-        icon={<Star size={13} className="text-neutral-400" />}
-        title="Ranking de redes"
-        sub="Top redes por sortimento"
-      />
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <CardTitle
+          icon={<Star size={13} className="text-neutral-400" />}
+          title="Ranking de redes"
+          sub="Top redes por sortimento"
+        />
+        <ExtractDropdown onCsv={handleDownloadCsv} onPdf={handleDownloadPdf} disabled={rows.length === 0} />
+      </div>
       {rows.length === 0 ? (
         <Empty />
       ) : (
@@ -1511,6 +1554,43 @@ function RankingCard({
         <LegendDot color={RED} label="<85%" />
       </div>
     </Card>
+  );
+}
+
+function ExtractDropdown({
+  onCsv,
+  onPdf,
+  disabled = false,
+}: {
+  onCsv: () => void;
+  onPdf: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          disabled={disabled}
+          className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-neutral-700/80 bg-neutral-800/60 text-[11px] text-neutral-200 hover:bg-neutral-700/60 hover:text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+          title="Extrair"
+        >
+          <Download size={12} />
+          Extrair
+          <ChevronDown size={12} />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="bg-neutral-900 border-neutral-700 text-neutral-200 min-w-[140px]">
+        <DropdownMenuItem onClick={onCsv} className="text-[12px] focus:bg-neutral-800 focus:text-white cursor-pointer">
+          <Download size={12} className="mr-2" />
+          Extrair em CSV
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onPdf} className="text-[12px] focus:bg-neutral-800 focus:text-white cursor-pointer">
+          <Download size={12} className="mr-2" />
+          Extrair em PDF
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -1646,6 +1726,54 @@ function TeamPerformanceCard({
     );
   };
 
+  const fmtIntPt = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
+  const buildExtract = () => {
+    const headers = ["Equipe", "Total OK", "Total Redes", "Total %", ...CLUSTER_ORDER.flatMap((c) => [`${c} OK`, `${c} Redes`, `${c} %`])];
+    const rows2 = teamRows.map((r) => {
+      const totalPct = r.total.all > 0 ? Math.round((r.total.ok / r.total.all) * 100) : 0;
+      const clusterCells = r.byCluster.flatMap((c) => {
+        const pct = c.all > 0 ? Math.round((c.ok / c.all) * 100) : 0;
+        return [c.ok, c.all, c.all > 0 ? `${pct}%` : "—"];
+      });
+      return [r.label, r.total.ok, r.total.all, r.total.all > 0 ? `${totalPct}%` : "—", ...clusterCells];
+    });
+    return { headers, rows: rows2 };
+  };
+  const fileSlug = `performance-equipe-${mode}`;
+  const handleDownloadCsv = () => {
+    const { headers, rows: rs } = buildExtract();
+    const escape = (v: string | number) => {
+      const s = String(v ?? "");
+      return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const lines = [headers.join(";"), ...rs.map((r) => r.map(escape).join(";"))];
+    const csv = "\uFEFF" + lines.join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${fileSlug}-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+  const handleDownloadPdf = () => {
+    const { headers, rows: rs } = buildExtract();
+    const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+    doc.setFontSize(14);
+    doc.text(`Performance por Equipe — ${TEAM_LABELS[mode]}`, 40, 40);
+    autoTable(doc, {
+      startY: 60,
+      head: [headers],
+      body: rs.map((r) => r.map((v) => (typeof v === "number" ? fmtIntPt(v) : String(v)))),
+      styles: { fontSize: 8, cellPadding: 4 },
+      headStyles: { fillColor: [38, 38, 40], textColor: 255 },
+      alternateRowStyles: { fillColor: [245, 245, 245] },
+    });
+    doc.save(`${fileSlug}-${new Date().toISOString().slice(0, 10)}.pdf`);
+  };
+
   return (
     <Card>
       <div className="flex items-start justify-between gap-2 mb-3">
@@ -1659,33 +1787,36 @@ function TeamPerformanceCard({
             Redes com sortimento ≥ 90%
           </div>
         </div>
-        <div className="relative shrink-0" ref={ref}>
-          <button
-            onClick={() => setOpen((v) => !v)}
-            className="rounded-full px-3 py-1 text-[11px] flex items-center gap-1.5 border transition-colors bg-[#0E2E4D] border-[#378ADD] text-[#8BBEEC] font-medium"
-          >
-            <Layers size={12} />
-            {TEAM_LABELS[mode]}
-            <ChevronDown size={12} />
-          </button>
-          {open && (
-            <div className="absolute right-0 z-20 mt-1 min-w-[140px] bg-[#1a1a1c] border border-neutral-800 rounded-md shadow-lg py-1 text-[11px]">
-              {(Object.keys(TEAM_LABELS) as TeamMode[]).map((m) => (
-                <button
-                  key={m}
-                  onClick={() => {
-                    setMode(m);
-                    setOpen(false);
-                  }}
-                  className={`block w-full text-left px-3 py-1 hover:bg-neutral-800 ${
-                    mode === m ? "text-[#8BBEEC] font-medium" : "text-neutral-200"
-                  }`}
-                >
-                  {TEAM_LABELS[m]}
-                </button>
-              ))}
-            </div>
-          )}
+        <div className="flex items-center gap-2 shrink-0">
+          <ExtractDropdown onCsv={handleDownloadCsv} onPdf={handleDownloadPdf} disabled={teamRows.length === 0} />
+          <div className="relative" ref={ref}>
+            <button
+              onClick={() => setOpen((v) => !v)}
+              className="rounded-full px-3 py-1 text-[11px] flex items-center gap-1.5 border transition-colors bg-[#0E2E4D] border-[#378ADD] text-[#8BBEEC] font-medium"
+            >
+              <Layers size={12} />
+              {TEAM_LABELS[mode]}
+              <ChevronDown size={12} />
+            </button>
+            {open && (
+              <div className="absolute right-0 z-20 mt-1 min-w-[140px] bg-[#1a1a1c] border border-neutral-800 rounded-md shadow-lg py-1 text-[11px]">
+                {(Object.keys(TEAM_LABELS) as TeamMode[]).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => {
+                      setMode(m);
+                      setOpen(false);
+                    }}
+                    className={`block w-full text-left px-3 py-1 hover:bg-neutral-800 ${
+                      mode === m ? "text-[#8BBEEC] font-medium" : "text-neutral-200"
+                    }`}
+                  >
+                    {TEAM_LABELS[m]}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
