@@ -1609,6 +1609,14 @@ function RankingCard({
               </DialogTitle>
               <div className="flex items-center gap-2">
                 <ExtractDropdown onCsv={handleDownloadCsv} onPdf={handleDownloadPdf} disabled={rows.length === 0} />
+                <button
+                  type="button"
+                  onClick={() => setExpanded(false)}
+                  className="inline-flex items-center justify-center h-7 w-7 rounded-md border border-neutral-700/80 bg-neutral-800/60 text-neutral-200 hover:bg-neutral-700/60 hover:text-white transition-colors"
+                  title="Fechar"
+                >
+                  <X size={14} />
+                </button>
               </div>
             </div>
           </DialogHeader>
