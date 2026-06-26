@@ -1522,6 +1522,8 @@ function RankingCard({
   }[];
 }) {
   const fmtInt = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
+  const fmtBRNum = (n: number) =>
+    n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const [expanded, setExpanded] = useState(false);
   const handleDownloadCsv = () => {
     const headers = ["#", "Rede", "Sortimento", "Ags batidos", "Qtd AG", "Gap Ags p>=90%", "Potencial", "Investimento"];
