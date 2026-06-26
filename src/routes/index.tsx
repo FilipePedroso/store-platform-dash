@@ -1726,6 +1726,54 @@ function TeamPerformanceCard({
     );
   };
 
+  const fmtIntPt = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
+  const buildExtract = () => {
+    const headers = ["Equipe", "Total OK", "Total Redes", "Total %", ...CLUSTER_ORDER.flatMap((c) => [`${c} OK`, `${c} Redes`, `${c} %`])];
+    const rows2 = teamRows.map((r) => {
+      const totalPct = r.total.all > 0 ? Math.round((r.total.ok / r.total.all) * 100) : 0;
+      const clusterCells = r.byCluster.flatMap((c) => {
+        const pct = c.all > 0 ? Math.round((c.ok / c.all) * 100) : 0;
+        return [c.ok, c.all, c.all > 0 ? `${pct}%` : "—"];
+      });
+      return [r.label, r.total.ok, r.total.all, r.total.all > 0 ? `${totalPct}%` : "—", ...clusterCells];
+    });
+    return { headers, rows: rows2 };
+  };
+  const fileSlug = `performance-equipe-${mode}`;
+  const handleDownloadCsv = () => {
+    const { headers, rows: rs } = buildExtract();
+    const escape = (v: string | number) => {
+      const s = String(v ?? "");
+      return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const lines = [headers.join(";"), ...rs.map((r) => r.map(escape).join(";"))];
+    const csv = "\uFEFF" + lines.join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${fileSlug}-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+  const handleDownloadPdf = () => {
+    const { headers, rows: rs } = buildExtract();
+    const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+    doc.setFontSize(14);
+    doc.text(`Performance por Equipe — ${TEAM_LABELS[mode]}`, 40, 40);
+    autoTable(doc, {
+      startY: 60,
+      head: [headers],
+      body: rs.map((r) => r.map((v) => (typeof v === "number" ? fmtIntPt(v) : String(v)))),
+      styles: { fontSize: 8, cellPadding: 4 },
+      headStyles: { fillColor: [38, 38, 40], textColor: 255 },
+      alternateRowStyles: { fillColor: [245, 245, 245] },
+    });
+    doc.save(`${fileSlug}-${new Date().toISOString().slice(0, 10)}.pdf`);
+  };
+
   return (
     <Card>
       <div className="flex items-start justify-between gap-2 mb-3">
