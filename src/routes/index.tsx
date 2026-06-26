@@ -20,8 +20,14 @@ import {
   Download,
   Rocket,
   Users,
-
+  Maximize2,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -42,6 +48,7 @@ import {
   type EstruturaGrupoRow,
   type SkuRow,
 } from "@/lib/dashboard-data";
+
 
 
 import {
@@ -1427,6 +1434,79 @@ function MonthlyEvolutionCard({ data }: { data: { mes: string; gerado: number }[
   );
 }
 
+function RankingTable({
+  rows,
+  expanded = false,
+}: {
+  rows: {
+    rede: string;
+    sortimento: number;
+    gerado: number;
+    potencial: number;
+    qtdAG: number;
+    agBatidos: number;
+    gapAgs: number;
+    gapAgs90: number;
+  }[];
+  expanded?: boolean;
+}) {
+  const fmtInt = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
+  return (
+    <div
+      className={`overflow-y-auto pr-1 ${expanded ? "flex-1" : "max-h-[200px]"} [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-neutral-600`}
+      style={{ scrollbarWidth: "thin", scrollbarColor: "#404040 transparent" }}
+    >
+      <table className={`w-full ${expanded ? "text-[12px] sm:text-[13px]" : "text-[9px] sm:text-[11px]"}`} style={{ tableLayout: "fixed" }}>
+        <thead className="sticky top-0 bg-[#141416] z-10">
+          <tr className="text-neutral-400 font-medium border-b border-neutral-800">
+            <th className={`text-left pb-1.5 ${expanded ? "w-8 sm:w-10" : "w-4 sm:w-5"} font-medium`}>#</th>
+            <th className="text-left pb-1.5 font-medium">Rede</th>
+            <th className={`text-center pb-1.5 ${expanded ? "w-12 sm:w-16" : "w-9 sm:w-12"} font-medium`}>Sort.</th>
+            <th className={`text-center pb-1.5 ${expanded ? "w-20 sm:w-24" : "w-12 sm:w-16"} font-medium leading-tight`}>
+              <div>Ags</div><div>atingidos</div>
+            </th>
+            <th className={`text-center pb-1.5 ${expanded ? "w-24 sm:w-28" : "w-14 sm:w-20"} font-medium leading-tight`}>
+              <div>Gap Ags</div><div>.p ≥ 90%</div>
+            </th>
+            <th className={`text-center pb-1.5 ${expanded ? "w-20 sm:w-24" : "w-12 sm:w-16"} font-medium`}>Potencial</th>
+            <th className={`text-center pb-1.5 ${expanded ? "w-20 sm:w-24" : "w-12 sm:w-16"} font-medium`}>Invest.</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => {
+            const color =
+              r.sortimento >= 0.9 ? "#22C55E" : r.sortimento >= 0.85 ? ORANGE : RED;
+            return (
+              <tr key={r.rede} className="border-b border-neutral-800 last:border-0">
+                <td className="py-1 text-neutral-400 font-medium">{i + 1}</td>
+                <td className="py-1 text-neutral-200 truncate" title={r.rede}>
+                  {r.rede}
+                </td>
+                <td className="py-1 text-center font-medium" style={{ color }}>
+                  {fmtPct(r.sortimento, 0)}
+                </td>
+                <td className="py-1 text-center font-medium">
+                  <span style={{ color }}>{r.agBatidos}</span>
+                  <span className="text-neutral-200"> / {r.qtdAG}</span>
+                </td>
+                <td className="py-1 text-center text-neutral-200">
+                  {r.gapAgs90.toLocaleString("pt-BR")}
+                </td>
+                <td className="py-1 text-center text-neutral-200">
+                  {fmtBRL(r.potencial)}
+                </td>
+                <td className="py-1 text-center font-medium text-neutral-200">
+                  {fmtBRL(r.gerado)}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function RankingCard({
   rows,
 }: {
@@ -1444,6 +1524,7 @@ function RankingCard({
   const fmtInt = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
   const fmtBRNum = (n: number) =>
     n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const [expanded, setExpanded] = useState(false);
   const handleDownloadCsv = () => {
     const headers = ["#", "Rede", "Sortimento", "Ags batidos", "Qtd AG", "Gap Ags p>=90%", "Potencial", "Investimento"];
     const escape = (v: string | number) => {
@@ -1484,80 +1565,68 @@ function RankingCard({
     doc.save(`ranking-redes-${new Date().toISOString().slice(0, 10)}.pdf`);
   };
   return (
-    <Card>
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <CardTitle
-          icon={<Star size={13} className="text-neutral-400" />}
-          title="Ranking de redes"
-          sub="Top redes por sortimento"
-        />
-        <ExtractDropdown onCsv={handleDownloadCsv} onPdf={handleDownloadPdf} disabled={rows.length === 0} />
-      </div>
-      {rows.length === 0 ? (
-        <Empty />
-      ) : (
-        <div
-          className="max-h-[200px] overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-neutral-600"
-          style={{ scrollbarWidth: "thin", scrollbarColor: "#404040 transparent" }}
-        >
-          <table className="w-full text-[9px] sm:text-[11px]" style={{ tableLayout: "fixed" }}>
-            <thead className="sticky top-0 bg-[#141416] z-10">
-              <tr className="text-neutral-400 font-medium border-b border-neutral-800">
-                <th className="text-left pb-1.5 w-4 sm:w-5 font-medium">#</th>
-                <th className="text-left pb-1.5 font-medium">Rede</th>
-                <th className="text-center pb-1.5 w-9 sm:w-12 font-medium">Sort.</th>
-                <th className="text-center pb-1.5 w-12 sm:w-16 font-medium leading-tight">
-                  <div>Ags</div><div>atingidos</div>
-                </th>
-                <th className="text-center pb-1.5 w-14 sm:w-20 font-medium leading-tight">
-                  <div>Gap Ags</div><div>.p ≥ 90%</div>
-                </th>
-                <th className="text-center pb-1.5 w-12 sm:w-16 font-medium">Potencial</th>
-                <th className="text-center pb-1.5 w-12 sm:w-16 font-medium">Invest.</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r, i) => {
-                const color =
-                  r.sortimento >= 0.9 ? "#22C55E" : r.sortimento >= 0.85 ? ORANGE : RED;
-                return (
-                  <tr key={r.rede} className="border-b border-neutral-800 last:border-0">
-                    <td className="py-1 text-neutral-400 font-medium">{i + 1}</td>
-                    <td className="py-1 text-neutral-200 truncate" title={r.rede}>
-                      {r.rede}
-                    </td>
-                    <td className="py-1 text-center font-medium" style={{ color }}>
-                      {fmtPct(r.sortimento, 0)}
-                    </td>
-                    <td className="py-1 text-center font-medium">
-                      <span style={{ color }}>{r.agBatidos}</span>
-                      <span className="text-neutral-200"> / {r.qtdAG}</span>
-                    </td>
-                    <td className="py-1 text-center text-neutral-200">
-                      {r.gapAgs90.toLocaleString("pt-BR")}
-                    </td>
-                    <td className="py-1 text-center text-neutral-200">
-                      {fmtBRL(r.potencial)}
-                    </td>
-                    <td className="py-1 text-center font-medium text-neutral-200">
-                      {fmtBRL(r.gerado)}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+    <>
+      <Card>
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <CardTitle
+            icon={<Star size={13} className="text-neutral-400" />}
+            title="Ranking de redes"
+            sub="Top redes por sortimento"
+          />
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              disabled={rows.length === 0}
+              onClick={() => setExpanded(true)}
+              className="inline-flex items-center justify-center h-7 w-7 rounded-md border border-neutral-700/80 bg-neutral-800/60 text-neutral-200 hover:bg-neutral-700/60 hover:text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Expandir"
+            >
+              <Maximize2 size={14} />
+            </button>
+            <ExtractDropdown onCsv={handleDownloadCsv} onPdf={handleDownloadPdf} disabled={rows.length === 0} />
+          </div>
         </div>
-      )}
-      <div className="h-px bg-neutral-800 my-2" />
-      <div className="flex gap-2.5">
-        <LegendDot color={GREEN} label="≥90%" />
-        <LegendDot color={ORANGE} label="85–89%" />
-        <LegendDot color={RED} label="<85%" />
-      </div>
-    </Card>
+        {rows.length === 0 ? (
+          <Empty />
+        ) : (
+          <RankingTable rows={rows} />
+        )}
+        <div className="h-px bg-neutral-800 my-2" />
+        <div className="flex gap-2.5">
+          <LegendDot color={GREEN} label="≥90%" />
+          <LegendDot color={ORANGE} label="85–89%" />
+          <LegendDot color={RED} label="<85%" />
+        </div>
+      </Card>
+
+      <Dialog open={expanded} onOpenChange={setExpanded}>
+        <DialogContent className="w-[95vw] h-[95vh] max-w-none max-h-none p-0 border-neutral-800 bg-[#1a1a1c] overflow-hidden flex flex-col">
+          <DialogHeader className="px-4 py-3 border-b border-neutral-800 shrink-0">
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-sm font-medium text-neutral-100 flex items-center gap-1.5">
+                <Star size={14} className="text-neutral-400" />
+                Ranking de redes
+              </DialogTitle>
+              <div className="flex items-center gap-2">
+                <ExtractDropdown onCsv={handleDownloadCsv} onPdf={handleDownloadPdf} disabled={rows.length === 0} />
+              </div>
+            </div>
+          </DialogHeader>
+          {rows.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center p-4">
+              <Empty />
+            </div>
+          ) : (
+            <div className="flex-1 p-4 min-h-0">
+              <RankingTable rows={rows} expanded />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
+
 
 function ExtractDropdown({
   onCsv,
