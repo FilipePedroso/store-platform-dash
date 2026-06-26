@@ -1453,7 +1453,7 @@ function RankingTable({
   const fmtInt = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
   return (
     <div
-      className={`${expanded ? "h-full min-h-0 overflow-y-scroll" : "max-h-[200px] overflow-y-auto"} pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-neutral-600`}
+      className={`${expanded ? "h-[calc(92vh-104px)] max-h-[calc(92vh-104px)] overflow-y-scroll" : "max-h-[200px] overflow-y-auto"} pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-neutral-600`}
       style={{ scrollbarWidth: "thin", scrollbarColor: "#404040 transparent" }}
     >
       <table className={`w-full ${expanded ? "text-[12px] sm:text-[13px]" : "text-[9px] sm:text-[11px]"}`} style={{ tableLayout: "fixed" }}>
