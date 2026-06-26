@@ -1787,33 +1787,36 @@ function TeamPerformanceCard({
             Redes com sortimento ≥ 90%
           </div>
         </div>
-        <div className="relative shrink-0" ref={ref}>
-          <button
-            onClick={() => setOpen((v) => !v)}
-            className="rounded-full px-3 py-1 text-[11px] flex items-center gap-1.5 border transition-colors bg-[#0E2E4D] border-[#378ADD] text-[#8BBEEC] font-medium"
-          >
-            <Layers size={12} />
-            {TEAM_LABELS[mode]}
-            <ChevronDown size={12} />
-          </button>
-          {open && (
-            <div className="absolute right-0 z-20 mt-1 min-w-[140px] bg-[#1a1a1c] border border-neutral-800 rounded-md shadow-lg py-1 text-[11px]">
-              {(Object.keys(TEAM_LABELS) as TeamMode[]).map((m) => (
-                <button
-                  key={m}
-                  onClick={() => {
-                    setMode(m);
-                    setOpen(false);
-                  }}
-                  className={`block w-full text-left px-3 py-1 hover:bg-neutral-800 ${
-                    mode === m ? "text-[#8BBEEC] font-medium" : "text-neutral-200"
-                  }`}
-                >
-                  {TEAM_LABELS[m]}
-                </button>
-              ))}
-            </div>
-          )}
+        <div className="flex items-center gap-2 shrink-0">
+          <ExtractDropdown onCsv={handleDownloadCsv} onPdf={handleDownloadPdf} disabled={teamRows.length === 0} />
+          <div className="relative" ref={ref}>
+            <button
+              onClick={() => setOpen((v) => !v)}
+              className="rounded-full px-3 py-1 text-[11px] flex items-center gap-1.5 border transition-colors bg-[#0E2E4D] border-[#378ADD] text-[#8BBEEC] font-medium"
+            >
+              <Layers size={12} />
+              {TEAM_LABELS[mode]}
+              <ChevronDown size={12} />
+            </button>
+            {open && (
+              <div className="absolute right-0 z-20 mt-1 min-w-[140px] bg-[#1a1a1c] border border-neutral-800 rounded-md shadow-lg py-1 text-[11px]">
+                {(Object.keys(TEAM_LABELS) as TeamMode[]).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => {
+                      setMode(m);
+                      setOpen(false);
+                    }}
+                    className={`block w-full text-left px-3 py-1 hover:bg-neutral-800 ${
+                      mode === m ? "text-[#8BBEEC] font-medium" : "text-neutral-200"
+                    }`}
+                  >
+                    {TEAM_LABELS[m]}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
