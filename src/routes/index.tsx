@@ -1456,20 +1456,20 @@ function RankingTable({
       className={`${expanded ? "h-[calc(92vh-104px)] max-h-[calc(92vh-104px)] overflow-y-scroll" : "max-h-[200px] overflow-y-auto"} pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-neutral-600`}
       style={{ scrollbarWidth: "thin", scrollbarColor: "#404040 transparent" }}
     >
-      <table className={`w-full ${expanded ? "text-[12px] sm:text-[13px]" : "text-[9px] sm:text-[11px]"}`} style={{ tableLayout: "fixed" }}>
+      <table className={`w-full ${expanded ? "text-[10px] sm:text-[11px] lg:text-[12px]" : "text-[9px] sm:text-[11px]"}`} style={{ tableLayout: "fixed" }}>
         <thead className="sticky top-0 bg-[#141416] z-10">
           <tr className="text-neutral-400 font-medium border-b border-neutral-800">
-            <th className={`text-left pb-1.5 ${expanded ? "w-8 sm:w-10" : "w-4 sm:w-5"} font-medium`}>#</th>
-            <th className="text-left pb-1.5 font-medium">Rede</th>
-            <th className={`text-center pb-1.5 ${expanded ? "w-12 sm:w-16" : "w-9 sm:w-12"} font-medium`}>Sort.</th>
-            <th className={`text-center pb-1.5 ${expanded ? "w-20 sm:w-24" : "w-12 sm:w-16"} font-medium leading-tight`}>
+            <th className={`text-left pb-1 ${expanded ? "w-5 sm:w-8" : "w-4 sm:w-5"} font-medium`}>#</th>
+            <th className="text-left pb-1 font-medium truncate">Rede</th>
+            <th className={`text-center pb-1 ${expanded ? "w-8 sm:w-14" : "w-9 sm:w-12"} font-medium`}>Sort.</th>
+            <th className={`text-center pb-1 ${expanded ? "w-12 sm:w-20" : "w-12 sm:w-16"} font-medium leading-tight`}>
               <div>Ags</div><div>atingidos</div>
             </th>
-            <th className={`text-center pb-1.5 ${expanded ? "w-24 sm:w-28" : "w-14 sm:w-20"} font-medium leading-tight`}>
+            <th className={`text-center pb-1 ${expanded ? "w-12 sm:w-24" : "w-14 sm:w-20"} font-medium leading-tight`}>
               <div>Gap Ags</div><div>.p ≥ 90%</div>
             </th>
-            <th className={`text-center pb-1.5 ${expanded ? "w-20 sm:w-24" : "w-12 sm:w-16"} font-medium`}>Potencial</th>
-            <th className={`text-center pb-1.5 ${expanded ? "w-20 sm:w-24" : "w-12 sm:w-16"} font-medium`}>Invest.</th>
+            <th className={`text-center pb-1 ${expanded ? "w-14 sm:w-20" : "w-12 sm:w-16"} font-medium`}>Potencial</th>
+            <th className={`text-center pb-1 ${expanded ? "w-14 sm:w-20" : "w-12 sm:w-16"} font-medium`}>Invest.</th>
           </tr>
         </thead>
         <tbody>
@@ -1600,14 +1600,14 @@ function RankingCard({
       </Card>
 
       <Dialog open={expanded} onOpenChange={setExpanded}>
-        <DialogContent className="w-[min(920px,94vw)] h-[92vh] max-w-[94vw] max-h-[92vh] p-0 border-neutral-800 bg-[#1a1a1c] overflow-hidden flex flex-col">
-          <DialogHeader className="px-4 py-3 border-b border-neutral-800 shrink-0">
+        <DialogContent className="w-[min(920px,100vw)] h-[100vh] sm:w-[min(920px,94vw)] sm:h-[92vh] max-w-none sm:max-w-[min(920px,94vw)] p-0 border-neutral-800 bg-[#1a1a1c] overflow-hidden flex flex-col rounded-none sm:rounded-lg">
+          <DialogHeader className="px-3 sm:px-4 py-2 sm:py-3 border-b border-neutral-800 shrink-0">
             <div className="flex items-center justify-between">
-              <DialogTitle className="text-sm font-medium text-neutral-100 flex items-center gap-1.5">
+              <DialogTitle className="text-xs sm:text-sm font-medium text-neutral-100 flex items-center gap-1.5">
                 <Star size={14} className="text-neutral-400" />
                 Ranking de redes
               </DialogTitle>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2">
                 <ExtractDropdown onCsv={handleDownloadCsv} onPdf={handleDownloadPdf} disabled={rows.length === 0} />
                 <button
                   type="button"
@@ -1625,7 +1625,7 @@ function RankingCard({
               <Empty />
             </div>
           ) : (
-            <div className="flex-1 min-h-0 p-4 overflow-hidden">
+            <div className="flex-1 min-h-0 p-2 sm:p-4 overflow-hidden">
               <RankingTable rows={rows} expanded />
             </div>
           )}
