@@ -1453,7 +1453,7 @@ function RankingTable({
   const fmtInt = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
   return (
     <div
-      className={`overflow-y-auto pr-1 ${expanded ? "flex-1" : "max-h-[200px]"} [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-neutral-600`}
+      className={`${expanded ? "h-full min-h-0 overflow-y-scroll" : "max-h-[200px] overflow-y-auto"} pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-neutral-600`}
       style={{ scrollbarWidth: "thin", scrollbarColor: "#404040 transparent" }}
     >
       <table className={`w-full ${expanded ? "text-[12px] sm:text-[13px]" : "text-[9px] sm:text-[11px]"}`} style={{ tableLayout: "fixed" }}>
@@ -1600,7 +1600,7 @@ function RankingCard({
       </Card>
 
       <Dialog open={expanded} onOpenChange={setExpanded}>
-        <DialogContent className="w-[95vw] h-[95vh] max-w-none max-h-none p-0 border-neutral-800 bg-[#1a1a1c] overflow-hidden flex flex-col">
+        <DialogContent className="w-[min(920px,94vw)] h-[92vh] max-w-[94vw] max-h-[92vh] p-0 border-neutral-800 bg-[#1a1a1c] overflow-hidden flex flex-col">
           <DialogHeader className="px-4 py-3 border-b border-neutral-800 shrink-0">
             <div className="flex items-center justify-between">
               <DialogTitle className="text-sm font-medium text-neutral-100 flex items-center gap-1.5">
@@ -1617,7 +1617,7 @@ function RankingCard({
               <Empty />
             </div>
           ) : (
-            <div className="flex-1 p-4 min-h-0">
+            <div className="flex-1 min-h-0 p-4 overflow-hidden">
               <RankingTable rows={rows} expanded />
             </div>
           )}
