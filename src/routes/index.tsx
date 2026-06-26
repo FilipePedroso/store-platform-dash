@@ -1040,13 +1040,13 @@ function CardTitle({
   sub: string;
 }) {
   return (
-    <>
+    <div className="min-w-0">
       <div className="text-[12px] font-medium text-neutral-100 mb-0.5 flex items-center gap-1.5">
         {icon}
         {title}
       </div>
       <div className="text-[11px] text-neutral-400 mb-3">{sub}</div>
-    </>
+    </div>
   );
 }
 
@@ -1442,6 +1442,8 @@ function RankingCard({
   }[];
 }) {
   const fmtInt = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
+  const fmtBRNum = (n: number) =>
+    n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const handleDownloadCsv = () => {
     const headers = ["#", "Rede", "Sortimento", "Ags batidos", "Qtd AG", "Gap Ags p>=90%", "Potencial", "Investimento"];
     const escape = (v: string | number) => {
@@ -1450,7 +1452,7 @@ function RankingCard({
     };
     const lines = [headers.join(";")];
     rows.forEach((r, i) => {
-      lines.push([i + 1, r.rede, fmtPct(r.sortimento, 0), r.agBatidos, r.qtdAG, r.gapAgs90, r.potencial, r.gerado].map(escape).join(";"));
+      lines.push([i + 1, r.rede, fmtPct(r.sortimento, 0), r.agBatidos, r.qtdAG, r.gapAgs90, fmtBRNum(r.potencial), fmtBRNum(r.gerado)].map(escape).join(";"));
     });
     const csv = "\uFEFF" + lines.join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
