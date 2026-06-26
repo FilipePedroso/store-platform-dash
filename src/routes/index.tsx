@@ -1600,14 +1600,14 @@ function RankingCard({
       </Card>
 
       <Dialog open={expanded} onOpenChange={setExpanded}>
-        <DialogContent className="w-[min(920px,94vw)] h-[92vh] max-w-[94vw] max-h-[92vh] p-0 border-neutral-800 bg-[#1a1a1c] overflow-hidden flex flex-col">
-          <DialogHeader className="px-4 py-3 border-b border-neutral-800 shrink-0">
+        <DialogContent className="w-[min(920px,100vw)] h-[100vh] sm:w-[min(920px,94vw)] sm:h-[92vh] max-w-none sm:max-w-[min(920px,94vw)] p-0 border-neutral-800 bg-[#1a1a1c] overflow-hidden flex flex-col rounded-none sm:rounded-lg">
+          <DialogHeader className="px-3 sm:px-4 py-2 sm:py-3 border-b border-neutral-800 shrink-0">
             <div className="flex items-center justify-between">
-              <DialogTitle className="text-sm font-medium text-neutral-100 flex items-center gap-1.5">
+              <DialogTitle className="text-xs sm:text-sm font-medium text-neutral-100 flex items-center gap-1.5">
                 <Star size={14} className="text-neutral-400" />
                 Ranking de redes
               </DialogTitle>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2">
                 <ExtractDropdown onCsv={handleDownloadCsv} onPdf={handleDownloadPdf} disabled={rows.length === 0} />
                 <button
                   type="button"
@@ -1625,7 +1625,7 @@ function RankingCard({
               <Empty />
             </div>
           ) : (
-            <div className="flex-1 min-h-0 p-4 overflow-hidden">
+            <div className="flex-1 min-h-0 p-2 sm:p-4 overflow-hidden">
               <RankingTable rows={rows} expanded />
             </div>
           )}
