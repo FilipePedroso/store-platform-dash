@@ -2278,7 +2278,7 @@ function VirtualizedGruposList({
   return (
     <div
       ref={parentRef}
-      className="max-h-[420px] overflow-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full text-[9px] sm:text-[11px]"
+      className="max-h-[calc(100vh-180px)] overflow-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full text-[9px] sm:text-[11px]"
       style={{ scrollbarWidth: "thin", scrollbarColor: "#404040 transparent" }}
     >
       <div
