@@ -20,8 +20,14 @@ import {
   Download,
   Rocket,
   Users,
-
+  Maximize2,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -42,6 +48,7 @@ import {
   type EstruturaGrupoRow,
   type SkuRow,
 } from "@/lib/dashboard-data";
+
 
 
 import {
