@@ -1441,76 +1441,97 @@ function RankingCard({
     gapAgs90: number;
   }[];
 }) {
+  const fmtInt = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
+  const handleDownloadCsv = () => {
+    const headers = ["#", "Rede", "Sortimento", "Ags batidos", "Qtd AG", "Gap Ags p>=90%", "Potencial", "Investimento"];
+    const escape = (v: string | number) => {
+      const s = String(v ?? "");
+      return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const lines = [headers.join(";")];
+    rows.forEach((r, i) => {
+      lines.push([i + 1, r.rede, fmtPct(r.sortimento, 0), r.agBatidos, r.qtdAG, r.gapAgs90, r.potencial, r.gerado].map(escape).join(";"));
+    });
+    const csv = "\uFEFF" + lines.join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `ranking-redes-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+  const handleDownloadPdf = () => {
+    const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+    doc.setFontSize(14);
+    doc.text("Ranking de redes", 40, 40);
+    const body = rows.map((r, i) => [
+      i + 1, r.rede, fmtPct(r.sortimento, 0),
+      `${r.agBatidos} / ${r.qtdAG}`, fmtInt(r.gapAgs90), fmtBRL(r.potencial), fmtBRL(r.gerado),
+    ]);
+    autoTable(doc, {
+      startY: 60,
+      head: [["#", "Rede", "Sortimento", "Ags atingidos", "Gap Ags p>=90%", "Potencial", "Investimento"]],
+      body,
+      styles: { fontSize: 9, cellPadding: 4 },
+      headStyles: { fillColor: [38, 38, 40], textColor: 255 },
+      alternateRowStyles: { fillColor: [245, 245, 245] },
+    });
+    doc.save(`ranking-redes-${new Date().toISOString().slice(0, 10)}.pdf`);
+  };
   return (
     <Card>
-      <CardTitle
-        icon={<Star size={13} className="text-neutral-400" />}
-        title="Ranking de redes"
-        sub="Top redes por sortimento"
-      />
-      {rows.length === 0 ? (
-        <Empty />
-      ) : (
-        <div
-          className="max-h-[200px] overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-neutral-600"
-          style={{ scrollbarWidth: "thin", scrollbarColor: "#404040 transparent" }}
-        >
-          <table className="w-full text-[9px] sm:text-[11px]" style={{ tableLayout: "fixed" }}>
-            <thead className="sticky top-0 bg-[#141416] z-10">
-              <tr className="text-neutral-400 font-medium border-b border-neutral-800">
-                <th className="text-left pb-1.5 w-4 sm:w-5 font-medium">#</th>
-                <th className="text-left pb-1.5 font-medium">Rede</th>
-                <th className="text-center pb-1.5 w-9 sm:w-12 font-medium">Sort.</th>
-                <th className="text-center pb-1.5 w-12 sm:w-16 font-medium leading-tight">
-                  <div>Ags</div><div>atingidos</div>
-                </th>
-                <th className="text-center pb-1.5 w-14 sm:w-20 font-medium leading-tight">
-                  <div>Gap Ags</div><div>.p ≥ 90%</div>
-                </th>
-                <th className="text-center pb-1.5 w-12 sm:w-16 font-medium">Potencial</th>
-                <th className="text-center pb-1.5 w-12 sm:w-16 font-medium">Invest.</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r, i) => {
-                const color =
-                  r.sortimento >= 0.9 ? "#22C55E" : r.sortimento >= 0.85 ? ORANGE : RED;
-                return (
-                  <tr key={r.rede} className="border-b border-neutral-800 last:border-0">
-                    <td className="py-1 text-neutral-400 font-medium">{i + 1}</td>
-                    <td className="py-1 text-neutral-200 truncate" title={r.rede}>
-                      {r.rede}
-                    </td>
-                    <td className="py-1 text-center font-medium" style={{ color }}>
-                      {fmtPct(r.sortimento, 0)}
-                    </td>
-                    <td className="py-1 text-center font-medium">
-                      <span style={{ color }}>{r.agBatidos}</span>
-                      <span className="text-neutral-200"> / {r.qtdAG}</span>
-                    </td>
-                    <td className="py-1 text-center text-neutral-200">
-                      {r.gapAgs90.toLocaleString("pt-BR")}
-                    </td>
-                    <td className="py-1 text-center text-neutral-200">
-                      {fmtBRL(r.potencial)}
-                    </td>
-                    <td className="py-1 text-center font-medium text-neutral-200">
-                      {fmtBRL(r.gerado)}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-      <div className="h-px bg-neutral-800 my-2" />
-      <div className="flex gap-2.5">
-        <LegendDot color={GREEN} label="≥90%" />
-        <LegendDot color={ORANGE} label="85–89%" />
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <CardTitle
+          icon={<Star size={13} className="text-neutral-400" />}
+          title="Ranking de redes"
+          sub="Top redes por sortimento"
+        />
+        <ExtractDropdown onCsv={handleDownloadCsv} onPdf={handleDownloadPdf} disabled={rows.length === 0} />
+      </div>
+...
         <LegendDot color={RED} label="<85%" />
       </div>
     </Card>
+  );
+}
+
+function ExtractDropdown({
+  onCsv,
+  onPdf,
+  disabled = false,
+}: {
+  onCsv: () => void;
+  onPdf: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          disabled={disabled}
+          className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-neutral-700/80 bg-neutral-800/60 text-[11px] text-neutral-200 hover:bg-neutral-700/60 hover:text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+          title="Extrair"
+        >
+          <Download size={12} />
+          Extrair
+          <ChevronDown size={12} />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="bg-neutral-900 border-neutral-700 text-neutral-200 min-w-[140px]">
+        <DropdownMenuItem onClick={onCsv} className="text-[12px] focus:bg-neutral-800 focus:text-white cursor-pointer">
+          <Download size={12} className="mr-2" />
+          Extrair em CSV
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onPdf} className="text-[12px] focus:bg-neutral-800 focus:text-white cursor-pointer">
+          <Download size={12} className="mr-2" />
+          Extrair em PDF
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
