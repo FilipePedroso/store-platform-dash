@@ -1456,20 +1456,20 @@ function RankingTable({
       className={`${expanded ? "h-[calc(92vh-104px)] max-h-[calc(92vh-104px)] overflow-y-scroll" : "max-h-[200px] overflow-y-auto"} pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-neutral-600`}
       style={{ scrollbarWidth: "thin", scrollbarColor: "#404040 transparent" }}
     >
-      <table className={`w-full ${expanded ? "text-[12px] sm:text-[13px]" : "text-[9px] sm:text-[11px]"}`} style={{ tableLayout: "fixed" }}>
+      <table className={`w-full ${expanded ? "text-[10px] sm:text-[11px] lg:text-[12px]" : "text-[9px] sm:text-[11px]"}`} style={{ tableLayout: "fixed" }}>
         <thead className="sticky top-0 bg-[#141416] z-10">
           <tr className="text-neutral-400 font-medium border-b border-neutral-800">
-            <th className={`text-left pb-1.5 ${expanded ? "w-8 sm:w-10" : "w-4 sm:w-5"} font-medium`}>#</th>
-            <th className="text-left pb-1.5 font-medium">Rede</th>
-            <th className={`text-center pb-1.5 ${expanded ? "w-12 sm:w-16" : "w-9 sm:w-12"} font-medium`}>Sort.</th>
-            <th className={`text-center pb-1.5 ${expanded ? "w-20 sm:w-24" : "w-12 sm:w-16"} font-medium leading-tight`}>
+            <th className={`text-left pb-1 ${expanded ? "w-6 sm:w-8" : "w-4 sm:w-5"} font-medium`}>#</th>
+            <th className="text-left pb-1 font-medium truncate">Rede</th>
+            <th className={`text-center pb-1 ${expanded ? "w-10 sm:w-14" : "w-9 sm:w-12"} font-medium`}>Sort.</th>
+            <th className={`text-center pb-1 ${expanded ? "w-16 sm:w-20" : "w-12 sm:w-16"} font-medium leading-tight`}>
               <div>Ags</div><div>atingidos</div>
             </th>
-            <th className={`text-center pb-1.5 ${expanded ? "w-24 sm:w-28" : "w-14 sm:w-20"} font-medium leading-tight`}>
+            <th className={`text-center pb-1 ${expanded ? "w-18 sm:w-24" : "w-14 sm:w-20"} font-medium leading-tight`}>
               <div>Gap Ags</div><div>.p ≥ 90%</div>
             </th>
-            <th className={`text-center pb-1.5 ${expanded ? "w-20 sm:w-24" : "w-12 sm:w-16"} font-medium`}>Potencial</th>
-            <th className={`text-center pb-1.5 ${expanded ? "w-20 sm:w-24" : "w-12 sm:w-16"} font-medium`}>Invest.</th>
+            <th className={`text-center pb-1 ${expanded ? "w-16 sm:w-20" : "w-12 sm:w-16"} font-medium`}>Potencial</th>
+            <th className={`text-center pb-1 ${expanded ? "w-16 sm:w-20" : "w-12 sm:w-16"} font-medium`}>Invest.</th>
           </tr>
         </thead>
         <tbody>
