@@ -1459,17 +1459,17 @@ function RankingTable({
       <table className={`w-full ${expanded ? "text-[10px] sm:text-[11px] lg:text-[12px]" : "text-[9px] sm:text-[11px]"}`} style={{ tableLayout: "fixed" }}>
         <thead className="sticky top-0 bg-[#141416] z-10">
           <tr className="text-neutral-400 font-medium border-b border-neutral-800">
-            <th className={`text-left pb-1 ${expanded ? "w-6 sm:w-8" : "w-4 sm:w-5"} font-medium`}>#</th>
+            <th className={`text-left pb-1 ${expanded ? "w-5 sm:w-8" : "w-4 sm:w-5"} font-medium`}>#</th>
             <th className="text-left pb-1 font-medium truncate">Rede</th>
-            <th className={`text-center pb-1 ${expanded ? "w-10 sm:w-14" : "w-9 sm:w-12"} font-medium`}>Sort.</th>
-            <th className={`text-center pb-1 ${expanded ? "w-16 sm:w-20" : "w-12 sm:w-16"} font-medium leading-tight`}>
+            <th className={`text-center pb-1 ${expanded ? "w-8 sm:w-14" : "w-9 sm:w-12"} font-medium`}>Sort.</th>
+            <th className={`text-center pb-1 ${expanded ? "w-12 sm:w-20" : "w-12 sm:w-16"} font-medium leading-tight`}>
               <div>Ags</div><div>atingidos</div>
             </th>
-            <th className={`text-center pb-1 ${expanded ? "w-18 sm:w-24" : "w-14 sm:w-20"} font-medium leading-tight`}>
+            <th className={`text-center pb-1 ${expanded ? "w-12 sm:w-24" : "w-14 sm:w-20"} font-medium leading-tight`}>
               <div>Gap Ags</div><div>.p ≥ 90%</div>
             </th>
-            <th className={`text-center pb-1 ${expanded ? "w-16 sm:w-20" : "w-12 sm:w-16"} font-medium`}>Potencial</th>
-            <th className={`text-center pb-1 ${expanded ? "w-16 sm:w-20" : "w-12 sm:w-16"} font-medium`}>Invest.</th>
+            <th className={`text-center pb-1 ${expanded ? "w-14 sm:w-20" : "w-12 sm:w-16"} font-medium`}>Potencial</th>
+            <th className={`text-center pb-1 ${expanded ? "w-14 sm:w-20" : "w-12 sm:w-16"} font-medium`}>Invest.</th>
           </tr>
         </thead>
         <tbody>
