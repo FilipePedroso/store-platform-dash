@@ -1040,13 +1040,13 @@ function CardTitle({
   sub: string;
 }) {
   return (
-    <>
+    <div className="min-w-0">
       <div className="text-[12px] font-medium text-neutral-100 mb-0.5 flex items-center gap-1.5">
         {icon}
         {title}
       </div>
       <div className="text-[11px] text-neutral-400 mb-3">{sub}</div>
-    </>
+    </div>
   );
 }
 
