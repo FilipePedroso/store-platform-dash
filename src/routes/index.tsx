@@ -2588,6 +2588,16 @@ function LineHistoryCard(p: LineHistoryProps) {
   const gradIdRef = useRef(`grad-${Math.random().toString(36).slice(2)}`);
   const gradId = gradIdRef.current;
 
+  // Key that changes whenever the underlying data changes → re-triggers CSS animation.
+  const animKey =
+    p.months.join("|") +
+    "#" +
+    p.total.join(",") +
+    "#" +
+    p.groups.map((g) => g.name + ":" + g.values.join(",")).join("|") +
+    "#" +
+    (showCluster ? "c" : "t");
+
   return (
     <Card>
       <div className="flex items-start justify-between gap-2 mb-2">
