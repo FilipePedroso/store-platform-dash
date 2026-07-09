@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { ReactElement } from "react";
 
 const prefersReduced = () =>
   typeof window !== "undefined" &&
