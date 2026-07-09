@@ -2710,29 +2710,55 @@ function LineHistoryCard(p: LineHistoryProps) {
           )}
           {/* Linha extra (potencial) — sempre como total, oculta no modo cluster */}
           {p.extra && !showCluster && (
-            <>
+            <g key={`ex-${animKey}`}>
               <polyline
                 points={polylinePoints(p.extra.values)}
                 fill="none"
                 stroke={p.extra.color}
                 strokeWidth="1.5"
                 strokeDasharray={p.extra.dashed ? "5 3" : undefined}
+                pathLength={p.extra.dashed ? undefined : 1}
+                className={p.extra.dashed ? undefined : "line-draw"}
               />
               {p.extra.values.map((v, i) => (
-                <circle key={`ex-${i}`} cx={xAt(i)} cy={yAt(v)} r="3" fill={p.extra!.color} />
+                <circle
+                  key={`ex-${i}`}
+                  cx={xAt(i)}
+                  cy={yAt(v)}
+                  r="3"
+                  fill={p.extra!.color}
+                  className="line-point-pop"
+                  style={{ animationDelay: `${400 + i * 80}ms` }}
+                />
               ))}
-            </>
+            </g>
           )}
           {/* Linhas principais */}
           {showCluster ? (
-            <>
+            <g key={`cl-${animKey}`}>
               {p.groups.map((g, idx) => {
                 const c = colorForGroup(g.name, idx);
                 return (
                   <g key={g.name}>
-                    <polyline points={polylinePoints(g.values)} fill="none" stroke={c} strokeWidth="1.8" />
+                    <polyline
+                      points={polylinePoints(g.values)}
+                      fill="none"
+                      stroke={c}
+                      strokeWidth="1.8"
+                      pathLength={1}
+                      className="line-draw"
+                      style={{ animationDelay: `${idx * 120}ms` }}
+                    />
                     {g.values.map((v, i) => (
-                      <circle key={`${g.name}-${i}`} cx={xAt(i)} cy={yAt(v)} r="3" fill={c} />
+                      <circle
+                        key={`${g.name}-${i}`}
+                        cx={xAt(i)}
+                        cy={yAt(v)}
+                        r="3"
+                        fill={c}
+                        className="line-point-pop"
+                        style={{ animationDelay: `${idx * 120 + 400 + i * 60}ms` }}
+                      />
                     ))}
                   </g>
                 );
@@ -2767,20 +2793,23 @@ function LineHistoryCard(p: LineHistoryProps) {
                     stroke="#0a0a0a"
                     strokeWidth="2.5"
                     style={{ paintOrder: "stroke" }}
+                    className="line-point-pop"
                   >
                     {p.pointFormat(it.value)}
                   </text>
                 ));
               })}
-            </>
+            </g>
           ) : (
-            <>
-              <path d={areaPath(p.total)} fill={`url(#${gradId})`} />
+            <g key={`tt-${animKey}`}>
+              <path d={areaPath(p.total)} fill={`url(#${gradId})`} className="line-area-fade" />
               <polyline
                 points={polylinePoints(p.total)}
                 fill="none"
                 stroke={p.color}
                 strokeWidth="2"
+                pathLength={1}
+                className="line-draw"
               />
 
               {p.total.map((v, i) => {
@@ -2793,9 +2822,17 @@ function LineHistoryCard(p: LineHistoryProps) {
                     : "#fff";
                 const mainY = p.pointSubLabel ? yAt(v) - 7 : yAt(v) - 7;
                 const subY = yAt(v) - 18;
+                const delay = 500 + i * 70;
                 return (
                   <g key={`t-${i}`}>
-                    <circle cx={xAt(i)} cy={yAt(v)} r="4" fill={p.color} />
+                    <circle
+                      cx={xAt(i)}
+                      cy={yAt(v)}
+                      r="4"
+                      fill={p.color}
+                      className="line-point-pop"
+                      style={{ animationDelay: `${delay}ms` }}
+                    />
                     {p.pointSubLabel && subVal !== undefined && (
                       <text
                         x={xAt(i)}
@@ -2804,6 +2841,8 @@ function LineHistoryCard(p: LineHistoryProps) {
                         fontSize="9"
                         fontWeight="700"
                         fill={subColor}
+                        className="line-point-pop"
+                        style={{ animationDelay: `${delay + 60}ms` }}
                       >
                         {p.pointSubLabel.format(subVal)}
                       </text>
@@ -2815,14 +2854,17 @@ function LineHistoryCard(p: LineHistoryProps) {
                       fontSize="9"
                       fontWeight="500"
                       fill="#fff"
+                      className="line-point-pop"
+                      style={{ animationDelay: `${delay + 60}ms` }}
                     >
                       {p.pointFormat(v)}
                     </text>
                   </g>
                 );
               })}
-            </>
+            </g>
           )}
+
         </svg>
       )}
 
