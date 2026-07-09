@@ -1249,49 +1249,64 @@ function IniciativasCard({ data }: { data: IniciativaStat[] }) {
           data.map((it, idx) => {
             const pct = it.total > 0 ? it.ok / it.total : 0;
             return (
-              <div
-                key={it.name}
-                className={idx > 0 ? "pt-2.5 border-t border-neutral-800/70" : ""}
-              >
-                <div className="text-[12px] font-medium text-neutral-100 mb-1 truncate" title={it.name}>
-                  {it.name}
-                </div>
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10.5px] text-neutral-300 mb-1.5">
-                  <span className="tabular-nums">
-                    <span className="font-semibold text-neutral-100">{it.ok}</span>
-                    <span className="text-neutral-500"> / {it.total}</span>
-                  </span>
-                  {it.byCluster.map((c) => (
-                    <span key={c.label} className="flex items-center gap-1 tabular-nums">
-                      <span
-                        className="inline-block w-1.5 h-1.5 rounded-full"
-                        style={{ background: c.color }}
-                      />
-                      <span className="text-neutral-300">{c.label}</span>
-                      <span className="text-neutral-400">
-                        {c.ok}/{c.total}
-                      </span>
-                    </span>
-                  ))}
-                </div>
-                <div className="flex justify-end text-[10px] mb-1">
-                  <span className="font-semibold tabular-nums" style={{ color: "#A39DE5" }}>
-                    {(pct * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%
-                  </span>
-                </div>
-                <div className="h-[5px] bg-neutral-800 rounded overflow-hidden">
-                  <div
-                    className="h-full rounded"
-                    style={{
-                      width: `${Math.max(0, Math.min(100, pct * 100))}%`,
-                      background: PURPLE,
-                    }}
-                  />
-                </div>
-              </div>
+              <IniciativaRow key={it.name} it={it} pct={pct} isFirst={idx === 0} delay={idx * 60} />
             );
           })
         )}
+      </div>
+    </div>
+  );
+}
+
+function IniciativaRow({
+  it,
+  pct,
+  isFirst,
+  delay,
+}: {
+  it: IniciativaStat;
+  pct: number;
+  isFirst: boolean;
+  delay: number;
+}) {
+  const animatedPct = useCountUp(pct * 100, 1000, delay);
+  const animatedOk = useCountUp(it.ok, 1000, delay);
+  return (
+    <div className={!isFirst ? "pt-2.5 border-t border-neutral-800/70" : ""}>
+      <div className="text-[12px] font-medium text-neutral-100 mb-1 truncate" title={it.name}>
+        {it.name}
+      </div>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10.5px] text-neutral-300 mb-1.5">
+        <span className="tabular-nums">
+          <span className="font-semibold text-neutral-100">{Math.round(animatedOk)}</span>
+          <span className="text-neutral-500"> / {it.total}</span>
+        </span>
+        {it.byCluster.map((c) => (
+          <span key={c.label} className="flex items-center gap-1 tabular-nums">
+            <span
+              className="inline-block w-1.5 h-1.5 rounded-full"
+              style={{ background: c.color }}
+            />
+            <span className="text-neutral-300">{c.label}</span>
+            <span className="text-neutral-400">
+              {c.ok}/{c.total}
+            </span>
+          </span>
+        ))}
+      </div>
+      <div className="flex justify-end text-[10px] mb-1">
+        <span className="font-semibold tabular-nums" style={{ color: "#A39DE5" }}>
+          {animatedPct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%
+        </span>
+      </div>
+      <div className="h-[5px] bg-neutral-800 rounded overflow-hidden">
+        <div
+          className="h-full rounded"
+          style={{
+            width: `${Math.max(0, Math.min(100, animatedPct))}%`,
+            background: PURPLE,
+          }}
+        />
       </div>
     </div>
   );
