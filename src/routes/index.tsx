@@ -1170,7 +1170,7 @@ function KpiCard({
       <div className="h-[5px] bg-neutral-800 rounded mt-1.5 overflow-hidden relative">
         <div
           className="h-full rounded"
-          style={{ width: `${Math.max(0, Math.min(100, progressPct))}%`, background: color }}
+          style={{ width: `${Math.max(0, Math.min(100, animatedPct))}%`, background: color, transition: "background 0.2s" }}
         />
         {progressTarget != null && (
           <>
