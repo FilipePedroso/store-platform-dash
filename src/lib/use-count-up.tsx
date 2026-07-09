@@ -56,3 +56,22 @@ export function useCountUp(target: number, duration = 900, delay = 0): number {
 
   return value;
 }
+
+/**
+ * Render a number animated from previous to `value`.
+ * Re-triggers whenever `value` changes.
+ */
+export function AnimatedNumber({
+  value,
+  format,
+  duration = 900,
+  delay = 0,
+}: {
+  value: number;
+  format: (n: number) => string | ReactElement;
+  duration?: number;
+  delay?: number;
+}) {
+  const v = useCountUp(value, duration, delay);
+  return <>{format(v)}</>;
+}
