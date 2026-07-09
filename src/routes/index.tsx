@@ -1073,6 +1073,7 @@ function KpiCard({
   rightStat,
   categoryTitle,
   categoryBreakdown,
+  animateDelay = 0,
 }: {
   color: string;
   icon: React.ReactNode;
@@ -1089,8 +1090,10 @@ function KpiCard({
   rightStat?: { label: string; value: React.ReactNode };
   categoryTitle?: string;
   categoryBreakdown?: { label: string; ok: number; total: number; color: string }[];
-
+  animateDelay?: number;
 }) {
+  const animatedPct = useCountUp(progressPct, 1100, animateDelay);
+
   return (
     <div
       className="bg-[#1a1a1c] rounded-b-xl border border-neutral-800/80 p-3.5"
