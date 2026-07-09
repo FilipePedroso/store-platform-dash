@@ -37,7 +37,7 @@ import {
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useCountUp } from "@/lib/use-count-up";
+import { useCountUp, AnimatedNumber } from "@/lib/use-count-up";
 import {
   loadRowsFromCloud,
   formatUpdatedAt,
@@ -506,13 +506,17 @@ export function Dashboard() {
           color={GREEN}
           icon={<Banknote size={13} style={{ color: GREEN }} />}
           label="Investimento gerado"
-          value={fmtBRL(kpis.gerado)}
+          value={<AnimatedNumber value={kpis.gerado} format={(n) => fmtBRL(n)} />}
           valueColor="#3DD9A4"
           sub={`Potencial: ${fmtBRL(kpis.potencial)}`}
           progressLabel="Atingimento"
           progressValue={fmtPct(kpis.atingimentoVerba)}
           progressPct={Math.min(100, kpis.atingimentoVerba * 100)}
-          rightStat={{ label: "Faturamento", value: fmtBRL(kpis.faturamento) }}
+          animateDelay={0}
+          rightStat={{
+            label: "Faturamento",
+            value: <AnimatedNumber value={kpis.faturamento} format={(n) => fmtBRL(n)} />,
+          }}
           badge={
             kpis.geradoDeltaPct == null
               ? { text: "sem mês anterior", bg: "#1a1a1c", fg: "#888" }
@@ -534,7 +538,11 @@ export function Dashboard() {
           label="Redes com sortimento ≥ 90%"
           value={
             <>
-              {kpis.redesSortimentoOk}{" "}
+              <AnimatedNumber
+                value={kpis.redesSortimentoOk}
+                format={(n) => Math.round(n).toString()}
+                delay={120}
+              />{" "}
               <span className="text-[14px] text-neutral-400 font-normal">
                 / {kpis.redesAtivas}
               </span>
@@ -546,6 +554,7 @@ export function Dashboard() {
           progressValue={fmtPct(kpis.taxaConversao)}
           progressPct={kpis.taxaConversao * 100}
           progressTarget={60}
+          animateDelay={120}
           badge={
             kpis.redesOkDelta == null
               ? { text: "sem mês anterior", bg: "#1a1a1c", fg: "#888" }
@@ -569,7 +578,7 @@ export function Dashboard() {
           color={ORANGE}
           icon={<Target size={13} style={{ color: ORANGE }} />}
           label="% Atingimento da verba"
-          value={fmtPct(kpis.atingimentoVerba)}
+          value={<AnimatedNumber value={kpis.atingimentoVerba} format={(n) => fmtPct(n)} delay={240} />}
           valueColor="#F1B257"
           sub="Invest. Gerado / Potencial"
           progressLabel="Meta: 85%"
@@ -579,12 +588,14 @@ export function Dashboard() {
               : `${kpis.atingimentoDeltaPP >= 0 ? "+" : ""}${kpis.atingimentoDeltaPP.toFixed(1)} p.p.`
           }
           progressPct={Math.min(100, kpis.atingimentoVerba * 100)}
+          animateDelay={240}
           badge={
             kpis.atingimentoVerba >= 0.85
               ? { text: "▲ Meta atingida", bg: "#11402F", fg: "#7DE5BD" }
               : { text: "▼ Abaixo da meta", bg: "#3D2A10", fg: "#F1B257" }
           }
         />
+
         <div className="relative min-h-0">
           <div className="sm:absolute sm:inset-0">
             <IniciativasCard data={iniciativasStats} />
