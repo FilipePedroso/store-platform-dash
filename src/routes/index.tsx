@@ -964,12 +964,11 @@ function FilterChip({
         {display}
         <ChevronDown size={12} />
       </button>
-      {open && (
+      {open && pos && (
         <div
-          className={`absolute z-20 min-w-[200px] overflow-auto bg-[#1a1a1c] border border-neutral-800 rounded-md shadow-lg py-1 text-[11px] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-neutral-600 ${
-            alignRight ? "right-0" : "left-0"
-          } ${openUp ? "bottom-full mb-1" : "mt-1"}`}
-          style={{ maxWidth: "calc(100vw - 16px)", maxHeight: `${maxHeight}px`, scrollbarWidth: "thin", scrollbarColor: "#404040 transparent" }}
+          ref={menuRef}
+          className="fixed z-50 overflow-auto bg-[#1a1a1c] border border-neutral-800 rounded-md shadow-lg py-1 text-[11px] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-neutral-600"
+          style={{ top: pos.top, left: pos.left, width: pos.width, maxHeight: pos.maxHeight, scrollbarWidth: "thin", scrollbarColor: "#404040 transparent" }}
         >
 
           {searchable && (
