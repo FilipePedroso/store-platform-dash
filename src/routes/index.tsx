@@ -882,17 +882,19 @@ function FilterChip({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [alignRight, setAlignRight] = useState(false);
-  const [maxHeight, setMaxHeight] = useState(300);
-  const [openUp, setOpenUp] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number; width: number; maxHeight: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const active = values.length > 0;
 
   useEffect(() => {
     if (!open) return;
     const onClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      if (ref.current && ref.current.contains(t)) return;
+      if (menuRef.current && menuRef.current.contains(t)) return;
+      setOpen(false);
     };
     document.addEventListener("mousedown", onClick);
     return () => document.removeEventListener("mousedown", onClick);
@@ -900,19 +902,29 @@ function FilterChip({
 
   useEffect(() => {
     if (!open || !btnRef.current) return;
-    const rect = btnRef.current.getBoundingClientRect();
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    setAlignRight(rect.left + 200 > vw - 8);
-    const spaceBelow = vh - rect.bottom - 12;
-    const spaceAbove = rect.top - 12;
-    if (spaceBelow < 180 && spaceAbove > spaceBelow) {
-      setOpenUp(true);
-      setMaxHeight(Math.max(160, Math.min(300, spaceAbove)));
-    } else {
-      setOpenUp(false);
-      setMaxHeight(Math.max(160, Math.min(300, spaceBelow)));
-    }
+    const compute = () => {
+      const rect = btnRef.current!.getBoundingClientRect();
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const margin = 8;
+      const width = Math.max(180, Math.min(260, vw - margin * 2));
+      let left = rect.left;
+      if (left + width > vw - margin) left = vw - margin - width;
+      if (left < margin) left = margin;
+      const spaceBelow = vh - rect.bottom - 12;
+      const spaceAbove = rect.top - 12;
+      const openUp = spaceBelow < 180 && spaceAbove > spaceBelow;
+      const maxHeight = Math.max(160, Math.min(320, openUp ? spaceAbove : spaceBelow));
+      const top = openUp ? Math.max(margin, rect.top - maxHeight - 4) : rect.bottom + 4;
+      setPos({ top, left, width, maxHeight });
+    };
+    compute();
+    window.addEventListener("resize", compute);
+    window.addEventListener("scroll", compute, true);
+    return () => {
+      window.removeEventListener("resize", compute);
+      window.removeEventListener("scroll", compute, true);
+    };
   }, [open]);
 
   const filtered = searchable
@@ -952,12 +964,11 @@ function FilterChip({
         {display}
         <ChevronDown size={12} />
       </button>
-      {open && (
+      {open && pos && (
         <div
-          className={`absolute z-20 min-w-[200px] overflow-auto bg-[#1a1a1c] border border-neutral-800 rounded-md shadow-lg py-1 text-[11px] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-neutral-600 ${
-            alignRight ? "right-0" : "left-0"
-          } ${openUp ? "bottom-full mb-1" : "mt-1"}`}
-          style={{ maxWidth: "calc(100vw - 16px)", maxHeight: `${maxHeight}px`, scrollbarWidth: "thin", scrollbarColor: "#404040 transparent" }}
+          ref={menuRef}
+          className="fixed z-50 overflow-auto bg-[#1a1a1c] border border-neutral-800 rounded-md shadow-lg py-1 text-[11px] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-neutral-600"
+          style={{ top: pos.top, left: pos.left, width: pos.width, maxHeight: pos.maxHeight, scrollbarWidth: "thin", scrollbarColor: "#404040 transparent" }}
         >
 
           {searchable && (
