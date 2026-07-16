@@ -21,6 +21,7 @@ import {
   Rocket,
   Users,
   Maximize2,
+  ListFilter,
 } from "lucide-react";
 import {
   Dialog,
@@ -1272,6 +1273,22 @@ function IniciativasList({
 
 function IniciativasCard({ data }: { data: IniciativaStat[] }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [selected, setSelected] = useState<string[]>([]);
+
+  const allNames = useMemo(() => data.map((d) => d.name), [data]);
+  // Descarta seleções que não existem mais nos dados atuais
+  const effectiveSelected = useMemo(
+    () => selected.filter((s) => allNames.includes(s)),
+    [selected, allNames]
+  );
+  const modalData = useMemo(
+    () =>
+      effectiveSelected.length === 0
+        ? data
+        : data.filter((d) => effectiveSelected.includes(d.name)),
+    [data, effectiveSelected]
+  );
+
   return (
     <>
       <div
@@ -1298,12 +1315,24 @@ function IniciativasCard({ data }: { data: IniciativaStat[] }) {
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="max-w-2xl w-[calc(100%-2rem)] bg-[#1a1a1c] border-neutral-800/80 p-0 gap-0">
           <DialogHeader className="px-5 pt-4 pb-3 border-b border-neutral-800/70">
-            <DialogTitle className="text-[13px] font-medium text-neutral-100 flex items-center gap-2 normal-case tracking-normal">
-              <Rocket size={15} style={{ color: PURPLE }} />
-              Iniciativas
-            </DialogTitle>
+            <div className="flex items-center justify-between gap-3">
+              <DialogTitle className="text-[13px] font-medium text-neutral-100 flex items-center gap-2 normal-case tracking-normal">
+                <Rocket size={15} style={{ color: PURPLE }} />
+                Iniciativas
+              </DialogTitle>
+              <div className="pr-6">
+                <FilterChip
+                  icon={<ListFilter size={12} />}
+                  label="Filtrar"
+                  values={effectiveSelected}
+                  options={allNames}
+                  onChange={setSelected}
+                  searchable
+                />
+              </div>
+            </div>
           </DialogHeader>
-          <IniciativasList data={data} className="max-h-[85vh] p-5" />
+          <IniciativasList data={modalData} className="max-h-[85vh] p-5" />
         </DialogContent>
       </Dialog>
     </>
