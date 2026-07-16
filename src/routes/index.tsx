@@ -911,18 +911,21 @@ function FilterChip({
       const vw = window.innerWidth;
       const vh = window.innerHeight;
       const margin = 8;
-      const width = Math.max(180, Math.min(260, vw - margin * 2));
       const boundaryLeft = boundary ? boundary.left + margin : margin;
       const boundaryRight = boundary ? boundary.right - margin : vw - margin;
-      // Alinha pela esquerda por padrão, mas se estiver dentro de um dialog mantém o menu dentro do modal.
-      let left = rect.left;
+      const boundaryTop = boundary ? boundary.top + margin : margin;
+      const boundaryBottom = boundary ? boundary.bottom - margin : vh - margin;
+      const maxWidth = Math.max(140, boundaryRight - boundaryLeft);
+      const width = Math.max(180, Math.min(260, maxWidth));
+      // Alinha pelo lado direito do botão (o chip está à direita no header)
+      let left = rect.right - width;
       if (left + width > boundaryRight) left = boundaryRight - width;
       if (left < boundaryLeft) left = boundaryLeft;
-      const spaceBelow = vh - rect.bottom - 12;
-      const spaceAbove = rect.top - 12;
+      const spaceBelow = boundaryBottom - rect.bottom - 4;
+      const spaceAbove = rect.top - boundaryTop - 4;
       const openUp = spaceBelow < 180 && spaceAbove > spaceBelow;
-      const maxHeight = Math.max(160, Math.min(320, openUp ? spaceAbove : spaceBelow));
-      const top = openUp ? Math.max(margin, rect.top - maxHeight - 4) : rect.bottom + 4;
+      const maxHeight = Math.max(140, Math.min(320, openUp ? spaceAbove : spaceBelow));
+      const top = openUp ? Math.max(boundaryTop, rect.top - maxHeight - 4) : rect.bottom + 4;
       setPos({ top, left, width, maxHeight });
     };
     compute();
@@ -932,7 +935,8 @@ function FilterChip({
       window.removeEventListener("resize", compute);
       window.removeEventListener("scroll", compute, true);
     };
-  }, [open]);
+  }, [open, values.length]);
+
 
   const filtered = searchable
     ? options.filter((o) => o.toLowerCase().includes(query.toLowerCase()))
@@ -974,8 +978,8 @@ function FilterChip({
       {open && pos && typeof document !== "undefined" && createPortal(
         <div
           ref={menuRef}
-          className="fixed z-[60] overflow-auto bg-[#1a1a1c] border border-neutral-800 rounded-md shadow-lg py-1 text-[11px] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-neutral-600"
-          style={{ top: pos.top, left: pos.left, width: pos.width, maxHeight: pos.maxHeight, scrollbarWidth: "thin", scrollbarColor: "#404040 transparent" }}
+          className="fixed z-[9999] overflow-auto bg-[#1a1a1c] border border-neutral-800 rounded-md shadow-lg py-1 text-[11px] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-neutral-600"
+          style={{ top: pos.top, left: pos.left, width: pos.width, maxHeight: pos.maxHeight, scrollbarWidth: "thin", scrollbarColor: "#404040 transparent", pointerEvents: "auto" }}
           onMouseDown={(e) => e.stopPropagation()}
         >
 
@@ -1037,7 +1041,8 @@ function FilterChip({
             <div className="px-3 py-2 text-neutral-500">Nenhum resultado</div>
           )}
         </div>,
-        (ref.current?.closest('[role="dialog"]') as HTMLElement) ?? document.body
+        document.body
+
       )}
     </div>
   );
@@ -1320,8 +1325,8 @@ function IniciativasCard({ data }: { data: IniciativaStat[] }) {
       </div>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="max-w-2xl w-[calc(100%-2rem)] bg-[#1a1a1c] border-neutral-800/80 p-0 gap-0">
-          <DialogHeader className="px-5 pt-4 pb-3 border-b border-neutral-800/70">
+        <DialogContent className="max-w-2xl w-[calc(100%-2rem)] h-[600px] bg-[#1a1a1c] border-neutral-800/80 p-0 gap-0 flex flex-col overflow-hidden">
+          <DialogHeader className="px-5 pt-4 pb-3 border-b border-neutral-800/70 shrink-0">
             <div className="flex items-center justify-between gap-3">
               <DialogTitle className="text-[13px] font-medium text-neutral-100 flex items-center gap-2 normal-case tracking-normal">
                 <Rocket size={15} style={{ color: PURPLE }} />
@@ -1339,7 +1344,7 @@ function IniciativasCard({ data }: { data: IniciativaStat[] }) {
               </div>
             </div>
           </DialogHeader>
-          <IniciativasList data={modalData} className="max-h-[85vh] p-5" />
+          <IniciativasList data={modalData} className="flex-1 p-5" />
         </DialogContent>
       </Dialog>
     </>
