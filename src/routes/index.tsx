@@ -1303,7 +1303,7 @@ function IniciativasCard({ data }: { data: IniciativaStat[] }) {
               Iniciativas
             </DialogTitle>
           </DialogHeader>
-          <IniciativasList data={data} className="max-h-[80vh] p-5" />
+          <IniciativasList data={data} className="max-h-[85vh] p-5" />
         </DialogContent>
       </Dialog>
     </>
