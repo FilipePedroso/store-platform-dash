@@ -1,20 +1,43 @@
 ## Objetivo
-Melhorar a legibilidade dos rótulos no modo "Por cluster" quando os valores das linhas ficam muito próximos.
+Adicionar um botão pequeno no cabeçalho do card **Iniciativas** que, ao clicar, abre um modal/dialog mostrando a mesma lista de iniciativas com mais itens visíveis simultaneamente.
 
-## Abordagem
+## O que será alterado
+Arquivo: `src/routes/index.tsx`
 
-Aplicar somente no modo **Por cluster** (modo Total continua igual):
+## Implementação
+1. **Estado local no `IniciativasCard`**
+   - Adicionar `const [isOpen, setIsOpen] = useState(false)`.
 
-1. **Card mais alto no modo cluster** — aumentar a altura do SVG de 170px para ~260px (e o `viewBox` proporcionalmente), dando muito mais espaço vertical para rótulos respirarem. O card cresce junto.
+2. **Botão de expandir no cabeçalho**
+   - Posicionar no canto direito do título "Iniciativas".
+   - Usar ícone `Maximize2` (já importado) com tamanho pequeno (`w-6 h-6` ou `p-1`).
+   - Estilo discreto: botão ghost com cor neutra, hover leve.
+   - `aria-label="Expandir iniciativas"`.
 
-2. **Eixo Y ajustado (zoom)** — em vez de partir de 0, o eixo Y passa a ir de `min * 0.9` até `max * 1.05` considerando apenas os valores dos clusters visíveis. Isso "estica" verticalmente as linhas e separa naturalmente clusters com valores próximos.
-   - Rótulos do eixo Y recalculados (base, meio, topo) para refletir a nova escala.
-   - Gradiente/área sombreada abaixo de cada linha é removida no modo cluster (não faz sentido com eixo que não parte do zero, e atrapalha leitura dos rótulos).
+3. **Extrair lista para componente reutilizável**
+   - Criar `IniciativasList({ data, className? })` que renderiza a lista atual (incluindo estado vazio e animações).
+   - Reutilizar dentro do card compacto e dentro do dialog expandido.
 
-3. **Anti-colisão de rótulos por ponto** — para cada mês, ordenar os clusters por `y` e empilhar os rótulos com espaçamento mínimo (~11px). Assim:
-   - Quando dois clusters têm valores próximos → rótulos saem empilhados sem sobrepor.
-   - Quando estão distantes → cada rótulo fica colado ao seu próprio ponto.
-   Substitui o offset fixo por índice de cluster que existe hoje.
+4. **Modal expandido**
+   - Usar o componente `Dialog` já disponível no projeto (`@/components/ui/dialog`).
+   - Título do dialog: "Iniciativas".
+   - Conteúdo: `IniciativasList` sem altura máxima restrita, ocupando a altura disponível do viewport (`max-h-[80vh]` ou similar).
+   - Largura adequada: `max-w-3xl` ou `max-w-4xl` para aproveitar o espaço.
+   - Fechar ao clicar fora, pressionar ESC ou via botão X no header do dialog.
 
-## Arquivo
-- `src/routes/index.tsx` — componente `LineHistoryCard` (cálculo de `yMax`/`yMin`/`yAt`, altura do SVG, render do eixo Y e dos rótulos dos pontos).
+5. **Card compacto inalterado em comportamento**
+   - Mantém a altura fixa (`h-[480px] md:h-full`) e scroll interno.
+   - A lista continua animada com `useCountUp` quando os filtros mudam.
+
+## Critérios de aceitação
+- Botão de expandir visível apenas no card de Iniciativas.
+- Clique abre modal centralizado com a lista completa.
+- Modal mostra mais itens visíveis sem scroll excessivo.
+- Filtros continuam refletindo nos dados do modal (usa mesma `data`).
+- Animações de contagem e barras continuam funcionando ao trocar filtros.
+- Layout mobile: modal ocupa quase toda a tela (`max-w-full` em telas pequenas) e permite scroll vertical.
+
+## Não inclui
+- Alterações em outros cards.
+- Novas informações ou gráficos por iniciativa.
+- Backend ou mudança na estrutura de dados.
