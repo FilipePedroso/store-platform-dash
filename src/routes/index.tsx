@@ -1320,8 +1320,8 @@ function IniciativasCard({ data }: { data: IniciativaStat[] }) {
       </div>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="max-w-2xl w-[calc(100%-2rem)] bg-[#1a1a1c] border-neutral-800/80 p-0 gap-0">
-          <DialogHeader className="px-5 pt-4 pb-3 border-b border-neutral-800/70">
+        <DialogContent className="max-w-2xl w-[calc(100%-2rem)] h-[600px] bg-[#1a1a1c] border-neutral-800/80 p-0 gap-0 flex flex-col overflow-hidden">
+          <DialogHeader className="px-5 pt-4 pb-3 border-b border-neutral-800/70 shrink-0">
             <div className="flex items-center justify-between gap-3">
               <DialogTitle className="text-[13px] font-medium text-neutral-100 flex items-center gap-2 normal-case tracking-normal">
                 <Rocket size={15} style={{ color: PURPLE }} />
@@ -1339,7 +1339,7 @@ function IniciativasCard({ data }: { data: IniciativaStat[] }) {
               </div>
             </div>
           </DialogHeader>
-          <IniciativasList data={modalData} className="max-h-[85vh] p-5" />
+          <IniciativasList data={modalData} className="flex-1 p-5" />
         </DialogContent>
       </Dialog>
     </>
