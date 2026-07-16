@@ -1241,32 +1241,72 @@ type IniciativaStat = {
   byCluster: { label: string; ok: number; total: number; color: string }[];
 };
 
-function IniciativasCard({ data }: { data: IniciativaStat[] }) {
+function IniciativasList({
+  data,
+  className,
+}: {
+  data: IniciativaStat[];
+  className?: string;
+}) {
   return (
     <div
-      className="bg-[#1a1a1c] rounded-b-xl border border-neutral-800/80 p-3.5 flex flex-col h-[480px] md:h-full min-h-0"
-      style={{ borderTop: `3px solid ${PURPLE}` }}
+      className={cn(
+        "min-h-0 overflow-y-auto pr-1 -mr-1 space-y-2.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-neutral-600",
+        className
+      )}
+      style={{ scrollbarWidth: "thin", scrollbarColor: "#404040 transparent" }}
     >
-      <div className="text-[11px] text-neutral-400 mb-2 flex items-center gap-1.5 tracking-wide uppercase">
-        <Rocket size={13} style={{ color: PURPLE }} />
-        Iniciativas
-      </div>
-      <div
-        className="flex-1 min-h-0 overflow-y-auto pr-1 -mr-1 space-y-2.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-neutral-600"
-        style={{ scrollbarWidth: "thin", scrollbarColor: "#404040 transparent" }}
-      >
-        {data.length === 0 ? (
-          <div className="text-[11px] text-neutral-500">Sem dados para os filtros atuais.</div>
-        ) : (
-          data.map((it, idx) => {
-            const pct = it.total > 0 ? it.ok / it.total : 0;
-            return (
-              <IniciativaRow key={it.name} it={it} pct={pct} isFirst={idx === 0} delay={idx * 60} />
-            );
-          })
-        )}
-      </div>
+      {data.length === 0 ? (
+        <div className="text-[11px] text-neutral-500">Sem dados para os filtros atuais.</div>
+      ) : (
+        data.map((it, idx) => {
+          const pct = it.total > 0 ? it.ok / it.total : 0;
+          return (
+            <IniciativaRow key={it.name} it={it} pct={pct} isFirst={idx === 0} delay={idx * 60} />
+          );
+        })
+      )}
     </div>
+  );
+}
+
+function IniciativasCard({ data }: { data: IniciativaStat[] }) {
+  const [isOpen, setIsOpen] = useState(false);
+  return (
+    <>
+      <div
+        className="bg-[#1a1a1c] rounded-b-xl border border-neutral-800/80 p-3.5 flex flex-col h-[480px] md:h-full min-h-0"
+        style={{ borderTop: `3px solid ${PURPLE}` }}
+      >
+        <div className="text-[11px] text-neutral-400 mb-2 flex items-center justify-between gap-1.5 tracking-wide uppercase">
+          <div className="flex items-center gap-1.5">
+            <Rocket size={13} style={{ color: PURPLE }} />
+            Iniciativas
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsOpen(true)}
+            className="p-1 rounded-md text-neutral-500 hover:text-neutral-200 hover:bg-neutral-800/70 transition-colors"
+            aria-label="Expandir iniciativas"
+          >
+            <Maximize2 size={13} />
+          </button>
+        </div>
+        <IniciativasList data={data} className="flex-1" />
+      </div>
+
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="max-w-2xl w-[calc(100%-2rem)] bg-[#1a1a1c] border-neutral-800/80 p-0 gap-0">
+          <DialogHeader className="px-5 pt-4 pb-3 border-b border-neutral-800/70">
+            <DialogTitle className="text-[13px] font-medium text-neutral-100 flex items-center gap-2 normal-case tracking-normal">
+              <Rocket size={15} style={{ color: PURPLE }} />
+              Iniciativas
+            </DialogTitle>
+          </DialogHeader>
+          <IniciativasList data={data} className="max-h-[70vh] p-5" />
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
