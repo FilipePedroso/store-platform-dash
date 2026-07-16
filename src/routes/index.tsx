@@ -910,7 +910,9 @@ function FilterChip({
       const vh = window.innerHeight;
       const margin = 8;
       const width = Math.max(180, Math.min(260, vw - margin * 2));
+      // Alinha pela esquerda por padrão, mas se estourar à direita usa alinhamento pela direita do botão
       let left = rect.left;
+      if (left + width > vw - margin) left = rect.right - width;
       if (left + width > vw - margin) left = vw - margin - width;
       if (left < margin) left = margin;
       const spaceBelow = vh - rect.bottom - 12;
