@@ -911,18 +911,21 @@ function FilterChip({
       const vw = window.innerWidth;
       const vh = window.innerHeight;
       const margin = 8;
-      const width = Math.max(180, Math.min(260, vw - margin * 2));
       const boundaryLeft = boundary ? boundary.left + margin : margin;
       const boundaryRight = boundary ? boundary.right - margin : vw - margin;
-      // Alinha pela esquerda por padrão, mas se estiver dentro de um dialog mantém o menu dentro do modal.
-      let left = rect.left;
+      const boundaryTop = boundary ? boundary.top + margin : margin;
+      const boundaryBottom = boundary ? boundary.bottom - margin : vh - margin;
+      const maxWidth = Math.max(140, boundaryRight - boundaryLeft);
+      const width = Math.max(180, Math.min(260, maxWidth));
+      // Alinha pelo lado direito do botão (o chip está à direita no header)
+      let left = rect.right - width;
       if (left + width > boundaryRight) left = boundaryRight - width;
       if (left < boundaryLeft) left = boundaryLeft;
-      const spaceBelow = vh - rect.bottom - 12;
-      const spaceAbove = rect.top - 12;
+      const spaceBelow = boundaryBottom - rect.bottom - 4;
+      const spaceAbove = rect.top - boundaryTop - 4;
       const openUp = spaceBelow < 180 && spaceAbove > spaceBelow;
-      const maxHeight = Math.max(160, Math.min(320, openUp ? spaceAbove : spaceBelow));
-      const top = openUp ? Math.max(margin, rect.top - maxHeight - 4) : rect.bottom + 4;
+      const maxHeight = Math.max(140, Math.min(320, openUp ? spaceAbove : spaceBelow));
+      const top = openUp ? Math.max(boundaryTop, rect.top - maxHeight - 4) : rect.bottom + 4;
       setPos({ top, left, width, maxHeight });
     };
     compute();
@@ -932,7 +935,8 @@ function FilterChip({
       window.removeEventListener("resize", compute);
       window.removeEventListener("scroll", compute, true);
     };
-  }, [open]);
+  }, [open, values.length]);
+
 
   const filtered = searchable
     ? options.filter((o) => o.toLowerCase().includes(query.toLowerCase()))
