@@ -907,15 +907,17 @@ function FilterChip({
     if (!open || !btnRef.current) return;
     const compute = () => {
       const rect = btnRef.current!.getBoundingClientRect();
+      const boundary = ref.current?.closest('[role="dialog"]')?.getBoundingClientRect();
       const vw = window.innerWidth;
       const vh = window.innerHeight;
       const margin = 8;
       const width = Math.max(180, Math.min(260, vw - margin * 2));
-      // Alinha pela esquerda por padrão, mas se estourar à direita usa alinhamento pela direita do botão
+      const boundaryLeft = boundary ? boundary.left + margin : margin;
+      const boundaryRight = boundary ? boundary.right - margin : vw - margin;
+      // Alinha pela esquerda por padrão, mas se estiver dentro de um dialog mantém o menu dentro do modal.
       let left = rect.left;
-      if (left + width > vw - margin) left = rect.right - width;
-      if (left + width > vw - margin) left = vw - margin - width;
-      if (left < margin) left = margin;
+      if (left + width > boundaryRight) left = boundaryRight - width;
+      if (left < boundaryLeft) left = boundaryLeft;
       const spaceBelow = vh - rect.bottom - 12;
       const spaceAbove = rect.top - 12;
       const openUp = spaceBelow < 180 && spaceAbove > spaceBelow;
