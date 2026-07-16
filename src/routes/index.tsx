@@ -38,6 +38,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useCountUp, AnimatedNumber } from "@/lib/use-count-up";
+import { cn } from "@/lib/utils";
 import {
   loadRowsFromCloud,
   formatUpdatedAt,
