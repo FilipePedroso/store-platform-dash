@@ -1037,7 +1037,7 @@ function FilterChip({
             <div className="px-3 py-2 text-neutral-500">Nenhum resultado</div>
           )}
         </div>,
-        document.body
+        (ref.current?.closest('[role="dialog"]') as HTMLElement) ?? document.body
       )}
     </div>
   );
