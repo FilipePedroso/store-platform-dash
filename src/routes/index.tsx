@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   LayoutDashboard,
   Layers,
@@ -906,15 +907,17 @@ function FilterChip({
     if (!open || !btnRef.current) return;
     const compute = () => {
       const rect = btnRef.current!.getBoundingClientRect();
+      const boundary = ref.current?.closest('[role="dialog"]')?.getBoundingClientRect();
       const vw = window.innerWidth;
       const vh = window.innerHeight;
       const margin = 8;
       const width = Math.max(180, Math.min(260, vw - margin * 2));
-      // Alinha pela esquerda por padrão, mas se estourar à direita usa alinhamento pela direita do botão
+      const boundaryLeft = boundary ? boundary.left + margin : margin;
+      const boundaryRight = boundary ? boundary.right - margin : vw - margin;
+      // Alinha pela esquerda por padrão, mas se estiver dentro de um dialog mantém o menu dentro do modal.
       let left = rect.left;
-      if (left + width > vw - margin) left = rect.right - width;
-      if (left + width > vw - margin) left = vw - margin - width;
-      if (left < margin) left = margin;
+      if (left + width > boundaryRight) left = boundaryRight - width;
+      if (left < boundaryLeft) left = boundaryLeft;
       const spaceBelow = vh - rect.bottom - 12;
       const spaceAbove = rect.top - 12;
       const openUp = spaceBelow < 180 && spaceAbove > spaceBelow;
@@ -968,10 +971,10 @@ function FilterChip({
         {display}
         <ChevronDown size={12} />
       </button>
-      {open && pos && (
+      {open && pos && typeof document !== "undefined" && createPortal(
         <div
           ref={menuRef}
-          className="fixed z-50 overflow-auto bg-[#1a1a1c] border border-neutral-800 rounded-md shadow-lg py-1 text-[11px] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-neutral-600"
+          className="fixed z-[60] overflow-auto bg-[#1a1a1c] border border-neutral-800 rounded-md shadow-lg py-1 text-[11px] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-neutral-600"
           style={{ top: pos.top, left: pos.left, width: pos.width, maxHeight: pos.maxHeight, scrollbarWidth: "thin", scrollbarColor: "#404040 transparent" }}
         >
 
@@ -1032,7 +1035,8 @@ function FilterChip({
           {filtered.length === 0 && (
             <div className="px-3 py-2 text-neutral-500">Nenhum resultado</div>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
