@@ -1723,7 +1723,7 @@ function RankingCard({
       </Card>
 
       <Dialog open={expanded} onOpenChange={setExpanded}>
-        <DialogContent className="w-[min(920px,100vw)] h-[100vh] sm:w-[min(920px,94vw)] sm:h-[92vh] max-w-none sm:max-w-[min(920px,94vw)] p-0 border-neutral-800 bg-[#1a1a1c] overflow-hidden flex flex-col rounded-none sm:rounded-lg">
+        <DialogContent showCloseButton={false} className="w-[min(920px,100vw)] h-[100vh] sm:w-[min(920px,94vw)] sm:h-[92vh] max-w-none sm:max-w-[min(920px,94vw)] p-0 border-neutral-800 bg-[#1a1a1c] overflow-hidden flex flex-col rounded-none sm:rounded-lg">
           <DialogHeader className="px-3 sm:px-4 py-2 sm:py-3 border-b border-neutral-800 shrink-0">
             <div className="flex items-center justify-between">
               <DialogTitle className="text-xs sm:text-sm font-medium text-neutral-100 flex items-center gap-1.5">
