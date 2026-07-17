@@ -120,7 +120,7 @@ const skuRows = sheetJson(findSheet("dados_skus","dados skus")).map(raw => {
   return out;
 }).filter(r => r.rede && r.dsEan);
 
-fs.mkdirSync(OUT_DIR, { recursive: true });
+if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR, { recursive: true });
 // Clean previous chunk files
 for (const f of fs.readdirSync(OUT_DIR)) {
   if (/^(ags|skus)\.part\d+\.json$/.test(f) || /^(ags|skus|rows|estrutura|iniciativas|estrutura_grupos|meta)\.json$/.test(f))
