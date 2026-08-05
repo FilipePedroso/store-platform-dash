@@ -23,6 +23,7 @@ import {
   Users,
   Maximize2,
   ListFilter,
+  AlertTriangle,
 } from "lucide-react";
 import {
   Dialog,
@@ -51,6 +52,7 @@ import {
   type IniciativaRow,
   type EstruturaGrupoRow,
   type SkuRow,
+  type ChaveRow,
 } from "@/lib/dashboard-data";
 
 
@@ -76,7 +78,10 @@ import {
   reduceSumPotencial,
   optionsFor,
   uniqueMonths,
+  isSortOk,
+  isChaveRegime,
   type Filters,
+  type RankRow,
 } from "@/lib/dashboard-metrics";
 
 
@@ -102,6 +107,15 @@ const RED = "#E24B4A";
 const LIGHT_BLUE = "#B5D4F4";
 const PALETTE = [GREEN, PURPLE, ORANGE, BLUE, RED, LIGHT_BLUE, "#5DCAA5", "#F1B257"];
 
+/** Mostra "Chave N" (regime novo) ou o % de sortimento legado, conforme o dado disponível. */
+function fmtChaveOrPct(chave: number | null, sortimento: number): string {
+  return chave != null ? `Chave ${chave}` : fmtPct(sortimento, 0);
+}
+/** Cor por chave (2=verde/1=laranja/0=vermelho), mantendo a mesma paleta do threshold de %. */
+function colorForChave(chave: number): string {
+  return chave >= 2 ? GREEN : chave >= 1 ? ORANGE : RED;
+}
+
 export function Dashboard() {
   const [allRows, setAllRows] = useState<Row[]>([]);
   const [allAgRows, setAllAgRows] = useState<AgRow[]>([]);
@@ -109,11 +123,12 @@ export function Dashboard() {
   const [allIniciativas, setAllIniciativas] = useState<IniciativaRow[]>([]);
   const [estruturaGrupos, setEstruturaGrupos] = useState<EstruturaGrupoRow[]>([]);
   const [allSkuRows, setAllSkuRows] = useState<SkuRow[]>([]);
+  const [chaves, setChaves] = useState<ChaveRow[]>([]);
   const [meta, setMeta] = useState<DataMeta | null>(null);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
 
   const refresh = async () => {
-    const { rows, agRows, estrutura, iniciativas, estruturaGrupos, skuRows, meta } =
+    const { rows, agRows, estrutura, iniciativas, estruturaGrupos, skuRows, chaves, meta } =
       await loadRowsFromCloud();
     setAllRows(rows);
     setAllAgRows(agRows);
@@ -121,6 +136,7 @@ export function Dashboard() {
     setAllIniciativas(iniciativas);
     setEstruturaGrupos(estruturaGrupos);
     setAllSkuRows(skuRows);
+    setChaves(chaves);
     setMeta(meta);
   };
 
@@ -173,30 +189,45 @@ export function Dashboard() {
     return latest ? [latest] : [];
   }, [dFilters.mes, rows]);
   const isAccumulated = dFilters.mes.length > 1 || dFilters.mes.length === months.length;
+  const latestMonthOverall = useMemo(() => latestMonth(rows), [rows]);
 
   const baseRows = useMemo(() => applyBaseFilters(rows, dFilters), [rows, dFilters]);
   const monthRows = useMemo(() => {
     const set = new Set(selectedMonths);
     return baseRows.filter((r) => set.has(r.mes));
   }, [baseRows, selectedMonths]);
+  // Alguns cards (ver MixedPeriodBadge) não fazem sentido somados entre vários meses —
+  // quando o filtro de mês é múltiplo/vazio, eles travam no mês mais recente do dataset.
+  const lockedMonthRows = useMemo(
+    () => (latestMonthOverall ? baseRows.filter((r) => r.mes === latestMonthOverall) : []),
+    [baseRows, latestMonthOverall],
+  );
+  const effectiveMonthRows = isAccumulated ? lockedMonthRows : monthRows;
+  // Mês que efetivamente rege a fórmula exibida (o travado, ou o único selecionado).
+  const effectiveMonth = isAccumulated ? latestMonthOverall : (selectedMonths[0] ?? null);
+  const chaveMode = effectiveMonth ? isChaveRegime(effectiveMonth) : false;
   const kpis = useMemo(
     () => computeKpis(rows, baseRows, selectedMonths),
     [rows, baseRows, selectedMonths],
   );
+  const lockedKpis = useMemo(
+    () => computeKpis(rows, baseRows, latestMonthOverall ? [latestMonthOverall] : []),
+    [rows, baseRows, latestMonthOverall],
+  );
   const clusters = useMemo(() => computeByCluster(monthRows), [monthRows]);
   const sortimentoByCanal = useMemo(() => {
     const map = new Map<string, { ok: Set<string>; all: Set<string> }>();
-    for (const r of monthRows) {
+    for (const r of effectiveMonthRows) {
       const k = r.canal || "—";
       const cur = map.get(k) ?? { ok: new Set<string>(), all: new Set<string>() };
       cur.all.add(r.rede);
-      if (r.sortimento >= 0.9) cur.ok.add(r.rede);
+      if (isSortOk(r)) cur.ok.add(r.rede);
       map.set(k, cur);
     }
     return [...map.entries()]
       .map(([canal, v]) => ({ canal, pct: v.all.size > 0 ? v.ok.size / v.all.size : 0 }))
       .sort((a, b) => b.pct - a.pct);
-  }, [monthRows]);
+  }, [effectiveMonthRows]);
   const sortimentoByCluster = useMemo(() => {
     const order = ["Diamante", "Ouro", "Prata"] as const;
     const colors: Record<string, string> = {
@@ -205,11 +236,11 @@ export function Dashboard() {
       Prata: "#9CA3AF",
     };
     const map = new Map<string, { ok: Set<string>; all: Set<string> }>();
-    for (const r of monthRows) {
+    for (const r of effectiveMonthRows) {
       const k = r.cluster || "—";
       const cur = map.get(k) ?? { ok: new Set<string>(), all: new Set<string>() };
       cur.all.add(r.rede);
-      if (r.sortimento >= 0.9) cur.ok.add(r.rede);
+      if (isSortOk(r)) cur.ok.add(r.rede);
       map.set(k, cur);
     }
     return order.map((name) => {
@@ -221,9 +252,12 @@ export function Dashboard() {
         color: colors[name],
       };
     });
-  }, [monthRows]);
+  }, [effectiveMonthRows]);
   const evolution = useMemo(() => computeEvolution(baseRows), [baseRows]);
-  const ranking = useMemo(() => computeRanking(monthRows, 9999), [monthRows]);
+  const ranking = useMemo(
+    () => computeRanking(effectiveMonthRows, chaves, 9999),
+    [effectiveMonthRows, chaves],
+  );
   const canalMix = useMemo(() => computeAgsByCanalMix(monthRows), [monthRows]);
 
   // Filtra a aba "iniciativas" pelos mesmos filtros (sem mês — não há campo mês)
@@ -353,42 +387,41 @@ export function Dashboard() {
     return map;
   }, [skuMonthRows]);
 
+  // Sortimento/Chave por rede no mês efetivo (travado em período misto — ver effectiveMonthRows)
+  const sortimentoMap = useMemo(() => {
+    const map = new Map<string, { sortimento: number; chave: number | null }>();
+    for (const r of effectiveMonthRows) map.set(r.rede, { sortimento: r.sortimento, chave: r.chave });
+    return map;
+  }, [effectiveMonthRows]);
+
   // Tabela "Grupos não batidos": positivação == 0
   const gruposNaoBatidos = useMemo(() => {
-    const sortMap = new Map<string, number>();
-    for (const r of monthRows) {
-      const cur = sortMap.get(r.rede);
-      sortMap.set(r.rede, cur == null ? r.sortimento : Math.max(cur, r.sortimento));
-    }
     return agMonthRows
       .filter((r) => Number(r.positivacao) === 0)
       .map((r) => ({
         rede: r.rede,
-        sortimento: sortMap.get(r.rede) ?? 0,
+        sortimento: sortimentoMap.get(r.rede)?.sortimento ?? 0,
+        chave: sortimentoMap.get(r.rede)?.chave ?? null,
         target: r.targetUnidades,
         atributo: r.atributo,
         valor: r.valor,
       }))
       .sort((a, b) => a.rede.localeCompare(b.rede) || a.atributo.localeCompare(b.atributo));
-  }, [agMonthRows, monthRows]);
+  }, [agMonthRows, sortimentoMap]);
 
   // Tabela "Sortimento de Mix": todos os grupos (batidos ou não)
   const sortimentoMix = useMemo(() => {
-    const sortMap = new Map<string, number>();
-    for (const r of monthRows) {
-      const cur = sortMap.get(r.rede);
-      sortMap.set(r.rede, cur == null ? r.sortimento : Math.max(cur, r.sortimento));
-    }
     return agMonthRows
       .map((r) => ({
         rede: r.rede,
-        sortimento: sortMap.get(r.rede) ?? 0,
+        sortimento: sortimentoMap.get(r.rede)?.sortimento ?? 0,
+        chave: sortimentoMap.get(r.rede)?.chave ?? null,
         target: r.targetUnidades,
         atributo: r.atributo,
         valor: r.valor,
       }))
       .sort((a, b) => a.rede.localeCompare(b.rede) || a.atributo.localeCompare(b.atributo));
-  }, [agMonthRows, monthRows]);
+  }, [agMonthRows, sortimentoMap]);
 
 
   // Históricos mês a mês (gráficos de linha) — usam baseRows (sem filtro de mês)
@@ -408,7 +441,7 @@ export function Dashboard() {
     return histRedesOk.months.map((m) => {
       const monthData = baseRows.filter((r) => r.mes === m);
       const ativas = new Set(monthData.map((r) => r.rede)).size;
-      const ok = new Set(monthData.filter((r) => r.sortimento >= 0.9).map((r) => r.rede)).size;
+      const ok = new Set(monthData.filter(isSortOk).map((r) => r.rede)).size;
       return ativas > 0 ? ok / ativas : 0;
     });
   }, [baseRows, histRedesOk.months]);
@@ -533,36 +566,38 @@ export function Dashboard() {
           }
         />
 
+        <div className="relative min-h-0">
+        {isAccumulated && <MixedPeriodBadge />}
         <KpiCard
           categoryTitle="Por Cluster"
           categoryBreakdown={sortimentoByCluster}
           color={BLUE}
           icon={<Check size={13} style={{ color: BLUE }} />}
-          label="Redes com sortimento ≥ 90%"
+          label={chaveMode ? "Redes com Chave 2" : "Redes com sortimento ≥ 90%"}
           value={
             <>
               <AnimatedNumber
-                value={kpis.redesSortimentoOk}
+                value={(isAccumulated ? lockedKpis : kpis).redesSortimentoOk}
                 format={(n) => Math.round(n).toString()}
                 delay={120}
               />{" "}
               <span className="text-[14px] text-neutral-400 font-normal">
-                / {kpis.redesAtivas}
+                / {(isAccumulated ? lockedKpis : kpis).redesAtivas}
               </span>
             </>
           }
           valueColor="#5FA8E8"
           sub="Redes ativas no período"
           progressLabel="Taxa de conversão"
-          progressValue={fmtPct(kpis.taxaConversao)}
-          progressPct={kpis.taxaConversao * 100}
+          progressValue={fmtPct((isAccumulated ? lockedKpis : kpis).taxaConversao)}
+          progressPct={(isAccumulated ? lockedKpis : kpis).taxaConversao * 100}
           progressTarget={60}
           animateDelay={120}
           badge={
-            kpis.redesOkDelta == null
+            (isAccumulated ? lockedKpis : kpis).redesOkDelta == null
               ? { text: "sem mês anterior", bg: "#1a1a1c", fg: "#888" }
               : {
-                  text: `${kpis.redesOkDelta >= 0 ? "+" : ""}${kpis.redesOkDelta} redes vs mês ant.`,
+                  text: `${(isAccumulated ? lockedKpis : kpis).redesOkDelta! >= 0 ? "+" : ""}${(isAccumulated ? lockedKpis : kpis).redesOkDelta} redes vs mês ant.`,
                   bg: "#0E2E4D",
                   fg: "#8BBEEC",
                 }
@@ -572,11 +607,12 @@ export function Dashboard() {
               className="inline-block text-[10px] px-2 py-0.5 rounded-full font-medium"
               style={{ background: "#241F4D", color: "#A39DE5" }}
             >
-              {kpis.cnpjsAtivos.toLocaleString("pt-BR")} CNPJs ativos
+              {(isAccumulated ? lockedKpis : kpis).cnpjsAtivos.toLocaleString("pt-BR")} CNPJs ativos
             </span>
           }
 
         />
+        </div>
         <KpiCard
           color={ORANGE}
           icon={<Target size={13} style={{ color: ORANGE }} />}
@@ -633,24 +669,27 @@ export function Dashboard() {
         {(() => {
           const singleRede = dFilters.rede.length === 1 ? dFilters.rede[0] : null;
           if (singleRede) {
+            // Antes da virada: % de sortimento (0..1). A partir da virada: chave atingida
+            // (0/1/2), normalizada pra 0..1 (÷2) só pra caber no mesmo eixo do gráfico —
+            // o rótulo do ponto mostra "Chave N", não %.
             const sortPorMes = histRedesOk.months.map((m) => {
-              let v = 0;
-              for (const r of baseRows) {
-                if (r.mes === m && r.rede === singleRede && r.sortimento > v) v = r.sortimento;
-              }
-              return v;
+              const r = baseRows.find((rr) => rr.mes === m && rr.rede === singleRede);
+              if (!r) return 0;
+              return isChaveRegime(m) ? (r.chave ?? 0) / 2 : r.sortimento;
             });
             return (
               <LineHistoryCard
                 icon={<Check size={13} style={{ color: BLUE }} />}
-                title="Redes com sortimento ≥ 90%"
+                title="Histórico de Atingimento de Redes"
                 sub="Sortimento"
                 color={BLUE}
                 months={histRedesOk.months}
                 total={sortPorMes}
                 groups={[]}
                 yFormat={(n) => fmtPct(n, 0)}
-                pointFormat={(n) => fmtPct(n, 1)}
+                pointFormat={(n, i) =>
+                  isChaveRegime(histRedesOk.months[i]) ? `Chave ${Math.round(n * 2)}` : fmtPct(n, 1)
+                }
                 forceMax={1}
                 badgeBg="#0E2E4D"
                 badgeFg="#8BBEEC"
@@ -661,7 +700,7 @@ export function Dashboard() {
           return (
             <LineHistoryCard
               icon={<Check size={13} style={{ color: BLUE }} />}
-              title="Redes com sortimento ≥ 90%"
+              title="Histórico de Atingimento de Redes"
               sub="Qtd. de redes atingindo o mix mínimo"
               color={BLUE}
               months={histRedesOk.months}
@@ -719,13 +758,19 @@ export function Dashboard() {
       {/* Linha intermediária */}
       <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-2.5 mb-3">
         <ClusterCard data={clusters} />
-        <ChannelSortimentoCard rows={sortimentoByCanal} />
+        <ChannelSortimentoCard rows={sortimentoByCanal} chaveMode={chaveMode} locked={isAccumulated} />
       </div>
 
       {/* Linha inferior */}
       <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-2.5 mb-3">
-        <RankingCard rows={ranking} />
-        <TeamPerformanceCard monthRows={monthRows} estrutura={estrutura} filters={dFilters} />
+        <RankingCard rows={ranking} chaveMode={chaveMode} locked={isAccumulated} />
+        <TeamPerformanceCard
+          monthRows={effectiveMonthRows}
+          estrutura={estrutura}
+          filters={dFilters}
+          chaveMode={chaveMode}
+          locked={isAccumulated}
+        />
       </div>
 
 
@@ -735,6 +780,8 @@ export function Dashboard() {
           rows={gruposNaoBatidos}
           skusByGroup={skusByGroup}
           skuVolumeMap={skuVolumeMap}
+          chaveMode={chaveMode}
+          locked={isAccumulated}
         />
 
       </div>
@@ -748,6 +795,8 @@ export function Dashboard() {
           title="Sortimento de Mix"
           subtitleMode="count"
           showCadastroL3M
+          chaveMode={chaveMode}
+          locked={isAccumulated}
         />
 
       </div>
@@ -1466,12 +1515,21 @@ function ClusterCard({ data }: { data: { cluster: string; potencial: number; ger
   );
 }
 
-function ChannelSortimentoCard({ rows }: { rows: { canal: string; pct: number }[] }) {
+function ChannelSortimentoCard({
+  rows,
+  chaveMode = false,
+  locked = false,
+}: {
+  rows: { canal: string; pct: number }[];
+  chaveMode?: boolean;
+  locked?: boolean;
+}) {
   return (
-    <Card>
+    <Card className="relative">
+      {locked && <MixedPeriodBadge />}
       <CardTitle
         icon={<BarChart3 size={13} className="text-neutral-400" />}
-        title="Sortimento ≥ 90% — por canal"
+        title={chaveMode ? "Atingimento Chave 2 por Canal" : "Sortimento ≥ 90% — por canal"}
         sub="% de redes que atingiram o mix por canal"
       />
       {rows.length === 0 && <Empty />}
@@ -1559,18 +1617,11 @@ function MonthlyEvolutionCard({ data }: { data: { mes: string; gerado: number }[
 
 function RankingTable({
   rows,
+  chaveMode = false,
   expanded = false,
 }: {
-  rows: {
-    rede: string;
-    sortimento: number;
-    gerado: number;
-    potencial: number;
-    qtdAG: number;
-    agBatidos: number;
-    gapAgs: number;
-    gapAgs90: number;
-  }[];
+  rows: RankRow[];
+  chaveMode?: boolean;
   expanded?: boolean;
 }) {
   const fmtInt = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
@@ -1584,12 +1635,12 @@ function RankingTable({
           <tr className="text-neutral-400 font-medium border-b border-neutral-800">
             <th className={`text-left pb-1 ${expanded ? "w-5 sm:w-8" : "w-4 sm:w-5"} font-medium`}>#</th>
             <th className="text-left pb-1 font-medium truncate">Rede</th>
-            <th className={`text-center pb-1 ${expanded ? "w-8 sm:w-14" : "w-9 sm:w-12"} font-medium`}>Sort.</th>
+            <th className={`text-center pb-1 ${expanded ? "w-8 sm:w-14" : "w-9 sm:w-12"} font-medium`}>{chaveMode ? "Chave" : "Sort."}</th>
             <th className={`text-center pb-1 ${expanded ? "w-12 sm:w-20" : "w-12 sm:w-16"} font-medium leading-tight`}>
               <div>Ags</div><div>atingidos</div>
             </th>
             <th className={`text-center pb-1 ${expanded ? "w-12 sm:w-24" : "w-14 sm:w-20"} font-medium leading-tight`}>
-              <div>Gap Ags</div><div>.p ≥ 90%</div>
+              {chaveMode ? (<><div>Gap Ags</div><div>.p próx. Chave</div></>) : (<><div>Gap Ags</div><div>.p ≥ 90%</div></>)}
             </th>
             <th className={`text-center pb-1 ${expanded ? "w-14 sm:w-20" : "w-12 sm:w-16"} font-medium`}>Potencial</th>
             <th className={`text-center pb-1 ${expanded ? "w-14 sm:w-20" : "w-12 sm:w-16"} font-medium`}>Invest.</th>
@@ -1597,8 +1648,14 @@ function RankingTable({
         </thead>
         <tbody>
           {rows.map((r, i) => {
-            const color =
-              r.sortimento >= 0.9 ? "#22C55E" : r.sortimento >= 0.85 ? ORANGE : RED;
+            const color = r.chaveRegime
+              ? colorForChave(r.chave ?? 0)
+              : r.sortimento >= 0.9
+                ? "#22C55E"
+                : r.sortimento >= 0.85
+                  ? ORANGE
+                  : RED;
+            const gap = r.chaveRegime ? r.gapProximaChave : r.gapAgs90;
             return (
               <tr key={r.rede} className="border-b border-neutral-800 last:border-0">
                 <td className="py-1 text-neutral-400 font-medium">{i + 1}</td>
@@ -1606,14 +1663,14 @@ function RankingTable({
                   {r.rede}
                 </td>
                 <td className="py-1 text-center font-medium" style={{ color }}>
-                  {fmtPct(r.sortimento, 0)}
+                  {fmtChaveOrPct(r.chave, r.sortimento)}
                 </td>
                 <td className="py-1 text-center font-medium">
                   <span style={{ color }}>{r.agBatidos}</span>
                   <span className="text-neutral-200"> / {r.qtdAG}</span>
                 </td>
                 <td className="py-1 text-center text-neutral-200">
-                  {r.gapAgs90.toLocaleString("pt-BR")}
+                  {gap.toLocaleString("pt-BR")}
                 </td>
                 <td className="py-1 text-center text-neutral-200">
                   {fmtBRL(r.potencial)}
@@ -1632,31 +1689,28 @@ function RankingTable({
 
 function RankingCard({
   rows,
+  chaveMode = false,
+  locked = false,
 }: {
-  rows: {
-    rede: string;
-    sortimento: number;
-    gerado: number;
-    potencial: number;
-    qtdAG: number;
-    agBatidos: number;
-    gapAgs: number;
-    gapAgs90: number;
-  }[];
+  rows: RankRow[];
+  chaveMode?: boolean;
+  locked?: boolean;
 }) {
   const fmtInt = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
   const fmtBRNum = (n: number) =>
     n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const [expanded, setExpanded] = useState(false);
+  const gapHeader = chaveMode ? "Gap Ags p/próx. Chave" : "Gap Ags p>=90%";
   const handleDownloadCsv = () => {
-    const headers = ["#", "Rede", "Sortimento", "Ags batidos", "Qtd AG", "Gap Ags p>=90%", "Potencial", "Investimento"];
+    const headers = ["#", "Rede", chaveMode ? "Chave" : "Sortimento", "Ags batidos", "Qtd AG", gapHeader, "Potencial", "Investimento"];
     const escape = (v: string | number) => {
       const s = String(v ?? "");
       return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
     const lines = [headers.join(";")];
     rows.forEach((r, i) => {
-      lines.push([i + 1, r.rede, fmtPct(r.sortimento, 0), r.agBatidos, r.qtdAG, r.gapAgs90, fmtBRNum(r.potencial), fmtBRNum(r.gerado)].map(escape).join(";"));
+      const gap = r.chaveRegime ? r.gapProximaChave : r.gapAgs90;
+      lines.push([i + 1, r.rede, fmtChaveOrPct(r.chave, r.sortimento), r.agBatidos, r.qtdAG, gap, fmtBRNum(r.potencial), fmtBRNum(r.gerado)].map(escape).join(";"));
     });
     const csv = "\uFEFF" + lines.join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -1674,12 +1728,12 @@ function RankingCard({
     doc.setFontSize(14);
     doc.text("Ranking de redes", 40, 40);
     const body = rows.map((r, i) => [
-      i + 1, r.rede, fmtPct(r.sortimento, 0),
-      `${r.agBatidos} / ${r.qtdAG}`, fmtInt(r.gapAgs90), fmtBRL(r.potencial), fmtBRL(r.gerado),
+      i + 1, r.rede, fmtChaveOrPct(r.chave, r.sortimento),
+      `${r.agBatidos} / ${r.qtdAG}`, fmtInt(r.chaveRegime ? r.gapProximaChave : r.gapAgs90), fmtBRL(r.potencial), fmtBRL(r.gerado),
     ]);
     autoTable(doc, {
       startY: 60,
-      head: [["#", "Rede", "Sortimento", "Ags atingidos", "Gap Ags p>=90%", "Potencial", "Investimento"]],
+      head: [["#", "Rede", chaveMode ? "Chave" : "Sortimento", "Ags atingidos", gapHeader, "Potencial", "Investimento"]],
       body,
       styles: { fontSize: 9, cellPadding: 4 },
       headStyles: { fillColor: [38, 38, 40], textColor: 255 },
@@ -1689,7 +1743,8 @@ function RankingCard({
   };
   return (
     <>
-      <Card>
+      <Card className="relative">
+        {locked && <MixedPeriodBadge />}
         <div className="flex items-start justify-between gap-2 mb-2">
           <CardTitle
             icon={<Star size={13} className="text-neutral-400" />}
@@ -1712,13 +1767,23 @@ function RankingCard({
         {rows.length === 0 ? (
           <Empty />
         ) : (
-          <RankingTable rows={rows} />
+          <RankingTable rows={rows} chaveMode={chaveMode} />
         )}
         <div className="h-px bg-neutral-800 my-2" />
         <div className="flex gap-2.5">
-          <LegendDot color={GREEN} label="≥90%" />
-          <LegendDot color={ORANGE} label="85–89%" />
-          <LegendDot color={RED} label="<85%" />
+          {chaveMode ? (
+            <>
+              <LegendDot color={GREEN} label="Chave 2" />
+              <LegendDot color={ORANGE} label="Chave 1" />
+              <LegendDot color={RED} label="Chave 0" />
+            </>
+          ) : (
+            <>
+              <LegendDot color={GREEN} label="≥90%" />
+              <LegendDot color={ORANGE} label="85–89%" />
+              <LegendDot color={RED} label="<85%" />
+            </>
+          )}
         </div>
       </Card>
 
@@ -1749,7 +1814,7 @@ function RankingCard({
             </div>
           ) : (
             <div className="flex-1 min-h-0 p-2 sm:p-4 overflow-hidden">
-              <RankingTable rows={rows} expanded />
+              <RankingTable rows={rows} chaveMode={chaveMode} expanded />
             </div>
           )}
         </DialogContent>
@@ -1807,10 +1872,14 @@ function TeamPerformanceCard({
   monthRows,
   estrutura,
   filters,
+  chaveMode = false,
+  locked = false,
 }: {
   monthRows: Row[];
   estrutura: EstruturaRow[];
   filters: Filters;
+  chaveMode?: boolean;
+  locked?: boolean;
 }) {
   const [mode, setMode] = useState<TeamMode>("gv");
   const [open, setOpen] = useState(false);
@@ -1862,7 +1931,7 @@ function TeamPerformanceCard({
     for (const r of monthRows) {
       const teamLabels = teamMap.get(`${r.rede}||${r.distribuidor}`);
       if (!teamLabels) continue;
-      const isOk = r.sortimento >= 0.9;
+      const isOk = isSortOk(r);
       for (const teamLabel of teamLabels) {
         let agg = map.get(teamLabel);
         if (!agg) {
@@ -1977,7 +2046,8 @@ function TeamPerformanceCard({
   };
 
   return (
-    <Card>
+    <Card className="relative">
+      {locked && <MixedPeriodBadge />}
       <div className="flex items-start justify-between gap-2 mb-3">
         <div>
           <div className="text-[12px] font-medium text-neutral-100 mb-0.5 flex items-center gap-1.5">
@@ -1986,7 +2056,7 @@ function TeamPerformanceCard({
           </div>
           <div className="text-[11px] text-neutral-400 flex items-center gap-1.5">
             <Check size={11} style={{ color: BLUE }} />
-            Redes com sortimento ≥ 90%
+            {chaveMode ? "Redes com Chave 2" : "Redes com sortimento ≥ 90%"}
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -2100,13 +2170,17 @@ function GruposNaoBatidosCard({
   title = "Grupos não batidos",
   subtitleMode = "default",
   showCadastroL3M = false,
+  chaveMode = false,
+  locked = false,
 }: {
-  rows: { rede: string; sortimento: number; target: number; atributo: string; valor: number }[];
+  rows: { rede: string; sortimento: number; chave: number | null; target: number; atributo: string; valor: number }[];
   skusByGroup: Map<string, { ean: string; descricao: string }[]>;
   skuVolumeMap: Map<string, number>;
   title?: string;
   subtitleMode?: "default" | "count";
   showCadastroL3M?: boolean;
+  chaveMode?: boolean;
+  locked?: boolean;
 }) {
   const fileSlug = title.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -2123,9 +2197,10 @@ function GruposNaoBatidosCard({
   const visibleRows = rows;
 
   const handleDownloadCsv = () => {
+    const sortLabel = chaveMode ? "Chave" : showCadastroL3M ? "Sort." : "Sortimento";
     const headers = showCadastroL3M
-      ? ["Rede", "Sort.", "Grupo", "EAN", "Descrição SKU", "Vendido(Un)", "Cadastro", "Qtd. Cadastro"]
-      : ["Rede", "Sortimento", "Grupo", "EAN", "Descrição SKU", "Target", "Vendido(Un)", "Faltante"];
+      ? ["Rede", sortLabel, "Grupo", "EAN", "Descrição SKU", "Vendido(Un)", "Cadastro", "Qtd. Cadastro"]
+      : ["Rede", sortLabel, "Grupo", "EAN", "Descrição SKU", "Target", "Vendido(Un)", "Faltante"];
     const escape = (v: string | number) => {
       const s = String(v ?? "");
       return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
@@ -2147,7 +2222,7 @@ function GruposNaoBatidosCard({
             : `${cadastrados} Itens cadastrados dentro do AG`;
       if (!showCadastroL3M) {
         lines.push(
-          [r.rede, fmtPct(r.sortimento, 0), r.atributo, "Total", "Total", r.target, r.valor, faltante]
+          [r.rede, fmtChaveOrPct(r.chave, r.sortimento), r.atributo, "Total", "Total", r.target, r.valor, faltante]
             .map(escape)
             .join(";"),
         );
@@ -2157,13 +2232,13 @@ function GruposNaoBatidosCard({
         const cadastroLabel = vol > 0 ? "Item Cadastrado" : "Item não Cadastrado";
         if (showCadastroL3M) {
           lines.push(
-            [r.rede, fmtPct(r.sortimento, 0), r.atributo, sku.ean, sku.descricao ?? "", vol, cadastroLabel, qtdLabel]
+            [r.rede, fmtChaveOrPct(r.chave, r.sortimento), r.atributo, sku.ean, sku.descricao ?? "", vol, cadastroLabel, qtdLabel]
               .map(escape)
               .join(";"),
           );
         } else {
           lines.push(
-            [r.rede, fmtPct(r.sortimento, 0), r.atributo, sku.ean, sku.descricao ?? "", "", vol, ""]
+            [r.rede, fmtChaveOrPct(r.chave, r.sortimento), r.atributo, sku.ean, sku.descricao ?? "", "", vol, ""]
               .map(escape)
               .join(";"),
           );
@@ -2204,7 +2279,7 @@ function GruposNaoBatidosCard({
       if (!showCadastroL3M) {
         body.push([
           r.rede,
-          fmtPct(r.sortimento, 0),
+          fmtChaveOrPct(r.chave, r.sortimento),
           r.atributo,
           "Total",
           "Total",
@@ -2219,7 +2294,7 @@ function GruposNaoBatidosCard({
         if (showCadastroL3M) {
           body.push([
             r.rede,
-            fmtPct(r.sortimento, 0),
+            fmtChaveOrPct(r.chave, r.sortimento),
             r.atributo,
             sku.ean,
             sku.descricao ?? "",
@@ -2230,7 +2305,7 @@ function GruposNaoBatidosCard({
         } else {
           body.push([
             r.rede,
-            fmtPct(r.sortimento, 0),
+            fmtChaveOrPct(r.chave, r.sortimento),
             r.atributo,
             sku.ean,
             sku.descricao ?? "",
@@ -2245,8 +2320,8 @@ function GruposNaoBatidosCard({
       startY: 60,
       head: [
         showCadastroL3M
-          ? ["Rede", "Sort.", "Grupo", "EAN", "Descrição SKU", "Vendido(Un)", "Cadastro", "Qtd. Cadastro"]
-          : ["Rede", "Sortimento", "Grupo", "EAN", "Descrição SKU", "Target", "Vendido(Un)", "Faltante"],
+          ? ["Rede", chaveMode ? "Chave" : "Sort.", "Grupo", "EAN", "Descrição SKU", "Vendido(Un)", "Cadastro", "Qtd. Cadastro"]
+          : ["Rede", chaveMode ? "Chave" : "Sortimento", "Grupo", "EAN", "Descrição SKU", "Target", "Vendido(Un)", "Faltante"],
       ],
       body,
       styles: { fontSize: 8, cellPadding: 4 },
@@ -2258,7 +2333,8 @@ function GruposNaoBatidosCard({
 
 
   return (
-    <div className="bg-[#1a1a1c] rounded-xl border border-neutral-800/80 p-3.5">
+    <div className="relative bg-[#1a1a1c] rounded-xl border border-neutral-800/80 p-3.5">
+      {locked && <MixedPeriodBadge />}
       <div className="flex items-start justify-between gap-3 mb-3">
         <div>
           <div className="text-[12px] font-medium text-neutral-100 mb-0.5 flex items-center gap-1.5">
@@ -2319,6 +2395,7 @@ function GruposNaoBatidosCard({
           toggleExpand={toggleExpand}
           fmtInt={fmtInt}
           showCadastroL3M={showCadastroL3M}
+          chaveMode={chaveMode}
         />
       )}
     </div>
@@ -2331,7 +2408,7 @@ const GRUPOS_GRID_COLS_EXT =
   "grid-cols-[180px_minmax(220px,1fr)_48px_80px_140px_200px] sm:grid-cols-[220px_minmax(260px,1fr)_56px_88px_160px_240px]";
 
 
-type GruposRow = { rede: string; sortimento: number; target: number; atributo: string; valor: number };
+type GruposRow = { rede: string; sortimento: number; chave: number | null; target: number; atributo: string; valor: number };
 type FlatItem =
   | { kind: "group"; row: GruposRow; rowKey: string; skuCount: number; cadastrados: number; index: number; qtdLabel: string; qtdColor: string }
   | { kind: "sku"; ean: string; descricao: string; vol: number; parentKey: string; parentQtdLabel?: string; parentQtdColor?: string };
@@ -2344,6 +2421,7 @@ function VirtualizedGruposList({
   toggleExpand,
   fmtInt,
   showCadastroL3M = false,
+  chaveMode = false,
 }: {
   rows: GruposRow[];
   skusByGroup: Map<string, { ean: string; descricao: string }[]>;
@@ -2352,6 +2430,7 @@ function VirtualizedGruposList({
   toggleExpand: (key: string) => void;
   fmtInt: (n: number) => string;
   showCadastroL3M?: boolean;
+  chaveMode?: boolean;
 }) {
   const items = useMemo<FlatItem[]>(() => {
     const out: FlatItem[] = [];
@@ -2417,7 +2496,7 @@ function VirtualizedGruposList({
       >
         <div className="text-left pb-1 sm:pb-1.5 pr-1 sm:pr-2">Rede</div>
         <div className="text-left pb-1 sm:pb-1.5 pl-1 sm:pl-2">Grupo</div>
-        <div className="text-center pb-1 sm:pb-1.5">{showCadastroL3M ? "Sort." : "%"}</div>
+        <div className="text-center pb-1 sm:pb-1.5">{chaveMode ? "Chave" : showCadastroL3M ? "Sort." : "%"}</div>
         {!showCadastroL3M && <div className="text-right pb-1 sm:pb-1.5">Target</div>}
         <div className="text-right pb-1 sm:pb-1.5">Vendido(Un)</div>
         {!showCadastroL3M && <div className="text-right pb-1 sm:pb-1.5">Faltante</div>}
@@ -2443,7 +2522,13 @@ function VirtualizedGruposList({
             const r = it.row;
             const faltante = Math.max(0, r.target - r.valor);
             const sortColor =
-              r.sortimento >= 0.9 ? "#22C55E" : r.sortimento >= 0.85 ? ORANGE : RED;
+              r.chave != null
+                ? colorForChave(r.chave)
+                : r.sortimento >= 0.9
+                  ? "#22C55E"
+                  : r.sortimento >= 0.85
+                    ? ORANGE
+                    : RED;
             const isExpanded = expanded.has(it.rowKey);
             return (
               <div
@@ -2483,7 +2568,7 @@ function VirtualizedGruposList({
                   className="py-0.5 sm:py-1 text-center tabular-nums font-medium"
                   style={{ color: sortColor }}
                 >
-                  {fmtPct(r.sortimento, 0)}
+                  {fmtChaveOrPct(r.chave, r.sortimento)}
                 </div>
                 {!showCadastroL3M && (
                   <div className="py-0.5 sm:py-1 text-right tabular-nums text-neutral-300">
@@ -2570,6 +2655,18 @@ function VirtualizedGruposList({
 
 
 
+/** Etiqueta discreta que "espia" atrás do card, avisando que ele trava em período misto. */
+function MixedPeriodBadge() {
+  return (
+    <div
+      className="absolute -top-2 -right-2 z-0 flex items-center justify-center w-5 h-5 rounded-full bg-[#3D2A10] border border-[#7A5215] text-[#F1B257] shadow-md"
+      title="Este card não se altera com períodos múltiplos selecionados."
+    >
+      <AlertTriangle size={11} />
+    </div>
+  );
+}
+
 function LegendDot({ color, label }: { color: string; label: string }) {
   return (
     <span className="text-[10px] flex items-center gap-1 text-neutral-400">
@@ -2600,7 +2697,7 @@ type LineHistoryProps = {
   groups: { name: string; values: number[] }[];
   extra?: { name: string; values: number[]; color: string; dashed?: boolean };
   yFormat: (n: number) => string;
-  pointFormat: (n: number) => string;
+  pointFormat: (n: number, i: number) => string;
   reference?: { value: number; label: string };
   forceMax?: number;
   deltaMode?: "pct" | "pp";
@@ -2903,7 +3000,7 @@ function LineHistoryCard(p: LineHistoryProps) {
                     style={{ paintOrder: "stroke" }}
                     className="line-point-pop"
                   >
-                    {p.pointFormat(it.value)}
+                    {p.pointFormat(it.value, i)}
                   </text>
                 ));
               })}
@@ -2965,7 +3062,7 @@ function LineHistoryCard(p: LineHistoryProps) {
                       className="line-point-pop"
                       style={{ animationDelay: `${delay + 60}ms` }}
                     >
-                      {p.pointFormat(v)}
+                      {p.pointFormat(v, i)}
                     </text>
                   </g>
                 );

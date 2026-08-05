@@ -11,11 +11,20 @@ export type Row = {
   targetUnidades: number;
   qtdAG: number;
   agBatidos: number;
-  sortimento: number; // 0..1
+  sortimento: number; // 0..1 — só válido em meses anteriores à virada de contrato (ver chave)
+  chave: number | null; // 0, 1 ou 2 — só válido a partir da virada de contrato (ago/2026)
   faturamento: number;
   potencial: number;
   gerado: number;
   mes: string; // YYYY-MM-DD
+};
+
+/** Meta de AGs por Cluster+Canal para atingir cada chave (nem todo combo tem Chave 1). */
+export type ChaveRow = {
+  cluster: string;
+  canal: string;
+  chave1: number | null;
+  chave2: number | null;
 };
 
 export type AgRow = {
@@ -109,18 +118,20 @@ export async function loadRowsFromCloud(): Promise<{
   iniciativas: IniciativaRow[];
   estruturaGrupos: EstruturaGrupoRow[];
   skuRows: SkuRow[];
+  chaves: ChaveRow[];
   meta: DataMeta;
 }> {
   const meta = await fetchJson<DataMeta>("meta.json");
-  const [rows, estrutura, iniciativas, estruturaGrupos, agRows, skuRows] = await Promise.all([
+  const [rows, estrutura, iniciativas, estruturaGrupos, chaves, agRows, skuRows] = await Promise.all([
     fetchJson<Row[]>("rows.json"),
     fetchJson<EstruturaRow[]>("estrutura.json"),
     fetchJson<IniciativaRow[]>("iniciativas.json"),
     fetchJson<EstruturaGrupoRow[]>("estrutura_grupos.json"),
+    fetchJson<ChaveRow[]>("chaves.json"),
     fetchChunked<AgRow>("ags", meta.agsParts ?? 0),
     fetchChunked<SkuRow>("skus", meta.skusParts ?? 0),
   ]);
-  return { rows, agRows, estrutura, iniciativas, estruturaGrupos, skuRows, meta };
+  return { rows, agRows, estrutura, iniciativas, estruturaGrupos, skuRows, chaves, meta };
 }
 
 const COL_MAP: Record<string, keyof Row> = {

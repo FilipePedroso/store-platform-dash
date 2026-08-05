@@ -1,4 +1,15 @@
-import type { Row } from "./dashboard-data";
+import type { ChaveRow, Row } from "./dashboard-data";
+
+/**
+ * Virada de contrato: a partir deste mês, "% Sortimento" deixa de ser um percentual
+ * e passa a ser a Chave atingida (0/1/2), calculada com base em metas de AGs por
+ * Cluster+Canal (aba "Chaves"). Meses anteriores continuam usando o % legado.
+ */
+export const CHAVE_CUTOVER = "2026-08-01";
+export const isChaveRegime = (mes: string): boolean => mes >= CHAVE_CUTOVER;
+/** Rede "OK" (bateu o mix mínimo) no regime vigente para o mês daquela linha. */
+export const isSortOk = (r: Row): boolean =>
+  isChaveRegime(r.mes) ? r.chave === 2 : r.sortimento >= 0.9;
 
 export type Filters = {
   cluster: string[];
@@ -146,7 +157,7 @@ export function computeKpis(
 
   const redesAtivas = new Set(monthRows.map((r) => r.rede)).size;
   const redesSortimentoOk = new Set(
-    monthRows.filter((r) => r.sortimento >= 0.9).map((r) => r.rede),
+    monthRows.filter(isSortOk).map((r) => r.rede),
   ).size;
 
   // Previous month comparison only when exactly one month is selected
@@ -157,7 +168,7 @@ export function computeKpis(
   const prevPotencial = sum(prevRows, "potencial");
   const prevAg = sum(prevRows, "agBatidos");
   const prevQtd = sum(prevRows, "qtdAG");
-  const prevRedesOk = new Set(prevRows.filter((r) => r.sortimento >= 0.9).map((r) => r.rede)).size;
+  const prevRedesOk = new Set(prevRows.filter(isSortOk).map((r) => r.rede)).size;
 
   return {
     gerado,
@@ -209,7 +220,7 @@ export function computeDonutByCanal(monthRows: Row[]): {
   const okRedes = new Set<string>();
   for (const r of monthRows) {
     allRedes.add(r.rede);
-    if (r.sortimento >= 0.9) {
+    if (isSortOk(r)) {
       okRedes.add(r.rede);
       const k = r.canal || "—";
       if (!okByCanal.has(k)) okByCanal.set(k, new Set());
@@ -253,12 +264,35 @@ export type RankRow = {
   agBatidos: number;
   gapAgs: number;
   gapAgs90: number;
+  /** Regime vigente para o mês desta linha (true = Chave, false = % legado). */
+  chaveRegime: boolean;
+  /** Chave atingida (0/1/2), só preenchida quando chaveRegime é true. */
+  chave: number | null;
+  /** AGs faltantes para a próxima chave (0 se já está na Chave 2, ou sem regime de chave). */
+  gapProximaChave: number;
 };
 
-export function computeRanking(monthRows: Row[], topN = 5): RankRow[] {
+export function computeRanking(
+  monthRows: Row[],
+  chaves: ChaveRow[],
+  topN = 5,
+): RankRow[] {
+  const chavesMap = new Map<string, ChaveRow>();
+  for (const c of chaves) chavesMap.set(`${c.cluster}|${c.canal}`, c);
+
   const map = new Map<
     string,
-    { rede: string; gerado: number; potencial: number; qtdAG: number; agBatidos: number }
+    {
+      rede: string;
+      gerado: number;
+      potencial: number;
+      qtdAG: number;
+      agBatidos: number;
+      mes: string;
+      cluster: string;
+      canal: string;
+      chave: number | null;
+    }
   >();
   for (const r of monthRows) {
     const cur = map.get(r.rede);
@@ -267,6 +301,11 @@ export function computeRanking(monthRows: Row[], topN = 5): RankRow[] {
       cur.potencial += r.potencial;
       cur.qtdAG += r.qtdAG;
       cur.agBatidos += r.agBatidos;
+      // Última linha encontrada define cluster/canal/chave/mês (redes têm 1 linha/mês na prática).
+      cur.mes = r.mes;
+      cur.cluster = r.cluster;
+      cur.canal = r.canal;
+      cur.chave = r.chave;
     } else {
       map.set(r.rede, {
         rede: r.rede,
@@ -274,6 +313,10 @@ export function computeRanking(monthRows: Row[], topN = 5): RankRow[] {
         potencial: r.potencial,
         qtdAG: r.qtdAG,
         agBatidos: r.agBatidos,
+        mes: r.mes,
+        cluster: r.cluster,
+        canal: r.canal,
+        chave: r.chave,
       });
     }
   }
@@ -282,9 +325,34 @@ export function computeRanking(monthRows: Row[], topN = 5): RankRow[] {
       const sortimento = v.qtdAG > 0 ? v.agBatidos / v.qtdAG : 0;
       const gapAgs = Math.max(0, v.qtdAG - v.agBatidos);
       const gapAgs90 = Math.max(0, Math.ceil(0.9 * v.qtdAG) - v.agBatidos);
-      return { ...v, sortimento, gapAgs, gapAgs90 };
+      const chaveRegime = isChaveRegime(v.mes);
+      let gapProximaChave = 0;
+      if (chaveRegime) {
+        const meta = chavesMap.get(`${v.cluster}|${v.canal}`);
+        if (meta && v.chave !== 2) {
+          const proximo = v.chave === 1 || meta.chave1 == null ? meta.chave2 : meta.chave1;
+          if (proximo != null) gapProximaChave = Math.max(0, proximo - v.agBatidos);
+        }
+      }
+      return {
+        rede: v.rede,
+        sortimento,
+        gerado: v.gerado,
+        potencial: v.potencial,
+        qtdAG: v.qtdAG,
+        agBatidos: v.agBatidos,
+        gapAgs,
+        gapAgs90,
+        chaveRegime,
+        chave: chaveRegime ? v.chave : null,
+        gapProximaChave,
+      };
     })
-    .sort((a, b) => b.sortimento - a.sortimento || b.gerado - a.gerado)
+    .sort((a, b) =>
+      a.chaveRegime
+        ? (b.chave ?? -1) - (a.chave ?? -1) || b.gerado - a.gerado
+        : b.sortimento - a.sortimento || b.gerado - a.gerado,
+    )
     .slice(0, topN);
 }
 
@@ -353,7 +421,7 @@ export const reduceSumGerado = (rows: Row[]) => rows.reduce((a, r) => a + r.gera
 export const reduceSumPotencial = (rows: Row[]) => rows.reduce((a, r) => a + r.potencial, 0);
 export const reduceSumFaturamento = (rows: Row[]) => rows.reduce((a, r) => a + r.faturamento, 0);
 export const reduceRedesOk = (rows: Row[]) =>
-  new Set(rows.filter((r) => r.sortimento >= 0.9).map((r) => r.rede)).size;
+  new Set(rows.filter(isSortOk).map((r) => r.rede)).size;
 export const reduceAtingimento = (rows: Row[]) => {
   const p = rows.reduce((a, r) => a + r.potencial, 0);
   const g = rows.reduce((a, r) => a + r.gerado, 0);

@@ -37,6 +37,15 @@ const findSheet = (...names) => wb.SheetNames.find(n => names.includes(n.toLower
 const sheetJson = name => name ? XLSX.utils.sheet_to_json(wb.Sheets[name], { defval: null, raw: true }) : [];
 const norm = v => v == null ? "" : String(v).trim();
 
+// A partir da "virada de contrato" (ago/2026), a coluna "% Sortimento" passa a trazer
+// "Chave 0"/"Chave 1"/"Chave 2" em vez de um percentual. Guardamos os dois formatos em
+// campos separados (sortimento continua numérico para meses antigos; chave para os novos).
+const parseChave = v => {
+  if (typeof v !== "string") return null;
+  const m = /^chave\s*(\d+)$/i.exec(v.trim());
+  return m ? Number(m[1]) : null;
+};
+
 const strCols = new Set(["rede","distribuidor","cluster","clusterMix","canal","canalMix"]);
 const rows = sheetJson(findSheet("dados") || wb.SheetNames[0]).map(raw => {
   const out = {};
@@ -44,6 +53,11 @@ const rows = sheetJson(findSheet("dados") || wb.SheetNames[0]).map(raw => {
     const m = COL_MAP[k.trim()]; if (!m) continue;
     if (m === "mes") out.mes = excelDateToISO(v);
     else if (strCols.has(m)) out[m] = v == null ? "" : String(v);
+    else if (m === "sortimento") {
+      const chave = parseChave(v);
+      if (chave != null) { out.chave = chave; out.sortimento = 0; }
+      else { const n = typeof v === "number" ? v : v == null ? 0 : Number(v); out.sortimento = Number.isFinite(n) ? n : 0; out.chave = null; }
+    }
     else { const n = typeof v === "number" ? v : v == null ? 0 : Number(v); out[m] = Number.isFinite(n) ? n : 0; }
   }
   return out;
@@ -91,6 +105,24 @@ const iniciativas = sheetJson(findSheet("iniciativas")).map(raw => {
   return out;
 }).filter(r => r.rede);
 
+// Metas de AGs por Cluster+Canal para cada chave (nem todo combo tem Chave 1 — vira "-" na planilha)
+const parseChaveThreshold = v => {
+  if (typeof v === "number") return v;
+  if (typeof v === "string" && v.trim() !== "" && v.trim() !== "-") { const n = Number(v.trim()); return Number.isFinite(n) ? n : null; }
+  return null;
+};
+const chaves = sheetJson(findSheet("chaves")).map(raw => {
+  const out = { cluster:"", canal:"", chave1:null, chave2:null };
+  for (const [k, v] of Object.entries(raw)) {
+    const key = k.trim().toLowerCase();
+    if (key === "cluster") out.cluster = norm(v);
+    else if (key === "canal") out.canal = norm(v);
+    else if (key === "chave 1") out.chave1 = parseChaveThreshold(v);
+    else if (key === "chave 2") out.chave2 = parseChaveThreshold(v);
+  }
+  return out;
+}).filter(r => r.cluster && r.canal);
+
 const estruturaGrupos = sheetJson(findSheet("estrutura_grupos","estrutura grupos")).map(raw => {
   const out = { categoria:"",marca:"",activationGroup:"",ean:"",descricao:"" };
   for (const [k, v] of Object.entries(raw)) {
@@ -123,7 +155,7 @@ const skuRows = sheetJson(findSheet("dados_skus","dados skus")).map(raw => {
 if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR, { recursive: true });
 // Clean previous chunk files
 for (const f of fs.readdirSync(OUT_DIR)) {
-  if (/^(ags|skus)\.part\d+\.json$/.test(f) || /^(ags|skus|rows|estrutura|iniciativas|estrutura_grupos|meta)\.json$/.test(f))
+  if (/^(ags|skus)\.part\d+\.json$/.test(f) || /^(ags|skus|rows|estrutura|iniciativas|estrutura_grupos|chaves|meta)\.json$/.test(f))
     fs.unlinkSync(path.join(OUT_DIR, f));
 }
 
@@ -150,6 +182,7 @@ const skusParts = writeChunked("skus", skuRows);
 writeOne("estrutura", estrutura);
 writeOne("iniciativas", iniciativas);
 writeOne("estrutura_grupos", estruturaGrupos);
+writeOne("chaves", chaves);
 
 function resolveUpdatedAt() {
   try {
