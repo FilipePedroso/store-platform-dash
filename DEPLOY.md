@@ -14,8 +14,8 @@ carregados pelo navegador junto com o site.
 2. Commit & push das alterações em `public/data/`.
 
 O script `scripts/build_data.mjs` lê as abas `Dados`, `dados ags`,
-`dados_skus`, `estrutura`, `iniciativas` e `estrutura_grupos`, e gera os
-JSONs (com `ags` e `skus` divididos em chunks de 20k linhas).
+`dados_skus`, `estrutura`, `iniciativas`, `estrutura_grupos` e `Chaves`,
+e gera os JSONs (com `ags` e `skus` divididos em chunks de 20k linhas).
 
 ## Build local
 

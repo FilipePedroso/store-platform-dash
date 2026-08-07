@@ -7,7 +7,7 @@ Dashboard estático publicado via GitHub Pages. Os dados vêm de um Excel commit
 1. Abra o repositório no GitHub e entre na pasta **`data-source/`**.
 2. Clique em **"Add file" → "Upload files"** e arraste o `.xlsx` novo.
    - Pode usar o mesmo nome do anterior (sobrescreve) ou um nome novo — o sistema usa o último em ordem alfabética.
-   - O Excel precisa ter as abas: `Dados`, `Dados AGs`, `Estrutura`, `Iniciativas`, `Estrutura Grupos`, `Dados SKUs`.
+   - O Excel precisa ter as abas: `Dados`, `Dados AGs`, `Estrutura`, `Iniciativas`, `Estrutura Grupos`, `Dados SKUs`, `Chaves`.
 3. Embaixo da página, escreva uma mensagem (ex.: "atualiza histórico") e clique em **"Commit changes"**.
 4. Aguarde ~2 minutos. O GitHub Actions regenera os JSONs e publica no GitHub Pages automaticamente.
    - Acompanhe o progresso na aba **"Actions"** no topo do repositório (✅ verde = publicado).
