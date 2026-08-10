@@ -2763,8 +2763,15 @@ type LineHistoryProps = {
   };
 };
 
-function LineHistoryCard(p: LineHistoryProps) {
-  const [mode, setMode] = useState<"total" | "cluster">("total");
+function ModeToggle({
+  mode,
+  setMode,
+  hasGroups,
+}: {
+  mode: "total" | "cluster";
+  setMode: (m: "total" | "cluster") => void;
+  hasGroups: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -2776,6 +2783,47 @@ function LineHistoryCard(p: LineHistoryProps) {
     document.addEventListener("mousedown", onClick);
     return () => document.removeEventListener("mousedown", onClick);
   }, [open]);
+
+  return (
+    <div className="relative shrink-0" ref={ref}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className={`rounded-full px-3 py-1 text-[11px] flex items-center gap-1.5 border transition-colors ${
+          mode === "cluster"
+            ? "bg-[#0E2E4D] border-[#378ADD] text-[#8BBEEC] font-medium"
+            : "bg-[#1a1a1c] border-neutral-800 text-neutral-400 hover:border-neutral-700"
+        }`}
+      >
+        <Layers size={12} />
+        {mode === "total" ? "Total" : "Por cluster"}
+        <ChevronDown size={12} />
+      </button>
+      {open && (
+        <div className="absolute right-0 z-20 mt-1 min-w-[140px] bg-[#1a1a1c] border border-neutral-800 rounded-md shadow-lg py-1 text-[11px]">
+          {(["total", "cluster"] as const).map((m) => (
+            <button
+              key={m}
+              onClick={() => {
+                setMode(m);
+                setOpen(false);
+              }}
+              className={`block w-full text-left px-3 py-1 hover:bg-neutral-800 ${
+                mode === m ? "text-[#8BBEEC] font-medium" : "text-neutral-200"
+              }`}
+              disabled={m === "cluster" && !hasGroups}
+            >
+              {m === "total" ? "Total" : "Por cluster"}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LineHistoryCard(p: LineHistoryProps) {
+  const [mode, setMode] = useState<"total" | "cluster">("total");
+  const [expanded, setExpanded] = useState(false);
 
   const showCluster = mode === "cluster" && p.groups.length > 0;
 
@@ -2802,20 +2850,29 @@ function LineHistoryCard(p: LineHistoryProps) {
   const yMin = showCluster && !p.forceMax ? Math.max(0, rawMin * 0.9) : 0;
   const ySpan = Math.max(1, yMax - yMin);
 
-  // SVG layout — modo cluster ganha altura extra
+  // SVG layout — modo cluster ganha altura extra. H varia por variante (compacto/expandido);
+  // o resto do layout é recalculado em função dela para manter a proporção sem sobrar espaço vazio.
   const W = 400;
-  const H = showCluster ? 260 : 170;
   const padL = 44;
   const padR = 16;
-  const padT = 10;
   const padB = 30;
   const innerW = W - padL - padR;
-  const innerH = H - padT - padB;
   const n = p.months.length;
   const xAt = (i: number) =>
     n <= 1 ? padL + innerW / 2 : padL + (i * innerW) / (n - 1);
-  const yAt = (v: number) => padT + innerH - ((v - yMin) / ySpan) * innerH;
-
+  const geomFor = (H: number, padT: number) => {
+    const innerH = H - padT - padB;
+    const yAt = (v: number) => padT + innerH - ((v - yMin) / ySpan) * innerH;
+    const polylinePoints = (vals: number[]) =>
+      vals.map((v, i) => `${xAt(i)},${yAt(v)}`).join(" ");
+    const areaPath = (vals: number[]) => {
+      if (vals.length === 0) return "";
+      const baseY = padT + innerH;
+      const pts = vals.map((v, i) => `${xAt(i)},${yAt(v)}`).join(" L ");
+      return `M ${xAt(0)},${baseY} L ${pts} L ${xAt(vals.length - 1)},${baseY} Z`;
+    };
+    return { innerH, yAt, polylinePoints, areaPath };
+  };
 
   const lastTotal = p.total[p.total.length - 1] ?? 0;
   const prevTotal = p.total[p.total.length - 2] ?? 0;
@@ -2830,19 +2887,8 @@ function LineHistoryCard(p: LineHistoryProps) {
     }
   }
 
-  const polylinePoints = (vals: number[]) =>
-    vals.map((v, i) => `${xAt(i)},${yAt(v)}`).join(" ");
-
-  const areaPath = (vals: number[]) => {
-    if (vals.length === 0) return "";
-    const baseY = padT + innerH;
-    const pts = vals.map((v, i) => `${xAt(i)},${yAt(v)}`).join(" L ");
-    return `M ${xAt(0)},${baseY} L ${pts} L ${xAt(vals.length - 1)},${baseY} Z`;
-  };
-
   // Stable gradient id per card instance
   const gradIdRef = useRef(`grad-${Math.random().toString(36).slice(2)}`);
-  const gradId = gradIdRef.current;
 
   // Key that changes whenever the underlying data changes → re-triggers CSS animation.
   const animKey =
@@ -2854,11 +2900,12 @@ function LineHistoryCard(p: LineHistoryProps) {
     "#" +
     (showCluster ? "c" : "t");
 
-  return (
-    <Card>
-      <div className="flex items-start justify-between gap-2 mb-2">
+  function headerRow(variant: "card" | "dialog") {
+    const TitleTag = variant === "dialog" ? DialogTitle : "div";
+    return (
+      <div className="flex items-start justify-between gap-2 mb-2 shrink-0">
         <div>
-          <div className="text-[12px] font-medium text-neutral-100 flex items-center gap-1.5 flex-wrap">
+          <TitleTag className="text-[12px] font-medium text-neutral-100 flex items-center gap-1.5 flex-wrap">
             {p.icon}
             {p.title}
             {p.distribuidores && p.distribuidores.length > 0 && (
@@ -2872,48 +2919,76 @@ function LineHistoryCard(p: LineHistoryProps) {
                   : `${p.distribuidores.length} distribuidores`}
               </span>
             )}
-          </div>
+          </TitleTag>
           <div className="text-[11px] text-neutral-400 mt-0.5">{p.sub}</div>
         </div>
-        <div className="relative shrink-0" ref={ref}>
-          <button
-            onClick={() => setOpen((v) => !v)}
-            className={`rounded-full px-3 py-1 text-[11px] flex items-center gap-1.5 border transition-colors ${
-              mode === "cluster"
-                ? "bg-[#0E2E4D] border-[#378ADD] text-[#8BBEEC] font-medium"
-                : "bg-[#1a1a1c] border-neutral-800 text-neutral-400 hover:border-neutral-700"
-            }`}
-          >
-            <Layers size={12} />
-            {mode === "total" ? "Total" : "Por cluster"}
-            <ChevronDown size={12} />
-          </button>
-          {open && (
-            <div className="absolute right-0 z-20 mt-1 min-w-[140px] bg-[#1a1a1c] border border-neutral-800 rounded-md shadow-lg py-1 text-[11px]">
-              {(["total", "cluster"] as const).map((m) => (
-                <button
-                  key={m}
-                  onClick={() => {
-                    setMode(m);
-                    setOpen(false);
-                  }}
-                  className={`block w-full text-left px-3 py-1 hover:bg-neutral-800 ${
-                    mode === m ? "text-[#8BBEEC] font-medium" : "text-neutral-200"
-                  }`}
-                  disabled={m === "cluster" && p.groups.length === 0}
-                >
-                  {m === "total" ? "Total" : "Por cluster"}
-                </button>
-              ))}
-            </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <ModeToggle mode={mode} setMode={setMode} hasGroups={p.groups.length > 0} />
+          {variant === "card" ? (
+            <button
+              type="button"
+              disabled={n === 0}
+              onClick={() => setExpanded(true)}
+              className="inline-flex items-center justify-center h-7 w-7 rounded-md border border-neutral-700/80 bg-neutral-800/60 text-neutral-200 hover:bg-neutral-700/60 hover:text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Expandir"
+            >
+              <Maximize2 size={14} />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setExpanded(false)}
+              className="inline-flex items-center justify-center h-7 w-7 rounded-md border border-neutral-700/80 bg-neutral-800/60 text-neutral-200 hover:bg-neutral-700/60 hover:text-white transition-colors"
+              title="Fechar"
+            >
+              <X size={14} />
+            </button>
           )}
         </div>
       </div>
+    );
+  }
 
+  return (
+    <>
+    <Card>
+      {headerRow("card")}
+      {chartBody("compact")}
+    </Card>
+
+    <Dialog open={expanded} onOpenChange={setExpanded}>
+      <DialogContent showCloseButton={false} className="w-[min(900px,100vw)] h-[100vh] sm:w-[min(900px,94vw)] sm:h-[92vh] max-w-none sm:max-w-[min(900px,94vw)] p-3 sm:p-4 border-neutral-800 bg-[#1a1a1c] overflow-hidden flex flex-col rounded-none sm:rounded-lg gap-0">
+        {headerRow("dialog")}
+        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-stretch justify-center">
+          <div className="w-full max-w-[680px] mx-auto flex flex-col items-start">
+            {chartBody("expanded")}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
+  );
+
+  function chartBody(variant: "compact" | "expanded") {
+    // Mesma escala/proporção (viewBox) do card original em ambas as variantes — no modal
+    // o SVG só cresce em pixels (via h-auto) porque o container é mais largo, sem distorcer.
+    const H = showCluster ? 260 : 170;
+    // No modal, cluster ganha um pouco mais de espaço no topo para os rótulos empilhados
+    // não vazarem para fora do viewBox (o que forçava scrollbar no container).
+    const padT = variant === "expanded" && showCluster ? 34 : 10;
+    const { innerH, yAt, polylinePoints, areaPath } = geomFor(H, padT);
+    const gradId = variant === "expanded" ? `${gradIdRef.current}-exp` : gradIdRef.current;
+    return (
+    <>
       {n === 0 ? (
         <Empty />
       ) : (
-        <svg viewBox={`0 0 ${W} ${H}`} className={`w-full ${showCluster ? "h-[260px]" : "h-[170px]"} overflow-visible`}>
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          className={`w-full overflow-visible ${
+            variant === "expanded" ? "h-auto" : showCluster ? "h-[260px]" : "h-[170px]"
+          }`}
+        >
           <defs>
             <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={p.color} stopOpacity="0.45" />
@@ -3152,8 +3227,9 @@ function LineHistoryCard(p: LineHistoryProps) {
           {deltaText}
         </span>
       )}
-    </Card>
-  );
+    </>
+    );
+  }
 }
 
 function LineLegend({ color, label, dashed }: { color: string; label: string; dashed?: boolean }) {
