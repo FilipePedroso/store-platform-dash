@@ -37,6 +37,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
+import { Switch } from "@/components/ui/switch";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -107,6 +108,19 @@ const RED = "#E24B4A";
 const LIGHT_BLUE = "#B5D4F4";
 const PALETTE = [GREEN, PURPLE, ORANGE, BLUE, RED, LIGHT_BLUE, "#5DCAA5", "#F1B257"];
 
+/** Remove o mês mais recente de uma série mensal (usado pelo toggle "Mostrar mês recente"). */
+function trimLatestMonth<
+  T extends { months: string[]; total: number[]; groups: { name: string; values: number[] }[] },
+>(series: T, show: boolean): T {
+  if (show || series.months.length === 0) return series;
+  return {
+    ...series,
+    months: series.months.slice(0, -1),
+    total: series.total.slice(0, -1),
+    groups: series.groups.map((g) => ({ ...g, values: g.values.slice(0, -1) })),
+  };
+}
+
 /** Mostra "Chave N" (regime novo) ou o % de sortimento legado, conforme o dado disponível. */
 function fmtChaveOrPct(chave: number | null, sortimento: number): string {
   return chave != null ? `Chave ${chave}` : fmtPct(sortimento, 0);
@@ -126,6 +140,7 @@ export function Dashboard() {
   const [chaves, setChaves] = useState<ChaveRow[]>([]);
   const [meta, setMeta] = useState<DataMeta | null>(null);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
+  const [showLatestMonth, setShowLatestMonth] = useState(true);
 
   const refresh = async () => {
     const { rows, agRows, estrutura, iniciativas, estruturaGrupos, skuRows, chaves, meta } =
@@ -454,6 +469,32 @@ export function Dashboard() {
     [baseRows],
   );
 
+  // Versões exibidas nos gráficos, respeitando o toggle "Mostrar mês recente"
+  const histGeradoView = useMemo(
+    () => trimLatestMonth(histGerado, showLatestMonth),
+    [histGerado, showLatestMonth],
+  );
+  const histPotencialView = useMemo(
+    () => trimLatestMonth(histPotencial, showLatestMonth),
+    [histPotencial, showLatestMonth],
+  );
+  const histRedesOkView = useMemo(
+    () => trimLatestMonth(histRedesOk, showLatestMonth),
+    [histRedesOk, showLatestMonth],
+  );
+  const histConversaoView = useMemo(
+    () => (showLatestMonth ? histConversao : histConversao.slice(0, -1)),
+    [histConversao, showLatestMonth],
+  );
+  const histAtingimentoView = useMemo(
+    () => trimLatestMonth(histAtingimento, showLatestMonth),
+    [histAtingimento, showLatestMonth],
+  );
+  const histFaturamentoView = useMemo(
+    () => trimLatestMonth(histFaturamento, showLatestMonth),
+    [histFaturamento, showLatestMonth],
+  );
+
 
   // Filter options — each filter adapts to the other selected filters
   const clusterOpts = useMemo(() => optionsFor(rows, dFilters, "cluster"), [rows, dFilters]);
@@ -644,22 +685,32 @@ export function Dashboard() {
       </div>
 
       {/* Histórico mês a mês */}
-      <SectionLabel>
-        Histórico mês a mês
-        {histGerado.months.length > 0
-          ? ` · ${fmtMonth(histGerado.months[0])} → ${fmtMonth(histGerado.months[histGerado.months.length - 1])}`
-          : ""}
-      </SectionLabel>
+      <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
+        <div className="text-[11px] font-medium text-neutral-400 tracking-wider uppercase">
+          Histórico mês a mês
+          {histGeradoView.months.length > 0
+            ? ` · ${fmtMonth(histGeradoView.months[0])} → ${fmtMonth(histGeradoView.months[histGeradoView.months.length - 1])}`
+            : ""}
+        </div>
+        <label className="flex items-center gap-2 text-[11px] text-neutral-400 cursor-pointer select-none shrink-0">
+          Mostrar mês recente
+          <Switch
+            checked={showLatestMonth}
+            onCheckedChange={setShowLatestMonth}
+            className="shadow-none focus-visible:ring-offset-0 focus-visible:ring-[#378ADD] data-[state=checked]:bg-[#0E2E4D] data-[state=checked]:border-[#378ADD] data-[state=unchecked]:bg-neutral-800 data-[state=unchecked]:border-neutral-700"
+          />
+        </label>
+      </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 mb-3">
         <LineHistoryCard
           icon={<Banknote size={13} style={{ color: GREEN }} />}
           title="Investimento gerado vs potencial"
           sub="Valores acumulados mensais (R$)"
           color={GREEN}
-          months={histGerado.months}
-          total={histGerado.total}
-          groups={histGerado.groups}
-          extra={{ name: "Potencial", values: histPotencial.total, color: LIGHT_BLUE, dashed: true }}
+          months={histGeradoView.months}
+          total={histGeradoView.total}
+          groups={histGeradoView.groups}
+          extra={{ name: "Potencial", values: histPotencialView.total, color: LIGHT_BLUE, dashed: true }}
           yFormat={(n) => fmtBRL(n)}
           pointFormat={(n) => fmtBRL(n)}
           badgeBg="#11402F"
@@ -672,7 +723,7 @@ export function Dashboard() {
             // Antes da virada: % de sortimento (0..1). A partir da virada: chave atingida
             // (0/1/2), normalizada pra 0..1 (÷2) só pra caber no mesmo eixo do gráfico —
             // o rótulo do ponto mostra "Chave N", não %.
-            const sortPorMes = histRedesOk.months.map((m) => {
+            const sortPorMes = histRedesOkView.months.map((m) => {
               const r = baseRows.find((rr) => rr.mes === m && rr.rede === singleRede);
               if (!r) return 0;
               return isChaveRegime(m) ? (r.chave ?? 0) / 2 : r.sortimento;
@@ -683,12 +734,12 @@ export function Dashboard() {
                 title="Histórico de Atingimento de Redes"
                 sub="Sortimento"
                 color={BLUE}
-                months={histRedesOk.months}
+                months={histRedesOkView.months}
                 total={sortPorMes}
                 groups={[]}
                 yFormat={(n) => fmtPct(n, 0)}
                 pointFormat={(n, i) =>
-                  isChaveRegime(histRedesOk.months[i]) ? `Chave ${Math.round(n * 2)}` : fmtPct(n, 1)
+                  isChaveRegime(histRedesOkView.months[i]) ? `Chave ${Math.round(n * 2)}` : fmtPct(n, 1)
                 }
                 forceMax={1}
                 badgeBg="#0E2E4D"
@@ -703,13 +754,13 @@ export function Dashboard() {
               title="Histórico de Atingimento de Redes"
               sub="Qtd. de redes atingindo o mix mínimo"
               color={BLUE}
-              months={histRedesOk.months}
-              total={histRedesOk.total}
-              groups={histRedesOk.groups}
+              months={histRedesOkView.months}
+              total={histRedesOkView.total}
+              groups={histRedesOkView.groups}
               yFormat={(n) => n.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
               pointFormat={(n) => n.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
               pointSubLabel={{
-                values: histConversao,
+                values: histConversaoView,
                 format: (n) => fmtPct(n, 0),
                 threshold: 0.6,
                 activeColor: "#22ff88",
@@ -726,9 +777,9 @@ export function Dashboard() {
           title="% Atingimento da verba"
           sub="Investimento gerado / Potencial (%)"
           color={ORANGE}
-          months={histAtingimento.months}
-          total={histAtingimento.total}
-          groups={histAtingimento.groups}
+          months={histAtingimentoView.months}
+          total={histAtingimentoView.total}
+          groups={histAtingimentoView.groups}
           yFormat={(n) => fmtPct(n, 0)}
           pointFormat={(n) => fmtPct(n, 1)}
           reference={{ value: 0.85, label: "Meta 85%" }}
@@ -743,9 +794,9 @@ export function Dashboard() {
           title="Faturamento mensal"
           sub="Valores acumulados mensais (R$)"
           color={PURPLE}
-          months={histFaturamento.months}
-          total={histFaturamento.total}
-          groups={histFaturamento.groups}
+          months={histFaturamentoView.months}
+          total={histFaturamentoView.total}
+          groups={histFaturamentoView.groups}
           yFormat={(n) => fmtBRL(n)}
           pointFormat={(n) => fmtBRL(n)}
           badgeBg="#241F4D"
