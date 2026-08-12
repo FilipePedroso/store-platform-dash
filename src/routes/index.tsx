@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   LayoutDashboard,
@@ -545,8 +545,7 @@ export function Dashboard() {
             Store Platform — Painel de Resultados
           </h1>
           <p className="text-[11px] text-neutral-400 mt-1">
-            Histórico de performance das redes participantes ·{" "}
-            <span className="text-neutral-300">{meta.rowCount}</span> linhas · atualizado em{" "}
+            Histórico de performance das redes participantes · atualizado em{" "}
             {formatUpdatedAt(meta)}
           </p>
         </div>
@@ -989,6 +988,7 @@ function FilterChip({
   const ref = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const scrollAnimRef = useRef<{ raf: number | null; target: number }>({ raf: null, target: 0 });
   const active = values.length > 0;
 
   useEffect(() => {
@@ -1002,6 +1002,52 @@ function FilterChip({
     document.addEventListener("mousedown", onClick);
     return () => document.removeEventListener("mousedown", onClick);
   }, [open]);
+
+  useEffect(() => {
+    if (open) return;
+    // Fecha o menu = cancela qualquer animação de scroll pendente.
+    if (scrollAnimRef.current.raf !== null) {
+      cancelAnimationFrame(scrollAnimRef.current.raf);
+      scrollAnimRef.current.raf = null;
+    }
+  }, [open]);
+
+  const menuWheelCleanupRef = useRef<(() => void) | null>(null);
+  // Este menu é portalado direto no <body>, fora do Dialog do Radix — o scroll-lock dele
+  // bloqueia/compete com o wheel nativo aqui. O onWheel do React é passivo por padrão
+  // (preventDefault não funciona nele), então anexamos um listener nativo com
+  // { passive: false } assim que o menu monta, garantindo que só a nossa animação
+  // suavizada controle o scrollTop — sem isso, em rolagens rápidas o scroll nativo e o
+  // nosso ficavam disputando o mesmo elemento, causando o "bounce".
+  const attachMenuRef = useCallback((node: HTMLDivElement | null) => {
+    menuWheelCleanupRef.current?.();
+    menuWheelCleanupRef.current = null;
+    menuRef.current = node;
+    if (!node) return;
+    const onNativeWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const max = node.scrollHeight - node.clientHeight;
+      const state = scrollAnimRef.current;
+      const current = state.raf !== null ? state.target : node.scrollTop;
+      state.target = Math.min(max, Math.max(0, current + e.deltaY));
+      if (state.raf === null) {
+        const step = () => {
+          const diff = state.target - node.scrollTop;
+          if (Math.abs(diff) < 0.5) {
+            node.scrollTop = state.target;
+            state.raf = null;
+            return;
+          }
+          node.scrollTop += diff * 0.28;
+          state.raf = requestAnimationFrame(step);
+        };
+        state.raf = requestAnimationFrame(step);
+      }
+    };
+    node.addEventListener("wheel", onNativeWheel, { passive: false });
+    menuWheelCleanupRef.current = () => node.removeEventListener("wheel", onNativeWheel);
+  }, []);
 
   useEffect(() => {
     if (!open || !btnRef.current) return;
@@ -1028,12 +1074,20 @@ function FilterChip({
       const top = openUp ? Math.max(boundaryTop, rect.top - maxHeight - 4) : rect.bottom + 4;
       setPos({ top, left, width, maxHeight });
     };
+    // Escuta scroll em modo captura para reposicionar o menu se a página/algum ancestral rolar —
+    // mas precisa ignorar o scroll do próprio menu (ele é filho do <body> via portal e cai aqui
+    // também), senão cada frame da animação de scroll dispara um recompute/re-render e "briga"
+    // com a própria animação, dando a sensação de travamento/bounce.
+    const onScroll = (e: Event) => {
+      if (menuRef.current && e.target instanceof Node && menuRef.current.contains(e.target)) return;
+      compute();
+    };
     compute();
     window.addEventListener("resize", compute);
-    window.addEventListener("scroll", compute, true);
+    window.addEventListener("scroll", onScroll, true);
     return () => {
       window.removeEventListener("resize", compute);
-      window.removeEventListener("scroll", compute, true);
+      window.removeEventListener("scroll", onScroll, true);
     };
   }, [open, values.length]);
 
@@ -1077,7 +1131,7 @@ function FilterChip({
       </button>
       {open && pos && typeof document !== "undefined" && createPortal(
         <div
-          ref={menuRef}
+          ref={attachMenuRef}
           className="fixed z-[9999] overflow-auto bg-[#1a1a1c] border border-neutral-800 rounded-md shadow-lg py-1 text-[11px] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-neutral-600"
           style={{ top: pos.top, left: pos.left, width: pos.width, maxHeight: pos.maxHeight, scrollbarWidth: "thin", scrollbarColor: "#404040 transparent", pointerEvents: "auto" }}
           onMouseDown={(e) => e.stopPropagation()}
