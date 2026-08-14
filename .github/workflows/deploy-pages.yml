@@ -27,15 +27,14 @@ jobs:
       - run: bun install
       - name: Restore Excel mtime from last git commit
         run: |
-          if ls data-source/*.xlsx >/dev/null 2>&1; then
-            for f in data-source/*.xlsx; do
-              ts=$(git log -1 --format=%cI -- "$f")
-              if [ -n "$ts" ]; then
-                echo "Setting mtime of $f to $ts"
-                touch -d "$ts" "$f"
-              fi
-            done
-          fi
+          shopt -s nullglob
+          for f in data-source/*.xlsx data-source/*.xlsm; do
+            ts=$(git log -1 --format=%cI -- "$f")
+            if [ -n "$ts" ]; then
+              echo "Setting mtime of $f to $ts"
+              touch -d "$ts" "$f"
+            fi
+          done
       - name: Regenerate JSON from Excel (if present)
         run: |
           if ls data-source/*.xlsx >/dev/null 2>&1; then
