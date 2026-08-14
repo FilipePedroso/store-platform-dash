@@ -709,8 +709,13 @@ export function Dashboard() {
             : ""}
       </SectionLabel>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 mb-3">
-        <PgVolumeInvestCard brands={pgVolumeInvest} />
-        <PgVolumeRingCard brands={pgVolumeBrands} singleRedeCells={pgSingleRedeCells} />
+        <PgVolumeInvestCard brands={pgVolumeInvest} distribuidores={dFilters.distribuidor} />
+        <PgVolumeRingCard
+          brands={pgVolumeBrands}
+          singleRedeCells={pgSingleRedeCells}
+          singleRede={dFilters.rede.length === 1 ? dFilters.rede[0] : null}
+          distribuidores={dFilters.distribuidor}
+        />
       </div>
 
       {/* Histórico mês a mês */}
@@ -1428,7 +1433,13 @@ function pgColorFor(pct: number): string {
   return pct >= 0.6 ? GREEN : pct >= 0.4 ? ORANGE : RED;
 }
 
-function PgVolumeInvestCard({ brands }: { brands: PgVolumeInvestBrand[] }) {
+function PgVolumeInvestCard({
+  brands,
+  distribuidores,
+}: {
+  brands: PgVolumeInvestBrand[];
+  distribuidores?: string[];
+}) {
   const totalGerado = brands.reduce((a, b) => a + b.gerado, 0);
   const totalPotencial = brands.reduce((a, b) => a + b.potencial, 0);
 
@@ -1438,9 +1449,18 @@ function PgVolumeInvestCard({ brands }: { brands: PgVolumeInvestBrand[] }) {
       style={{ borderTop: `3px solid ${PINK}` }}
     >
       <div className="flex items-center justify-between gap-2 mb-3">
-        <div className="text-[12px] font-medium text-neutral-100 flex items-center gap-1.5">
+        <div className="text-[12px] font-medium text-neutral-100 flex items-center gap-1.5 flex-wrap">
           <LayoutGrid size={13} style={{ color: PINK }} />
           P&amp;G+ · Investimento por marca
+          {distribuidores && distribuidores.length > 0 && (
+            <span
+              className="text-[10px] font-medium px-1.5 py-0.5 rounded"
+              style={{ background: "#3D1A2D", color: "#F2A8C9" }}
+              title={distribuidores.join(", ")}
+            >
+              {distribuidores.length === 1 ? distribuidores[0] : `${distribuidores.length} distribuidores`}
+            </span>
+          )}
         </div>
         <span className="text-[10px] text-neutral-500 shrink-0 tabular-nums">
           {fmtBRL(totalGerado)} / {fmtBRL(totalPotencial)} no total
@@ -1450,38 +1470,44 @@ function PgVolumeInvestCard({ brands }: { brands: PgVolumeInvestBrand[] }) {
         <Empty />
       ) : (
         <div className="flex flex-wrap justify-center gap-3">
-          {brands.map((b) => {
-            const pct = b.potencial > 0 ? b.gerado / b.potencial : 0;
-            const c = pgColorFor(pct);
-            return (
-              <div
-                key={b.label}
-                className="bg-[#141417] border border-neutral-800/70 rounded-lg pt-0 overflow-hidden basis-[calc(50%-6px)] sm:basis-[calc(33.333%-8px)] grow-0 shrink-0"
-              >
-                <div className="h-[3px]" style={{ background: c }} />
-                <div className="p-3">
-                  <div className="text-[11px] text-neutral-400 truncate" title={b.label}>
-                    {b.label}
-                  </div>
-                  <div className="text-[19px] font-semibold text-neutral-100 leading-tight mt-1">
-                    {fmtBRL(b.gerado)}
-                  </div>
-                  <div className="text-[10px] text-neutral-500 mt-0.5">Potencial {fmtBRL(b.potencial)}</div>
-                  <div className="h-[5px] bg-neutral-800 rounded mt-2 overflow-hidden">
-                    <div
-                      className="h-full rounded"
-                      style={{ width: `${Math.max(2, Math.min(100, pct * 100))}%`, background: c }}
-                    />
-                  </div>
-                  <div className="text-[11px] font-medium mt-1.5" style={{ color: c }}>
-                    {Math.round(pct * 100)}% atingido
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          {brands.map((b, idx) => (
+            <PgInvestTile key={b.label} brand={b} delay={idx * 80} />
+          ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function PgInvestTile({ brand, delay }: { brand: PgVolumeInvestBrand; delay: number }) {
+  const pct = brand.potencial > 0 ? brand.gerado / brand.potencial : 0;
+  const c = pgColorFor(pct);
+  const animatedPct = useCountUp(pct * 100, 1100, delay);
+  return (
+    <div className="bg-[#141417] border border-neutral-800/70 rounded-lg pt-0 overflow-hidden basis-[calc(50%-6px)] sm:basis-[calc(33.333%-8px)] grow-0 shrink-0">
+      <div className="h-[3px]" style={{ background: c }} />
+      <div className="p-3">
+        <div className="text-[11px] text-neutral-400 truncate" title={brand.label}>
+          {brand.label}
+        </div>
+        <div className="text-[19px] font-semibold text-neutral-100 leading-tight mt-1">
+          <AnimatedNumber value={brand.gerado} format={(n) => fmtBRL(n)} delay={delay} />
+        </div>
+        <div className="text-[10px] text-neutral-500 mt-0.5">Potencial {fmtBRL(brand.potencial)}</div>
+        <div className="h-[5px] bg-neutral-800 rounded mt-2 overflow-hidden">
+          <div
+            className="h-full rounded"
+            style={{
+              width: `${Math.max(2, Math.min(100, animatedPct))}%`,
+              background: c,
+              transition: "background 0.2s",
+            }}
+          />
+        </div>
+        <div className="text-[11px] font-medium mt-1.5" style={{ color: c }}>
+          {Math.round(pct * 100)}% atingido
+        </div>
+      </div>
     </div>
   );
 }
@@ -1489,9 +1515,13 @@ function PgVolumeInvestCard({ brands }: { brands: PgVolumeInvestBrand[] }) {
 function PgVolumeRingCard({
   brands,
   singleRedeCells,
+  singleRede,
+  distribuidores,
 }: {
   brands: PgVolumeBrand[];
   singleRedeCells?: Record<string, PgVolumeCell> | null;
+  singleRede?: string | null;
+  distribuidores?: string[];
 }) {
   const R = 32;
   const C = 2 * Math.PI * R;
@@ -1502,11 +1532,25 @@ function PgVolumeRingCard({
       className="bg-[#1a1a1c] rounded-xl border border-neutral-800/80 p-3.5"
       style={{ borderTop: `3px solid ${PINK}` }}
     >
-      <div className="flex items-center gap-1.5 mb-3">
-        <Target size={13} style={{ color: PINK }} />
-        <div className="text-[12px] font-medium text-neutral-100">
-          P&amp;G+ Volume · Atingimento por marca
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <Target size={13} style={{ color: PINK }} />
+          <div className="text-[12px] font-medium text-neutral-100">
+            P&amp;G+ Volume · Atingimento por marca
+          </div>
+          {distribuidores && distribuidores.length > 0 && (
+            <span
+              className="text-[10px] font-medium px-1.5 py-0.5 rounded"
+              style={{ background: "#3D1A2D", color: "#F2A8C9" }}
+              title={distribuidores.join(", ")}
+            >
+              {distribuidores.length === 1 ? distribuidores[0] : `${distribuidores.length} distribuidores`}
+            </span>
+          )}
         </div>
+        <span className="text-[10px] text-neutral-500 shrink-0 text-right truncate max-w-[55%]" title={singleRede ?? undefined}>
+          {singleRede ?? "Filtre sua rede para visualizar as unidades"}
+        </span>
       </div>
       {brands.length === 0 ? (
         <Empty />
