@@ -234,12 +234,12 @@ export function Dashboard() {
   const effectiveMonth = isAccumulated ? latestMonthOverall : (selectedMonths[0] ?? null);
   const chaveMode = effectiveMonth ? isChaveRegime(effectiveMonth) : false;
   const kpis = useMemo(
-    () => computeKpis(rows, baseRows, selectedMonths),
-    [rows, baseRows, selectedMonths],
+    () => computeKpis(rows, baseRows, selectedMonths, pgMais),
+    [rows, baseRows, selectedMonths, pgMais],
   );
   const lockedKpis = useMemo(
-    () => computeKpis(rows, baseRows, latestMonthOverall ? [latestMonthOverall] : []),
-    [rows, baseRows, latestMonthOverall],
+    () => computeKpis(rows, baseRows, latestMonthOverall ? [latestMonthOverall] : [], pgMais),
+    [rows, baseRows, latestMonthOverall, pgMais],
   );
   const sortimentoByCluster = useMemo(() => {
     const order = ["Diamante", "Ouro", "Prata"] as const;
@@ -712,7 +712,6 @@ export function Dashboard() {
         <PgVolumeInvestCard brands={pgVolumeInvest} />
         <PgVolumeRingCard brands={pgVolumeBrands} singleRedeCells={pgSingleRedeCells} />
       </div>
-      <PgVolumeSummaryCard table={pgVolumeTable} />
 
       {/* Histórico mês a mês */}
       <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
@@ -876,6 +875,7 @@ export function Dashboard() {
 
       </div>
 
+      <PgVolumeSummaryCard table={pgVolumeTable} />
 
     </div>
   );

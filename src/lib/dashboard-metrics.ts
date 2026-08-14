@@ -141,15 +141,39 @@ export type Kpis = {
   agsDeltaPP: number | null;
 };
 
+/** Soma potencial/gerado das linhas "P&G+ Volume" para as redes já presentes em `baseRows`
+ * (ou seja, respeitando os filtros de cluster/canal/rede/distribuidor já aplicados) e no(s)
+ * mês(es) informado(s). */
+function sumPgVolumeInvest(
+  pgMais: PgMaisRow[],
+  baseRows: Row[],
+  months: string[],
+): { potencial: number; gerado: number } {
+  const allowedRedes = new Set(baseRows.map((r) => r.rede));
+  const monthSet = new Set(months);
+  let potencial = 0;
+  let gerado = 0;
+  for (const r of pgMais) {
+    if (!/p&g\+\s*volume/i.test(r.tipo)) continue;
+    if (!monthSet.has(r.data)) continue;
+    if (!allowedRedes.has(r.rede)) continue;
+    potencial += r.potencial;
+    gerado += r.gerado;
+  }
+  return { potencial, gerado };
+}
+
 export function computeKpis(
   allRows: Row[],
   baseRows: Row[],
   selectedMonths: string[],
+  pgMais: PgMaisRow[] = [],
 ): Kpis {
   const monthSet = new Set(selectedMonths);
   const monthRows = baseRows.filter((r) => monthSet.has(r.mes));
-  const gerado = sum(monthRows, "gerado");
-  const potencial = sum(monthRows, "potencial");
+  const pgVol = sumPgVolumeInvest(pgMais, baseRows, selectedMonths);
+  const gerado = sum(monthRows, "gerado") + pgVol.gerado;
+  const potencial = sum(monthRows, "potencial") + pgVol.potencial;
   const faturamento = sum(monthRows, "faturamento");
   const agBatidos = sum(monthRows, "agBatidos");
   const qtdAG = sum(monthRows, "qtdAG");
@@ -164,8 +188,9 @@ export function computeKpis(
   const singleMonth = selectedMonths.length === 1 ? selectedMonths[0] : null;
   const prevMonth = singleMonth ? previousMonth(allRows, singleMonth) : null;
   const prevRows = prevMonth ? baseRows.filter((r) => r.mes === prevMonth) : [];
-  const prevGerado = sum(prevRows, "gerado");
-  const prevPotencial = sum(prevRows, "potencial");
+  const prevPgVol = prevMonth ? sumPgVolumeInvest(pgMais, baseRows, [prevMonth]) : { potencial: 0, gerado: 0 };
+  const prevGerado = sum(prevRows, "gerado") + prevPgVol.gerado;
+  const prevPotencial = sum(prevRows, "potencial") + prevPgVol.potencial;
   const prevAg = sum(prevRows, "agBatidos");
   const prevQtd = sum(prevRows, "qtdAG");
   const prevRedesOk = new Set(prevRows.filter(isSortOk).map((r) => r.rede)).size;
