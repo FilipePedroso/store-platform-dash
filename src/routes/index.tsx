@@ -1449,14 +1449,14 @@ function PgVolumeInvestCard({ brands }: { brands: PgVolumeInvestBrand[] }) {
       {brands.length === 0 ? (
         <Empty />
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="flex flex-wrap justify-center gap-3">
           {brands.map((b) => {
             const pct = b.potencial > 0 ? b.gerado / b.potencial : 0;
             const c = pgColorFor(pct);
             return (
               <div
                 key={b.label}
-                className="bg-[#141417] border border-neutral-800/70 rounded-lg pt-0 overflow-hidden"
+                className="bg-[#141417] border border-neutral-800/70 rounded-lg pt-0 overflow-hidden basis-[calc(50%-6px)] sm:basis-[calc(33.333%-8px)] grow-0 shrink-0"
               >
                 <div className="h-[3px]" style={{ background: c }} />
                 <div className="p-3">
@@ -1511,7 +1511,7 @@ function PgVolumeRingCard({
       {brands.length === 0 ? (
         <Empty />
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="flex flex-wrap justify-center gap-3">
           {brands.map((b) => {
             const cell = singleRedeCells?.[b.label];
             const pct = cell ? (cell.meta > 0 ? cell.realizado / cell.meta : 0) : b.total > 0 ? b.ok / b.total : 0;
@@ -1521,7 +1521,7 @@ function PgVolumeRingCard({
             return (
               <div
                 key={b.label}
-                className="bg-[#141417] border border-neutral-800/70 rounded-lg p-3 flex flex-col items-center gap-1.5"
+                className="bg-[#141417] border border-neutral-800/70 rounded-lg p-3 flex flex-col items-center gap-1.5 basis-[calc(50%-6px)] sm:basis-[calc(33.333%-8px)] grow-0 shrink-0"
               >
                 <div className="relative w-[76px] h-[76px] shrink-0">
                   <svg width="76" height="76" viewBox="0 0 76 76" className="-rotate-90">
