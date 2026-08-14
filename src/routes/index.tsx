@@ -24,6 +24,8 @@ import {
   Maximize2,
   ListFilter,
   AlertTriangle,
+  LayoutGrid,
+  Table2,
 } from "lucide-react";
 import {
   Dialog,
@@ -54,6 +56,7 @@ import {
   type EstruturaGrupoRow,
   type SkuRow,
   type ChaveRow,
+  type PgMaisRow,
 } from "@/lib/dashboard-data";
 
 
@@ -63,10 +66,12 @@ import {
   applyAllFilters,
   applyBaseFilters,
   computeAgsByCanalMix,
-  computeByCluster,
   computeEvolution,
   computeKpis,
   computeMonthlySeries,
+  computePgVolumeBrands,
+  computePgVolumeInvestByBrand,
+  computePgVolumeTable,
   computeRanking,
   fmtBRL,
   fmtMonth,
@@ -83,6 +88,10 @@ import {
   isChaveRegime,
   type Filters,
   type RankRow,
+  type PgVolumeBrand,
+  type PgVolumeInvestBrand,
+  type PgVolumeTable,
+  type PgVolumeCell,
 } from "@/lib/dashboard-metrics";
 
 
@@ -106,6 +115,7 @@ const ORANGE = "#EF9F27";
 const PURPLE = "#7F77DD";
 const RED = "#E24B4A";
 const LIGHT_BLUE = "#B5D4F4";
+const PINK = "#D5548A";
 const PALETTE = [GREEN, PURPLE, ORANGE, BLUE, RED, LIGHT_BLUE, "#5DCAA5", "#F1B257"];
 
 /** Remove o mês mais recente de uma série mensal (usado pelo toggle "Mostrar mês recente"). */
@@ -138,12 +148,13 @@ export function Dashboard() {
   const [estruturaGrupos, setEstruturaGrupos] = useState<EstruturaGrupoRow[]>([]);
   const [allSkuRows, setAllSkuRows] = useState<SkuRow[]>([]);
   const [chaves, setChaves] = useState<ChaveRow[]>([]);
+  const [pgMais, setPgMais] = useState<PgMaisRow[]>([]);
   const [meta, setMeta] = useState<DataMeta | null>(null);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [showLatestMonth, setShowLatestMonth] = useState(true);
 
   const refresh = async () => {
-    const { rows, agRows, estrutura, iniciativas, estruturaGrupos, skuRows, chaves, meta } =
+    const { rows, agRows, estrutura, iniciativas, estruturaGrupos, skuRows, chaves, pgMais, meta } =
       await loadRowsFromCloud();
     setAllRows(rows);
     setAllAgRows(agRows);
@@ -152,6 +163,7 @@ export function Dashboard() {
     setEstruturaGrupos(estruturaGrupos);
     setAllSkuRows(skuRows);
     setChaves(chaves);
+    setPgMais(pgMais);
     setMeta(meta);
   };
 
@@ -229,20 +241,6 @@ export function Dashboard() {
     () => computeKpis(rows, baseRows, latestMonthOverall ? [latestMonthOverall] : []),
     [rows, baseRows, latestMonthOverall],
   );
-  const clusters = useMemo(() => computeByCluster(monthRows), [monthRows]);
-  const sortimentoByCanal = useMemo(() => {
-    const map = new Map<string, { ok: Set<string>; all: Set<string> }>();
-    for (const r of effectiveMonthRows) {
-      const k = r.canal || "—";
-      const cur = map.get(k) ?? { ok: new Set<string>(), all: new Set<string>() };
-      cur.all.add(r.rede);
-      if (isSortOk(r)) cur.ok.add(r.rede);
-      map.set(k, cur);
-    }
-    return [...map.entries()]
-      .map(([canal, v]) => ({ canal, pct: v.all.size > 0 ? v.ok.size / v.all.size : 0 }))
-      .sort((a, b) => b.pct - a.pct);
-  }, [effectiveMonthRows]);
   const sortimentoByCluster = useMemo(() => {
     const order = ["Diamante", "Ouro", "Prata"] as const;
     const colors: Record<string, string> = {
@@ -274,6 +272,24 @@ export function Dashboard() {
     [effectiveMonthRows, chaves],
   );
   const canalMix = useMemo(() => computeAgsByCanalMix(monthRows), [monthRows]);
+  const pgVolumeBrands = useMemo(
+    () => computePgVolumeBrands(pgMais, rows, dFilters, selectedMonths),
+    [pgMais, rows, dFilters, selectedMonths],
+  );
+  const pgVolumeInvest = useMemo(
+    () => computePgVolumeInvestByBrand(pgMais, rows, dFilters, selectedMonths),
+    [pgMais, rows, dFilters, selectedMonths],
+  );
+  const pgVolumeTable = useMemo(
+    () => computePgVolumeTable(pgMais, rows, dFilters, selectedMonths),
+    [pgMais, rows, dFilters, selectedMonths],
+  );
+  // Com uma única rede filtrada, o card "Atingimento por marca" troca o % de redes
+  // (binário: bateu ou não) pela relação real Meta x Realizado dessa rede.
+  const pgSingleRedeCells = useMemo(
+    () => (dFilters.rede.length === 1 ? (pgVolumeTable.rows[0]?.cells ?? null) : null),
+    [dFilters.rede, pgVolumeTable],
+  );
 
   // Filtra a aba "iniciativas" pelos mesmos filtros (sem mês — não há campo mês)
   const filteredIniciativas = useMemo(() => {
@@ -683,6 +699,21 @@ export function Dashboard() {
 
       </div>
 
+      {/* P&G+ Volume */}
+      <SectionLabel>
+        P&G+ Volume
+        {isAccumulated
+          ? ` · Acumulado (${selectedMonths.length} meses)`
+          : selectedMonths.length === 1
+            ? ` · ${fmtMonth(selectedMonths[0])}`
+            : ""}
+      </SectionLabel>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 mb-3">
+        <PgVolumeInvestCard brands={pgVolumeInvest} />
+        <PgVolumeRingCard brands={pgVolumeBrands} singleRedeCells={pgSingleRedeCells} />
+      </div>
+      <PgVolumeSummaryCard table={pgVolumeTable} />
+
       {/* Histórico mês a mês */}
       <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
         <div className="text-[11px] font-medium text-neutral-400 tracking-wider uppercase">
@@ -804,12 +835,6 @@ export function Dashboard() {
         />
       </div>
 
-
-      {/* Linha intermediária */}
-      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-2.5 mb-3">
-        <ClusterCard data={clusters} />
-        <ChannelSortimentoCard rows={sortimentoByCanal} chaveMode={chaveMode} locked={isAccumulated} />
-      </div>
 
       {/* Linha inferior */}
       <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-2.5 mb-3">
@@ -1399,6 +1424,389 @@ function KpiCard({
   );
 }
 
+function pgColorFor(pct: number): string {
+  return pct >= 0.6 ? GREEN : pct >= 0.4 ? ORANGE : RED;
+}
+
+function PgVolumeInvestCard({ brands }: { brands: PgVolumeInvestBrand[] }) {
+  const totalGerado = brands.reduce((a, b) => a + b.gerado, 0);
+  const totalPotencial = brands.reduce((a, b) => a + b.potencial, 0);
+
+  return (
+    <div
+      className="bg-[#1a1a1c] rounded-xl border border-neutral-800/80 p-3.5"
+      style={{ borderTop: `3px solid ${PINK}` }}
+    >
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <div className="text-[12px] font-medium text-neutral-100 flex items-center gap-1.5">
+          <LayoutGrid size={13} style={{ color: PINK }} />
+          P&amp;G+ · Investimento por marca
+        </div>
+        <span className="text-[10px] text-neutral-500 shrink-0 tabular-nums">
+          {fmtBRL(totalGerado)} / {fmtBRL(totalPotencial)} no total
+        </span>
+      </div>
+      {brands.length === 0 ? (
+        <Empty />
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {brands.map((b) => {
+            const pct = b.potencial > 0 ? b.gerado / b.potencial : 0;
+            const c = pgColorFor(pct);
+            return (
+              <div
+                key={b.label}
+                className="bg-[#141417] border border-neutral-800/70 rounded-lg pt-0 overflow-hidden"
+              >
+                <div className="h-[3px]" style={{ background: c }} />
+                <div className="p-3">
+                  <div className="text-[11px] text-neutral-400 truncate" title={b.label}>
+                    {b.label}
+                  </div>
+                  <div className="text-[19px] font-semibold text-neutral-100 leading-tight mt-1">
+                    {fmtBRL(b.gerado)}
+                  </div>
+                  <div className="text-[10px] text-neutral-500 mt-0.5">Potencial {fmtBRL(b.potencial)}</div>
+                  <div className="h-[5px] bg-neutral-800 rounded mt-2 overflow-hidden">
+                    <div
+                      className="h-full rounded"
+                      style={{ width: `${Math.max(2, Math.min(100, pct * 100))}%`, background: c }}
+                    />
+                  </div>
+                  <div className="text-[11px] font-medium mt-1.5" style={{ color: c }}>
+                    {Math.round(pct * 100)}% atingido
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PgVolumeRingCard({
+  brands,
+  singleRedeCells,
+}: {
+  brands: PgVolumeBrand[];
+  singleRedeCells?: Record<string, PgVolumeCell> | null;
+}) {
+  const R = 32;
+  const C = 2 * Math.PI * R;
+  const fmtInt = (n: number) => Math.round(n).toLocaleString("pt-BR");
+
+  return (
+    <div
+      className="bg-[#1a1a1c] rounded-xl border border-neutral-800/80 p-3.5"
+      style={{ borderTop: `3px solid ${PINK}` }}
+    >
+      <div className="flex items-center gap-1.5 mb-3">
+        <Target size={13} style={{ color: PINK }} />
+        <div className="text-[12px] font-medium text-neutral-100">
+          P&amp;G+ Volume · Atingimento por marca
+        </div>
+      </div>
+      {brands.length === 0 ? (
+        <Empty />
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {brands.map((b) => {
+            const cell = singleRedeCells?.[b.label];
+            const pct = cell ? (cell.meta > 0 ? cell.realizado / cell.meta : 0) : b.total > 0 ? b.ok / b.total : 0;
+            const pctInt = Math.round(pct * 100);
+            const offset = C - (Math.min(100, pctInt) / 100) * C;
+            const c = pgColorFor(Math.min(1, pct));
+            return (
+              <div
+                key={b.label}
+                className="bg-[#141417] border border-neutral-800/70 rounded-lg p-3 flex flex-col items-center gap-1.5"
+              >
+                <div className="relative w-[76px] h-[76px] shrink-0">
+                  <svg width="76" height="76" viewBox="0 0 76 76" className="-rotate-90">
+                    <circle cx="38" cy="38" r={R} fill="none" stroke="#262626" strokeWidth="7" />
+                    <circle
+                      cx="38"
+                      cy="38"
+                      r={R}
+                      fill="none"
+                      stroke={c}
+                      strokeWidth="7"
+                      strokeLinecap="round"
+                      strokeDasharray={C}
+                      strokeDashoffset={offset}
+                      style={{ transition: "stroke-dashoffset 0.6s ease" }}
+                    />
+                  </svg>
+                  <div
+                    className="absolute inset-0 flex items-center justify-center text-[15px] font-semibold"
+                    style={{ color: c }}
+                  >
+                    {pctInt}%
+                  </div>
+                </div>
+                <div className="text-[12px] font-medium text-neutral-100 text-center truncate max-w-full" title={b.label}>
+                  {b.label}
+                </div>
+                {cell ? (
+                  <div className="text-[10px] text-neutral-500 tabular-nums text-center leading-tight">
+                    <div>
+                      Meta {fmtInt(cell.meta)} · Real. {fmtInt(cell.realizado)}
+                    </div>
+                    <div>Gap {fmtInt(cell.gap)}</div>
+                  </div>
+                ) : (
+                  <div className="text-[10px] text-neutral-500 tabular-nums">
+                    {b.ok}/{b.total} redes
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PgVolumeSummaryCard({ table }: { table: PgVolumeTable }) {
+  const [mode, setMode] = useState<"unidades" | "investimento">("unidades");
+  const fmtInt = (n: number) => Math.round(n).toLocaleString("pt-BR");
+  const fmtBRNum = (n: number) =>
+    n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const subCols = mode === "unidades" ? ["Meta", "Realizado", "Gap"] : ["Potencial", "Gerado"];
+
+  const cellValues = (cell: PgVolumeCell | undefined, forCsv: boolean): (string | number)[] => {
+    if (!cell) return subCols.map(() => (forCsv ? "" : "—"));
+    if (mode === "unidades") {
+      return forCsv
+        ? [cell.meta, cell.realizado, cell.gap]
+        : [fmtInt(cell.meta), fmtInt(cell.realizado), fmtInt(cell.gap)];
+    }
+    return forCsv
+      ? [fmtBRNum(cell.potencial), fmtBRNum(cell.gerado)]
+      : [fmtBRL(cell.potencial), fmtBRL(cell.gerado)];
+  };
+
+  const handleDownloadCsv = () => {
+    const escape = (v: string | number) => {
+      const s = String(v ?? "");
+      return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const headers = ["Rede", ...table.brands.flatMap((b) => subCols.map((s) => `${b} - ${s}`))];
+    const lines = [headers.join(";")];
+    table.rows.forEach((r) => {
+      const vals = table.brands.flatMap((b) => cellValues(r.cells[b], true));
+      lines.push([r.rede, ...vals].map(escape).join(";"));
+    });
+    const csv = "﻿" + lines.join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `resumo-redes-pg-mais-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadPdf = () => {
+    const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+    doc.setFontSize(14);
+    doc.text("Resumo Redes — P&G+ Volume", 40, 40);
+    const head = [
+      [
+        { content: "Rede", rowSpan: 2 },
+        ...table.brands.map((b) => ({ content: b, colSpan: subCols.length })),
+      ],
+      table.brands.flatMap(() => subCols),
+    ];
+    const body = table.rows.map((r) => [
+      r.rede,
+      ...table.brands.flatMap((b) => cellValues(r.cells[b], false)),
+    ]);
+    autoTable(doc, {
+      startY: 60,
+      head,
+      body,
+      styles: { fontSize: 8, cellPadding: 3 },
+      headStyles: { fillColor: [38, 38, 40], textColor: 255 },
+      alternateRowStyles: { fillColor: [245, 245, 245] },
+    });
+    doc.save(`resumo-redes-pg-mais-${new Date().toISOString().slice(0, 10)}.pdf`);
+  };
+
+  return (
+    <Card className="mb-3">
+      <div className="flex items-start justify-between gap-2">
+        <CardTitle
+          icon={<Table2 size={13} className="text-neutral-400" />}
+          title="Resumo Redes"
+          sub={
+            mode === "unidades"
+              ? "Meta, realizado e gap por mecânica (P&G+ Volume)"
+              : "Potencial de investimento e investimento gerado por mecânica (P&G+ Volume)"
+          }
+        />
+        <div className="flex items-center gap-1.5 shrink-0">
+          <div className="inline-flex rounded-full border border-neutral-800 overflow-hidden text-[11px]">
+            <button
+              type="button"
+              onClick={() => setMode("unidades")}
+              className={`px-3 py-1 transition-colors ${
+                mode === "unidades"
+                  ? "bg-[#0E2E4D] text-[#8BBEEC] font-medium"
+                  : "bg-[#1a1a1c] text-neutral-400 hover:text-neutral-200"
+              }`}
+            >
+              Unidades
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("investimento")}
+              className={`px-3 py-1 border-l border-neutral-800 transition-colors ${
+                mode === "investimento"
+                  ? "bg-[#0E2E4D] text-[#8BBEEC] font-medium"
+                  : "bg-[#1a1a1c] text-neutral-400 hover:text-neutral-200"
+              }`}
+            >
+              Investimento
+            </button>
+          </div>
+          <ExtractDropdown onCsv={handleDownloadCsv} onPdf={handleDownloadPdf} disabled={table.rows.length === 0} />
+        </div>
+      </div>
+      <PgVolumeSummaryTable table={table} mode={mode} />
+    </Card>
+  );
+}
+
+function PgVolumeSummaryTable({
+  table,
+  mode,
+}: {
+  table: PgVolumeTable;
+  mode: "unidades" | "investimento";
+}) {
+  const fmtInt = (n: number) => Math.round(n).toLocaleString("pt-BR");
+  const colsPerBrand = mode === "unidades" ? 3 : 2;
+  const colCount = 1 + table.brands.length * colsPerBrand;
+  const emptyCells = mode === "unidades" ? 3 : 2;
+  return (
+    <div
+      className="max-h-[420px] overflow-auto [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-neutral-600"
+      style={{ scrollbarWidth: "thin", scrollbarColor: "#404040 transparent" }}
+    >
+      <table className="text-[11px] border-collapse min-w-full">
+        <thead className="sticky top-0 bg-[#141416] z-10">
+          <tr className="text-neutral-400 font-medium border-b border-neutral-800">
+            <th
+              rowSpan={2}
+              className="text-left pb-1 pr-3 sticky left-0 bg-[#141416] z-20 align-bottom whitespace-nowrap"
+            >
+              Rede
+            </th>
+            {table.brands.map((b) => (
+              <th
+                key={b}
+                colSpan={colsPerBrand}
+                className="text-center pb-1 px-2 border-l border-neutral-800/70 font-medium whitespace-nowrap"
+              >
+                {b}
+              </th>
+            ))}
+          </tr>
+          <tr className="text-neutral-500 font-medium border-b border-neutral-800">
+            {table.brands.map((b) =>
+              mode === "unidades" ? (
+                <React.Fragment key={b}>
+                  <th className="text-center pb-1 px-2 border-l border-neutral-800/70 font-normal whitespace-nowrap">
+                    Meta
+                  </th>
+                  <th className="text-center pb-1 px-2 font-normal whitespace-nowrap">Realizado</th>
+                  <th className="text-center pb-1 px-2 font-normal whitespace-nowrap">Gap</th>
+                </React.Fragment>
+              ) : (
+                <React.Fragment key={b}>
+                  <th className="text-center pb-1 px-2 border-l border-neutral-800/70 font-normal whitespace-nowrap">
+                    Potencial
+                  </th>
+                  <th className="text-center pb-1 px-2 font-normal whitespace-nowrap">Gerado</th>
+                </React.Fragment>
+              ),
+            )}
+          </tr>
+        </thead>
+        <tbody>
+          {table.rows.length === 0 ? (
+            <tr>
+              <td colSpan={colCount} className="py-4">
+                <Empty />
+              </td>
+            </tr>
+          ) : (
+            table.rows.map((r) => (
+              <tr key={r.rede} className="border-b border-neutral-800 last:border-0">
+                <td
+                  className="py-1 pr-3 text-neutral-200 truncate sticky left-0 bg-[#1a1a1c] whitespace-nowrap"
+                  title={r.rede}
+                >
+                  {r.rede}
+                </td>
+                {table.brands.map((b) => {
+                  const cell = r.cells[b];
+                  if (!cell) {
+                    return (
+                      <React.Fragment key={b}>
+                        {Array.from({ length: emptyCells }, (_, i) => (
+                          <td
+                            key={i}
+                            className={`py-1 text-center text-neutral-600 ${i === 0 ? "border-l border-neutral-800/70" : ""}`}
+                          >
+                            —
+                          </td>
+                        ))}
+                      </React.Fragment>
+                    );
+                  }
+                  if (mode === "unidades") {
+                    const gapColor = cell.gap <= 0 ? GREEN : RED;
+                    return (
+                      <React.Fragment key={b}>
+                        <td className="py-1 text-center border-l border-neutral-800/70 text-neutral-300 tabular-nums">
+                          {fmtInt(cell.meta)}
+                        </td>
+                        <td className="py-1 text-center text-neutral-200 tabular-nums">
+                          {fmtInt(cell.realizado)}
+                        </td>
+                        <td className="py-1 text-center font-medium tabular-nums" style={{ color: gapColor }}>
+                          {fmtInt(cell.gap)}
+                        </td>
+                      </React.Fragment>
+                    );
+                  }
+                  return (
+                    <React.Fragment key={b}>
+                      <td className="py-1 text-center border-l border-neutral-800/70 text-neutral-300 tabular-nums">
+                        {fmtBRL(cell.potencial)}
+                      </td>
+                      <td className="py-1 text-center font-medium text-neutral-200 tabular-nums">
+                        {fmtBRL(cell.gerado)}
+                      </td>
+                    </React.Fragment>
+                  );
+                })}
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 /* ---------------- Cards ---------------- */
 
 type IniciativaStat = {
@@ -1559,117 +1967,6 @@ function IniciativaRow({
   );
 }
 
-
-function ClusterCard({ data }: { data: { cluster: string; potencial: number; gerado: number }[] }) {
-  const max = Math.max(1, ...data.map((d) => Math.max(d.potencial, d.gerado)));
-  return (
-    <Card>
-      <CardTitle
-        icon={<BarChart3 size={13} className="text-neutral-400" />}
-        title="Investimento gerado vs potencial — por cluster"
-        sub="Comparativo entre potencial e valor gerado"
-      />
-      <div className="flex gap-3 mb-2.5 ml-[82px] text-[10px] text-neutral-400">
-        <span className="flex items-center gap-1">
-          <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: LIGHT_BLUE }} />
-          Potencial
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: GREEN }} />
-          Gerado
-        </span>
-      </div>
-      {data.length === 0 && <Empty />}
-      <div className="flex flex-col gap-2.5">
-        {data.map((c) => {
-          const pPct = (c.potencial / max) * 100;
-          const gPct = (c.gerado / max) * 100;
-          const ratio = c.potencial > 0 ? c.gerado / c.potencial : 0;
-          const gColor = ratio >= 0.7 ? GREEN : ratio >= 0.5 ? ORANGE : RED;
-          return (
-            <div key={c.cluster}>
-              <div className="flex items-center gap-2 mb-0.5">
-                <div className="text-[11px] text-neutral-400 w-[78px] text-right shrink-0 truncate" title={c.cluster}>
-                  {c.cluster}
-                </div>
-                <div className="flex-1 h-[18px] bg-neutral-800 rounded overflow-hidden">
-                  <div
-                    className="h-full rounded flex items-center justify-end pr-1.5"
-                    style={{ width: `${pPct}%`, background: LIGHT_BLUE }}
-                  >
-                    <span className="text-[10px] font-medium text-[#0C447C]">{fmtBRL(c.potencial)}</span>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-[78px] shrink-0" />
-                <div className="flex-1 h-[13px] bg-neutral-800 rounded overflow-hidden">
-                  <div
-                    className="h-full rounded flex items-center justify-end pr-1.5"
-                    style={{ width: `${gPct}%`, background: gColor }}
-                  >
-                    <span className="text-[9px] font-medium text-white">{fmtBRL(c.gerado)}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </Card>
-  );
-}
-
-function ChannelSortimentoCard({
-  rows,
-  chaveMode = false,
-  locked = false,
-}: {
-  rows: { canal: string; pct: number }[];
-  chaveMode?: boolean;
-  locked?: boolean;
-}) {
-  return (
-    <Card className="relative">
-      {locked && <MixedPeriodBadge />}
-      <CardTitle
-        icon={<BarChart3 size={13} className="text-neutral-400" />}
-        title={chaveMode ? "Atingimento Chave 2 por Canal" : "Sortimento ≥ 90% — por canal"}
-        sub="% de redes que atingiram o mix por canal"
-      />
-      {rows.length === 0 && <Empty />}
-      <div className="flex flex-col gap-2">
-        {rows.map((r) => {
-          const color = r.pct >= 0.75 ? GREEN : r.pct >= 0.6 ? ORANGE : RED;
-          return (
-            <div key={r.canal} className="flex items-center gap-2">
-              <div
-                className="text-[11px] text-neutral-400 w-[88px] text-right truncate"
-                title={r.canal}
-              >
-                {r.canal}
-              </div>
-              <div className="flex-1 h-[18px] bg-neutral-800 rounded overflow-hidden">
-                <div
-                  className="h-full rounded flex items-center justify-end pr-1.5"
-                  style={{ width: `${Math.max(6, Math.min(100, r.pct * 100))}%`, background: color }}
-                >
-                  <span className="text-[10px] font-medium text-white">{fmtPct(r.pct, 0)}</span>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      <div className="h-px bg-neutral-800 my-2" />
-      <div className="flex gap-2.5">
-        <LegendDot color={GREEN} label="≥75%" />
-        <LegendDot color={ORANGE} label="60–74%" />
-        <LegendDot color={RED} label="<60%" />
-      </div>
-    </Card>
-  );
-}
 
 function MonthlyEvolutionCard({ data }: { data: { mes: string; gerado: number }[] }) {
   const max = Math.max(1, ...data.map((d) => d.gerado));

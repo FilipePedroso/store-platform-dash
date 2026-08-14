@@ -27,6 +27,17 @@ export type ChaveRow = {
   chave2: number | null;
 };
 
+/** Linha da aba "P&G+" (fonte separada, .xlsm) — metas/realizado por rede e tipo (volume/mix). */
+export type PgMaisRow = {
+  data: string; // YYYY-MM-DD
+  rede: string;
+  tipo: string; // ex.: "P&G+ Volume Gillette", "P&G+ Mix Pampers"
+  meta: number;
+  realizado: number;
+  potencial: number;
+  gerado: number;
+};
+
 export type AgRow = {
   rede: string;
   distribuidor: string;
@@ -119,19 +130,21 @@ export async function loadRowsFromCloud(): Promise<{
   estruturaGrupos: EstruturaGrupoRow[];
   skuRows: SkuRow[];
   chaves: ChaveRow[];
+  pgMais: PgMaisRow[];
   meta: DataMeta;
 }> {
   const meta = await fetchJson<DataMeta>("meta.json");
-  const [rows, estrutura, iniciativas, estruturaGrupos, chaves, agRows, skuRows] = await Promise.all([
+  const [rows, estrutura, iniciativas, estruturaGrupos, chaves, pgMais, agRows, skuRows] = await Promise.all([
     fetchJson<Row[]>("rows.json"),
     fetchJson<EstruturaRow[]>("estrutura.json"),
     fetchJson<IniciativaRow[]>("iniciativas.json"),
     fetchJson<EstruturaGrupoRow[]>("estrutura_grupos.json"),
     fetchJson<ChaveRow[]>("chaves.json"),
+    fetchJson<PgMaisRow[]>("pg_mais.json"),
     fetchChunked<AgRow>("ags", meta.agsParts ?? 0),
     fetchChunked<SkuRow>("skus", meta.skusParts ?? 0),
   ]);
-  return { rows, agRows, estrutura, iniciativas, estruturaGrupos, skuRows, chaves, meta };
+  return { rows, agRows, estrutura, iniciativas, estruturaGrupos, skuRows, chaves, pgMais, meta };
 }
 
 const COL_MAP: Record<string, keyof Row> = {
