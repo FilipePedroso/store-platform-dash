@@ -1451,7 +1451,7 @@ function PgVolumeInvestCard({
       <div className="flex items-center justify-between gap-2 mb-3">
         <div className="text-[12px] font-medium text-neutral-100 flex items-center gap-1.5 flex-wrap">
           <LayoutGrid size={13} style={{ color: PINK }} />
-          P&amp;G+ · Investimento por marca
+          P&amp;G+ Volume · Investimento por marca
           {distribuidores && distribuidores.length > 0 && (
             <span
               className="text-[10px] font-medium px-1.5 py-0.5 rounded"
@@ -1486,26 +1486,30 @@ function PgInvestTile({ brand, delay }: { brand: PgVolumeInvestBrand; delay: num
   return (
     <div className="bg-[#141417] border border-neutral-800/70 rounded-lg pt-0 overflow-hidden basis-[calc(50%-6px)] sm:basis-[calc(33.333%-8px)] grow-0 shrink-0">
       <div className="h-[3px]" style={{ background: c }} />
-      <div className="p-3">
-        <div className="text-[11px] text-neutral-400 truncate" title={brand.label}>
-          {brand.label}
+      <div className="p-3 min-h-[153px] flex flex-col justify-between">
+        <div>
+          <div className="text-[12px] text-neutral-400 truncate" title={brand.label}>
+            {brand.label}
+          </div>
+          <div className="text-[22px] font-semibold text-neutral-100 leading-tight mt-1">
+            <AnimatedNumber value={brand.gerado} format={(n) => fmtBRL(n)} delay={delay} />
+          </div>
+          <div className="text-[11px] text-neutral-500 mt-0.5">Potencial {fmtBRL(brand.potencial)}</div>
         </div>
-        <div className="text-[19px] font-semibold text-neutral-100 leading-tight mt-1">
-          <AnimatedNumber value={brand.gerado} format={(n) => fmtBRL(n)} delay={delay} />
-        </div>
-        <div className="text-[10px] text-neutral-500 mt-0.5">Potencial {fmtBRL(brand.potencial)}</div>
-        <div className="h-[5px] bg-neutral-800 rounded mt-2 overflow-hidden">
-          <div
-            className="h-full rounded"
-            style={{
-              width: `${Math.max(2, Math.min(100, animatedPct))}%`,
-              background: c,
-              transition: "background 0.2s",
-            }}
-          />
-        </div>
-        <div className="text-[11px] font-medium mt-1.5" style={{ color: c }}>
-          {Math.round(pct * 100)}% atingido
+        <div>
+          <div className="h-[5px] bg-neutral-800 rounded mt-2 overflow-hidden">
+            <div
+              className="h-full rounded"
+              style={{
+                width: `${Math.max(2, Math.min(100, animatedPct))}%`,
+                background: c,
+                transition: "background 0.2s",
+              }}
+            />
+          </div>
+          <div className="text-[12px] font-medium mt-1.5" style={{ color: c }}>
+            {Math.round(pct * 100)}% atingido
+          </div>
         </div>
       </div>
     </div>
@@ -1565,7 +1569,7 @@ function PgVolumeRingCard({
             return (
               <div
                 key={b.label}
-                className="bg-[#141417] border border-neutral-800/70 rounded-lg p-3 flex flex-col items-center gap-1.5 basis-[calc(50%-6px)] sm:basis-[calc(33.333%-8px)] grow-0 shrink-0"
+                className="bg-[#141417] border border-neutral-800/70 rounded-lg p-3 min-h-[153px] flex flex-col items-center justify-between gap-1.5 basis-[calc(50%-6px)] sm:basis-[calc(33.333%-8px)] grow-0 shrink-0"
               >
                 <div className="relative w-[76px] h-[76px] shrink-0">
                   <svg width="76" height="76" viewBox="0 0 76 76" className="-rotate-90">
@@ -1584,24 +1588,24 @@ function PgVolumeRingCard({
                     />
                   </svg>
                   <div
-                    className="absolute inset-0 flex items-center justify-center text-[15px] font-semibold"
+                    className="absolute inset-0 flex items-center justify-center text-[17px] font-semibold"
                     style={{ color: c }}
                   >
                     {pctInt}%
                   </div>
                 </div>
-                <div className="text-[12px] font-medium text-neutral-100 text-center truncate max-w-full" title={b.label}>
+                <div className="text-[13px] font-medium text-neutral-100 text-center truncate max-w-full" title={b.label}>
                   {b.label}
                 </div>
                 {cell ? (
-                  <div className="text-[10px] text-neutral-500 tabular-nums text-center leading-tight">
+                  <div className="text-[11px] text-neutral-500 tabular-nums text-center leading-tight">
                     <div>
                       Meta {fmtInt(cell.meta)} · Real. {fmtInt(cell.realizado)}
                     </div>
                     <div>Gap {fmtInt(cell.gap)}</div>
                   </div>
                 ) : (
-                  <div className="text-[10px] text-neutral-500 tabular-nums">
+                  <div className="text-[11px] text-neutral-500 tabular-nums">
                     {b.ok}/{b.total} redes
                   </div>
                 )}
