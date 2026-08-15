@@ -152,6 +152,7 @@ export function Dashboard() {
   const [meta, setMeta] = useState<DataMeta | null>(null);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [showLatestMonth, setShowLatestMonth] = useState(true);
+  const [pgPlusEnabled, setPgPlusEnabled] = useState(true);
 
   const refresh = async () => {
     const { rows, agRows, estrutura, iniciativas, estruturaGrupos, skuRows, chaves, pgMais, meta } =
@@ -234,12 +235,12 @@ export function Dashboard() {
   const effectiveMonth = isAccumulated ? latestMonthOverall : (selectedMonths[0] ?? null);
   const chaveMode = effectiveMonth ? isChaveRegime(effectiveMonth) : false;
   const kpis = useMemo(
-    () => computeKpis(rows, baseRows, selectedMonths, pgMais),
-    [rows, baseRows, selectedMonths, pgMais],
+    () => computeKpis(rows, baseRows, selectedMonths, pgPlusEnabled ? pgMais : []),
+    [rows, baseRows, selectedMonths, pgMais, pgPlusEnabled],
   );
   const lockedKpis = useMemo(
-    () => computeKpis(rows, baseRows, latestMonthOverall ? [latestMonthOverall] : [], pgMais),
-    [rows, baseRows, latestMonthOverall, pgMais],
+    () => computeKpis(rows, baseRows, latestMonthOverall ? [latestMonthOverall] : [], pgPlusEnabled ? pgMais : []),
+    [rows, baseRows, latestMonthOverall, pgMais, pgPlusEnabled],
   );
   const sortimentoByCluster = useMemo(() => {
     const order = ["Diamante", "Ouro", "Prata"] as const;
@@ -585,14 +586,24 @@ export function Dashboard() {
       />
 
       {/* Indicadores */}
-      <SectionLabel>
-        Indicadores principais
-        {isAccumulated
-          ? ` · Acumulado (${selectedMonths.length} meses)`
-          : selectedMonths.length === 1
-            ? ` · ${fmtMonth(selectedMonths[0])}`
-            : ""}
-      </SectionLabel>
+      <div className="flex items-center gap-3 flex-wrap mb-2">
+        <div className="text-[11px] font-medium text-neutral-400 tracking-wider uppercase">
+          Indicadores principais
+          {isAccumulated
+            ? ` · Acumulado (${selectedMonths.length} meses)`
+            : selectedMonths.length === 1
+              ? ` · ${fmtMonth(selectedMonths[0])}`
+              : ""}
+        </div>
+        <label className="flex items-center gap-2 text-[11px] text-neutral-400 cursor-pointer select-none shrink-0">
+          P&amp;G+
+          <Switch
+            checked={pgPlusEnabled}
+            onCheckedChange={setPgPlusEnabled}
+            className="shadow-none focus-visible:ring-offset-0 focus-visible:ring-[#378ADD] data-[state=checked]:bg-[#0E2E4D] data-[state=checked]:border-[#378ADD] data-[state=unchecked]:bg-neutral-800 data-[state=unchecked]:border-neutral-700"
+          />
+        </label>
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 mb-3">
         <KpiCard
           color={GREEN}
@@ -719,7 +730,7 @@ export function Dashboard() {
       </div>
 
       {/* Histórico mês a mês */}
-      <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
+      <div className="flex items-center gap-3 flex-wrap mb-2">
         <div className="text-[11px] font-medium text-neutral-400 tracking-wider uppercase">
           Histórico mês a mês
           {histGeradoView.months.length > 0
