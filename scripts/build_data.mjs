@@ -15,6 +15,19 @@ function resolveSrc() {
   }
   return "/mnt/user-uploads/Histórico-5.xlsx";
 }
+// Fonte independente para a feature P&G+ (arquivo .xlsm separado do histórico principal —
+// não deve competir com resolveSrc() acima nem interromper o build se estiver ausente).
+function resolveSrcPG() {
+  const dir = "data-source";
+  if (fs.existsSync(dir)) {
+    const xlsm = fs.readdirSync(dir).filter(f => f.toLowerCase().endsWith(".xlsm") && !f.startsWith("~"));
+    if (xlsm.length) {
+      xlsm.sort();
+      return path.join(dir, xlsm[xlsm.length - 1]);
+    }
+  }
+  return null;
+}
 const SRC = resolveSrc();
 console.log(`[build_data] lendo ${SRC}`);
 const OUT_DIR = "public/data";
@@ -152,10 +165,37 @@ const skuRows = sheetJson(findSheet("dados_skus","dados skus")).map(raw => {
   return out;
 }).filter(r => r.rede && r.dsEan);
 
+// Feature P&G+: fonte separada (.xlsm), aba "P&G+". Se o arquivo não existir ainda
+// (ex.: outra branch, ou antes do arquivo ser adicionado), gera lista vazia sem quebrar o build.
+const PG_COL_MAP = { "Data": "data", "Rede": "rede", "Tipo": "tipo", "Meta": "meta", "Realizado": "realizado", "Potencial de Investimento": "potencial", "Investimento Gerado": "gerado" };
+const SRC_PG = resolveSrcPG();
+let pgMais = [];
+if (SRC_PG) {
+  console.log(`[build_data] lendo P&G+ de ${SRC_PG}`);
+  const wbPG = XLSX.read(fs.readFileSync(SRC_PG), { type: "buffer", cellDates: true });
+  const sheetNamePG = wbPG.SheetNames.find(n => n.trim().toLowerCase() === "p&g+");
+  if (sheetNamePG) {
+    pgMais = XLSX.utils.sheet_to_json(wbPG.Sheets[sheetNamePG], { defval: null, raw: true }).map(raw => {
+      const out = { data: "", rede: "", tipo: "", meta: 0, realizado: 0, potencial: 0, gerado: 0 };
+      for (const [k, v] of Object.entries(raw)) {
+        const m = PG_COL_MAP[k.trim()]; if (!m) continue;
+        if (m === "data") out.data = excelDateToISO(v);
+        else if (m === "rede" || m === "tipo") out[m] = v == null ? "" : String(v);
+        else { const n = typeof v === "number" ? v : v == null ? 0 : Number(v); out[m] = Number.isFinite(n) ? n : 0; }
+      }
+      return out;
+    }).filter(r => r.rede && r.data);
+  } else {
+    console.warn(`[build_data] aba "P&G+" não encontrada em ${SRC_PG}`);
+  }
+} else {
+  console.log("[build_data] Nenhum .xlsm de P&G+ encontrado em data-source/, pulando.");
+}
+
 if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR, { recursive: true });
 // Clean previous chunk files
 for (const f of fs.readdirSync(OUT_DIR)) {
-  if (/^(ags|skus)\.part\d+\.json$/.test(f) || /^(ags|skus|rows|estrutura|iniciativas|estrutura_grupos|chaves|meta)\.json$/.test(f))
+  if (/^(ags|skus)\.part\d+\.json$/.test(f) || /^(ags|skus|rows|estrutura|iniciativas|estrutura_grupos|chaves|pg_mais|meta)\.json$/.test(f))
     fs.unlinkSync(path.join(OUT_DIR, f));
 }
 
@@ -183,6 +223,7 @@ writeOne("estrutura", estrutura);
 writeOne("iniciativas", iniciativas);
 writeOne("estrutura_grupos", estruturaGrupos);
 writeOne("chaves", chaves);
+writeOne("pg_mais", pgMais);
 
 function resolveUpdatedAt() {
   try {
@@ -198,6 +239,7 @@ const meta = {
   rowCount: rows.length,
   agsCount: agRows.length,
   skusCount: skuRows.length,
+  pgMaisCount: pgMais.length,
   agsParts,
   skusParts,
 };

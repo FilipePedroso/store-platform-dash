@@ -1,4 +1,4 @@
-import type { ChaveRow, Row } from "./dashboard-data";
+import type { ChaveRow, PgMaisRow, Row } from "./dashboard-data";
 
 /**
  * Virada de contrato: a partir deste mês, "% Sortimento" deixa de ser um percentual
@@ -141,15 +141,39 @@ export type Kpis = {
   agsDeltaPP: number | null;
 };
 
+/** Soma potencial/gerado das linhas "P&G+ Volume" para as redes já presentes em `baseRows`
+ * (ou seja, respeitando os filtros de cluster/canal/rede/distribuidor já aplicados) e no(s)
+ * mês(es) informado(s). */
+function sumPgVolumeInvest(
+  pgMais: PgMaisRow[],
+  baseRows: Row[],
+  months: string[],
+): { potencial: number; gerado: number } {
+  const allowedRedes = new Set(baseRows.map((r) => r.rede));
+  const monthSet = new Set(months);
+  let potencial = 0;
+  let gerado = 0;
+  for (const r of pgMais) {
+    if (!/p&g\+\s*volume/i.test(r.tipo)) continue;
+    if (!monthSet.has(r.data)) continue;
+    if (!allowedRedes.has(r.rede)) continue;
+    potencial += r.potencial;
+    gerado += r.gerado;
+  }
+  return { potencial, gerado };
+}
+
 export function computeKpis(
   allRows: Row[],
   baseRows: Row[],
   selectedMonths: string[],
+  pgMais: PgMaisRow[] = [],
 ): Kpis {
   const monthSet = new Set(selectedMonths);
   const monthRows = baseRows.filter((r) => monthSet.has(r.mes));
-  const gerado = sum(monthRows, "gerado");
-  const potencial = sum(monthRows, "potencial");
+  const pgVol = sumPgVolumeInvest(pgMais, baseRows, selectedMonths);
+  const gerado = sum(monthRows, "gerado") + pgVol.gerado;
+  const potencial = sum(monthRows, "potencial") + pgVol.potencial;
   const faturamento = sum(monthRows, "faturamento");
   const agBatidos = sum(monthRows, "agBatidos");
   const qtdAG = sum(monthRows, "qtdAG");
@@ -164,8 +188,9 @@ export function computeKpis(
   const singleMonth = selectedMonths.length === 1 ? selectedMonths[0] : null;
   const prevMonth = singleMonth ? previousMonth(allRows, singleMonth) : null;
   const prevRows = prevMonth ? baseRows.filter((r) => r.mes === prevMonth) : [];
-  const prevGerado = sum(prevRows, "gerado");
-  const prevPotencial = sum(prevRows, "potencial");
+  const prevPgVol = prevMonth ? sumPgVolumeInvest(pgMais, baseRows, [prevMonth]) : { potencial: 0, gerado: 0 };
+  const prevGerado = sum(prevRows, "gerado") + prevPgVol.gerado;
+  const prevPotencial = sum(prevRows, "potencial") + prevPgVol.potencial;
   const prevAg = sum(prevRows, "agBatidos");
   const prevQtd = sum(prevRows, "qtdAG");
   const prevRedesOk = new Set(prevRows.filter(isSortOk).map((r) => r.rede)).size;
@@ -191,20 +216,6 @@ export function computeKpis(
     agsDeltaPP:
       prevMonth && prevQtd > 0 ? (agBatidos / qtdAG - prevAg / prevQtd) * 100 : null,
   };
-}
-
-export type ClusterBar = { cluster: string; potencial: number; gerado: number };
-
-export function computeByCluster(monthRows: Row[]): ClusterBar[] {
-  const map = new Map<string, ClusterBar>();
-  for (const r of monthRows) {
-    const k = r.cluster || "—";
-    const cur = map.get(k) ?? { cluster: k, potencial: 0, gerado: 0 };
-    cur.potencial += r.potencial;
-    cur.gerado += r.gerado;
-    map.set(k, cur);
-  }
-  return [...map.values()].sort((a, b) => b.potencial - a.potencial);
 }
 
 export type ChannelSlice = { canal: string; redes: number; pct: number };
@@ -427,3 +438,117 @@ export const reduceAtingimento = (rows: Row[]) => {
   const g = rows.reduce((a, r) => a + r.gerado, 0);
   return p > 0 ? g / p : 0;
 };
+
+export type PgVolumeBrand = { label: string; ok: number; total: number };
+export type PgVolumeInvestBrand = { label: string; gerado: number; potencial: number };
+
+/**
+ * P&G+ Volume: as linhas do .xlsm só trazem Rede + Data (sem cluster/canal/distribuidor),
+ * então cruzamos com o dataset principal (por rede, pegando a ocorrência mais recente) para
+ * poder aplicar os mesmos filtros de cluster/canal/distribuidor do resto do painel.
+ */
+function filterPgVolumeRows(
+  pgMais: PgMaisRow[],
+  rows: Row[],
+  f: Filters,
+  months: string[],
+): PgMaisRow[] {
+  const info = new Map<string, { cluster: string; canal: string; distribuidor: string; mes: string }>();
+  for (const r of rows) {
+    const cur = info.get(r.rede);
+    if (!cur || r.mes > cur.mes) {
+      info.set(r.rede, { cluster: r.cluster, canal: r.canal, distribuidor: r.distribuidor, mes: r.mes });
+    }
+  }
+  const monthSet = new Set(months);
+  return pgMais.filter((r) => {
+    if (!/p&g\+\s*volume/i.test(r.tipo)) return false;
+    if (!monthSet.has(r.data)) return false;
+    if (!inList(r.rede, f.rede)) return false;
+    const inf = info.get(r.rede);
+    // Rede fora do escopo atual de `rows` (ex.: excluída pelo filtro de equipe comercial
+    // Gerente/Supervisor/Vendedor, que já veio aplicado em `rows`) — não deve contar aqui.
+    if (!inf) return false;
+    if (!inList(inf.cluster, f.cluster)) return false;
+    if (!inList(inf.canal, f.canal)) return false;
+    if (!inList(inf.distribuidor, f.distribuidor)) return false;
+    return true;
+  });
+}
+
+const pgBrandLabel = (tipo: string) => tipo.replace(/^p&g\+\s*volume\s*/i, "").trim();
+
+/** "Atingiu" = realizado >= meta na linha (rede + tipo). A "marca" é o Tipo sem o prefixo "P&G+ Volume ". */
+export function computePgVolumeBrands(
+  pgMais: PgMaisRow[],
+  rows: Row[],
+  f: Filters,
+  months: string[],
+): PgVolumeBrand[] {
+  const map = new Map<string, PgVolumeBrand>();
+  for (const r of filterPgVolumeRows(pgMais, rows, f, months)) {
+    const label = pgBrandLabel(r.tipo);
+    const cur = map.get(label) ?? { label, ok: 0, total: 0 };
+    cur.total += 1;
+    if (r.realizado >= r.meta) cur.ok += 1;
+    map.set(label, cur);
+  }
+  return [...map.values()].sort((a, b) => b.ok / Math.max(1, b.total) - a.ok / Math.max(1, a.total));
+}
+
+/** Investimento gerado vs potencial por marca (mesmo filtro/agrupamento de computePgVolumeBrands). */
+export function computePgVolumeInvestByBrand(
+  pgMais: PgMaisRow[],
+  rows: Row[],
+  f: Filters,
+  months: string[],
+): PgVolumeInvestBrand[] {
+  const map = new Map<string, PgVolumeInvestBrand>();
+  for (const r of filterPgVolumeRows(pgMais, rows, f, months)) {
+    const label = pgBrandLabel(r.tipo);
+    const cur = map.get(label) ?? { label, gerado: 0, potencial: 0 };
+    cur.gerado += r.gerado;
+    cur.potencial += r.potencial;
+    map.set(label, cur);
+  }
+  return [...map.values()].sort((a, b) => b.gerado / Math.max(1, b.potencial) - a.gerado / Math.max(1, a.potencial));
+}
+
+export type PgVolumeCell = {
+  meta: number;
+  realizado: number;
+  gap: number; // nunca negativo — 0 quando a meta já foi atingida/superada
+  potencial: number;
+  gerado: number;
+};
+export type PgVolumeTableRow = { rede: string; cells: Record<string, PgVolumeCell> };
+export type PgVolumeTable = { brands: string[]; rows: PgVolumeTableRow[] };
+
+/** Tabela "Resumo Redes": uma linha por rede, com Meta/Realizado/Gap/Potencial/Gerado por marca (mecânica). */
+export function computePgVolumeTable(
+  pgMais: PgMaisRow[],
+  rows: Row[],
+  f: Filters,
+  months: string[],
+): PgVolumeTable {
+  const brandSet = new Set<string>();
+  const byRede = new Map<string, Record<string, PgVolumeCell>>();
+  for (const r of filterPgVolumeRows(pgMais, rows, f, months)) {
+    const label = pgBrandLabel(r.tipo);
+    brandSet.add(label);
+    const cells = byRede.get(r.rede) ?? {};
+    const cell = cells[label] ?? { meta: 0, realizado: 0, gap: 0, potencial: 0, gerado: 0 };
+    cell.meta += r.meta;
+    cell.realizado += r.realizado;
+    cell.gap = Math.max(0, cell.meta - cell.realizado);
+    cell.potencial += r.potencial;
+    cell.gerado += r.gerado;
+    cells[label] = cell;
+    byRede.set(r.rede, cells);
+  }
+  const brands = [...brandSet].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const tableRows = [...byRede.entries()]
+    .map(([rede, cells]) => ({ rede, cells }))
+    .sort((a, b) => a.rede.localeCompare(b.rede, "pt-BR"));
+  return { brands, rows: tableRows };
+}
