@@ -622,6 +622,27 @@ export function Dashboard() {
           }
         />
 
+        <KpiCard
+          color={ORANGE}
+          icon={<Target size={13} style={{ color: ORANGE }} />}
+          label="% Atingimento da verba"
+          value={<AnimatedNumber value={kpis.atingimentoVerba} format={(n) => fmtPct(n)} delay={120} />}
+          valueColor="#F1B257"
+          sub="Invest. Gerado / Potencial"
+          progressLabel="Meta: 85%"
+          progressValue={
+            kpis.atingimentoDeltaPP == null
+              ? "—"
+              : `${kpis.atingimentoDeltaPP >= 0 ? "+" : ""}${kpis.atingimentoDeltaPP.toFixed(1)} p.p.`
+          }
+          progressPct={Math.min(100, kpis.atingimentoVerba * 100)}
+          animateDelay={120}
+          badge={
+            kpis.atingimentoVerba >= 0.85
+              ? { text: "▲ Meta atingida", bg: "#11402F", fg: "#7DE5BD" }
+              : { text: "▼ Abaixo da meta", bg: "#3D2A10", fg: "#F1B257" }
+          }
+        />
         <div className="relative min-h-0">
         {isAccumulated && <MixedPeriodBadge />}
         <KpiCard
@@ -635,7 +656,7 @@ export function Dashboard() {
               <AnimatedNumber
                 value={(isAccumulated ? lockedKpis : kpis).redesSortimentoOk}
                 format={(n) => Math.round(n).toString()}
-                delay={120}
+                delay={240}
               />{" "}
               <span className="text-[14px] text-neutral-400 font-normal">
                 / {(isAccumulated ? lockedKpis : kpis).redesAtivas}
@@ -648,7 +669,7 @@ export function Dashboard() {
           progressValue={fmtPct((isAccumulated ? lockedKpis : kpis).taxaConversao)}
           progressPct={(isAccumulated ? lockedKpis : kpis).taxaConversao * 100}
           progressTarget={60}
-          animateDelay={120}
+          animateDelay={240}
           badge={
             (isAccumulated ? lockedKpis : kpis).redesOkDelta == null
               ? { text: "sem mês anterior", bg: "#1a1a1c", fg: "#888" }
@@ -669,27 +690,6 @@ export function Dashboard() {
 
         />
         </div>
-        <KpiCard
-          color={ORANGE}
-          icon={<Target size={13} style={{ color: ORANGE }} />}
-          label="% Atingimento da verba"
-          value={<AnimatedNumber value={kpis.atingimentoVerba} format={(n) => fmtPct(n)} delay={240} />}
-          valueColor="#F1B257"
-          sub="Invest. Gerado / Potencial"
-          progressLabel="Meta: 85%"
-          progressValue={
-            kpis.atingimentoDeltaPP == null
-              ? "—"
-              : `${kpis.atingimentoDeltaPP >= 0 ? "+" : ""}${kpis.atingimentoDeltaPP.toFixed(1)} p.p.`
-          }
-          progressPct={Math.min(100, kpis.atingimentoVerba * 100)}
-          animateDelay={240}
-          badge={
-            kpis.atingimentoVerba >= 0.85
-              ? { text: "▲ Meta atingida", bg: "#11402F", fg: "#7DE5BD" }
-              : { text: "▼ Abaixo da meta", bg: "#3D2A10", fg: "#F1B257" }
-          }
-        />
 
         <div className="relative min-h-0">
           <div className="sm:absolute sm:inset-0">
