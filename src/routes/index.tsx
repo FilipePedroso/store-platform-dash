@@ -1042,8 +1042,30 @@ function FilterBar(p: FilterBarProps) {
     p.filters.gv.length ||
     p.filters.sv.length ||
     p.filters.rv.length;
+  // Sentinela 1px acima da barra: quando ela sai da viewport (rolagem ultrapassa o topo),
+  // a barra "grudou" — usado só pra decidir quando mostrar a sombra/borda de "descolada".
+  const [isStuck, setIsStuck] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([entry]) => setIsStuck(!entry.isIntersecting), {
+      threshold: 0,
+      rootMargin: "-1px 0px 0px 0px",
+    });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
   return (
-    <div className="flex flex-wrap items-center gap-1.5 mb-3">
+    <>
+      <div ref={sentinelRef} className="h-px" aria-hidden />
+      <div
+        className={cn(
+          "sticky top-0 z-30 flex flex-wrap items-center gap-1.5 mb-3 bg-[#0f0f10] py-2 -mx-4 px-4 transition-shadow duration-200",
+          isStuck && "shadow-[0_6px_16px_-6px_rgba(0,0,0,0.6)] border-b border-neutral-800/80",
+        )}
+      >
       <span className="text-[11px] font-medium text-neutral-400 mr-1">Filtros:</span>
       <FilterChip
         icon={<Layers size={12} />}
@@ -1118,7 +1140,8 @@ function FilterBar(p: FilterBarProps) {
           <X size={12} /> limpar
         </button>
       ) : null}
-    </div>
+      </div>
+    </>
   );
 }
 
