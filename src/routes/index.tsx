@@ -1088,7 +1088,7 @@ function FilterBar(p: FilterBarProps) {
       />
       <FilterChip
         icon={<Network size={12} />}
-        label="Cód.Gv/Cv"
+        label="Gerente"
         values={p.filters.gv}
         options={p.gvOpts}
         onChange={(v) => p.setFilters({ ...p.filters, gv: v })}
@@ -1096,7 +1096,7 @@ function FilterBar(p: FilterBarProps) {
       />
       <FilterChip
         icon={<Network size={12} />}
-        label="Cód.Sv"
+        label="Supervisor"
         values={p.filters.sv}
         options={p.svOpts}
         onChange={(v) => p.setFilters({ ...p.filters, sv: v })}
@@ -1104,7 +1104,7 @@ function FilterBar(p: FilterBarProps) {
       />
       <FilterChip
         icon={<Network size={12} />}
-        label="Cód.Rv"
+        label="Vendedor"
         values={p.filters.rv}
         options={p.rvOpts}
         onChange={(v) => p.setFilters({ ...p.filters, rv: v })}
