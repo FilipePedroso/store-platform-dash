@@ -303,6 +303,7 @@ export function computeRanking(
       cluster: string;
       canal: string;
       chave: number | null;
+      sortimento: number;
     }
   >();
   for (const r of monthRows) {
@@ -312,11 +313,12 @@ export function computeRanking(
       cur.potencial += r.potencial;
       cur.qtdAG += r.qtdAG;
       cur.agBatidos += r.agBatidos;
-      // Última linha encontrada define cluster/canal/chave/mês (redes têm 1 linha/mês na prática).
+      // Última linha encontrada define cluster/canal/chave/sortimento/mês (redes têm 1 linha/mês na prática).
       cur.mes = r.mes;
       cur.cluster = r.cluster;
       cur.canal = r.canal;
       cur.chave = r.chave;
+      cur.sortimento = r.sortimento;
     } else {
       map.set(r.rede, {
         rede: r.rede,
@@ -328,14 +330,17 @@ export function computeRanking(
         cluster: r.cluster,
         canal: r.canal,
         chave: r.chave,
+        sortimento: r.sortimento,
       });
     }
   }
   return [...map.values()]
     .map((v) => {
-      const sortimento = v.qtdAG > 0 ? v.agBatidos / v.qtdAG : 0;
+      // Usa o % Sortimento vindo direto da aba Dados (já arredondado para cima na origem),
+      // em vez de recalcular agBatidos/qtdAG aqui — evita divergência como 89% vs 90%.
+      const sortimento = v.sortimento;
       const gapAgs = Math.max(0, v.qtdAG - v.agBatidos);
-      const gapAgs90 = Math.max(0, Math.ceil(0.9 * v.qtdAG) - v.agBatidos);
+      const gapAgs90 = sortimento >= 0.9 ? 0 : Math.max(0, Math.ceil(0.9 * v.qtdAG) - v.agBatidos);
       const chaveRegime = isChaveRegime(v.mes);
       let gapProximaChave = 0;
       if (chaveRegime) {
