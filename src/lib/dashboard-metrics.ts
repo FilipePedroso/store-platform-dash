@@ -268,6 +268,8 @@ export function computeEvolution(baseRows: Row[]): MonthPoint[] {
 
 export type RankRow = {
   rede: string;
+  cluster: string;
+  canal: string;
   sortimento: number;
   gerado: number;
   potencial: number;
@@ -281,6 +283,8 @@ export type RankRow = {
   chave: number | null;
   /** AGs faltantes para a próxima chave (0 se já está na Chave 2, ou sem regime de chave). */
   gapProximaChave: number;
+  /** Nível da próxima chave (1 ou 2), null se já está na Chave 2 ou sem regime de chave. */
+  proximaChaveNivel: number | null;
 };
 
 export function computeRanking(
@@ -343,15 +347,22 @@ export function computeRanking(
       const gapAgs90 = sortimento >= 0.9 ? 0 : Math.max(0, Math.ceil(0.9 * v.qtdAG) - v.agBatidos);
       const chaveRegime = isChaveRegime(v.mes);
       let gapProximaChave = 0;
+      let proximaChaveNivel: number | null = null;
       if (chaveRegime) {
         const meta = chavesMap.get(`${v.cluster}|${v.canal}`);
         if (meta && v.chave !== 2) {
-          const proximo = v.chave === 1 || meta.chave1 == null ? meta.chave2 : meta.chave1;
-          if (proximo != null) gapProximaChave = Math.max(0, proximo - v.agBatidos);
+          const usaChave2 = v.chave === 1 || meta.chave1 == null;
+          const proximo = usaChave2 ? meta.chave2 : meta.chave1;
+          if (proximo != null) {
+            gapProximaChave = Math.max(0, proximo - v.agBatidos);
+            proximaChaveNivel = usaChave2 ? 2 : 1;
+          }
         }
       }
       return {
         rede: v.rede,
+        cluster: v.cluster,
+        canal: v.canal,
         sortimento,
         gerado: v.gerado,
         potencial: v.potencial,
@@ -362,6 +373,7 @@ export function computeRanking(
         chaveRegime,
         chave: chaveRegime ? v.chave : null,
         gapProximaChave,
+        proximaChaveNivel,
       };
     })
     .sort((a, b) =>
@@ -370,6 +382,126 @@ export function computeRanking(
         : b.sortimento - a.sortimento || b.gerado - a.gerado,
     )
     .slice(0, topN);
+}
+
+export type TopMoverRow = {
+  rede: string;
+  cluster: string;
+  atual: number;
+  anterior: number;
+  delta: number;
+};
+
+/**
+ * Redes com maior alta/queda de investimento gerado no mês vigente vs. o mês anterior.
+ * Assim como em `computeInvestmentConcentration`, soma o P&G+ Volume ao `gerado` legado
+ * por rede — a partir da virada de contrato (ago/2026), o campo legado sozinho fica quase
+ * todo zerado.
+ */
+export function computeTopMovers(
+  baseRows: Row[],
+  currentMonth: string | null,
+  prevMonth: string | null,
+  pgMais: PgMaisRow[] = [],
+  topN = 5,
+): { altas: TopMoverRow[]; quedas: TopMoverRow[] } {
+  if (!currentMonth || !prevMonth) return { altas: [], quedas: [] };
+  const allowedRedes = new Set(baseRows.map((r) => r.rede));
+  const curMap = new Map<string, { gerado: number; cluster: string }>();
+  for (const r of baseRows) {
+    if (r.mes !== currentMonth) continue;
+    const cur = curMap.get(r.rede);
+    if (cur) cur.gerado += r.gerado;
+    else curMap.set(r.rede, { gerado: r.gerado, cluster: r.cluster });
+  }
+  const prevMap = new Map<string, number>();
+  for (const r of baseRows) {
+    if (r.mes !== prevMonth) continue;
+    prevMap.set(r.rede, (prevMap.get(r.rede) ?? 0) + r.gerado);
+  }
+  for (const r of pgMais) {
+    if (!/p&g\+\s*volume/i.test(r.tipo)) continue;
+    if (!allowedRedes.has(r.rede)) continue;
+    if (r.data === currentMonth) {
+      const cur = curMap.get(r.rede);
+      if (cur) cur.gerado += r.gerado;
+      else curMap.set(r.rede, { gerado: r.gerado, cluster: "" });
+    } else if (r.data === prevMonth) {
+      prevMap.set(r.rede, (prevMap.get(r.rede) ?? 0) + r.gerado);
+    }
+  }
+  const deltas: TopMoverRow[] = [...curMap.entries()].map(([rede, v]) => {
+    const anterior = prevMap.get(rede) ?? 0;
+    return { rede, cluster: v.cluster, atual: v.gerado, anterior, delta: v.gerado - anterior };
+  });
+  const altas = deltas
+    .filter((d) => d.delta > 0)
+    .sort((a, b) => b.delta - a.delta)
+    .slice(0, topN);
+  const quedas = deltas
+    .filter((d) => d.delta < 0)
+    .sort((a, b) => a.delta - b.delta)
+    .slice(0, topN);
+  return { altas, quedas };
+}
+
+export type ConcentrationStats = {
+  totalRedes: number;
+  totalGerado: number;
+  top5Pct: number;
+  next5Pct: number; // 6ª–10ª
+  restPct: number;
+  redesFor80Pct: number;
+};
+
+/**
+ * Quanto do investimento gerado total está concentrado nas maiores redes (curva de Pareto).
+ * A partir da virada de contrato (ago/2026), o investimento por rede deixa de vir só das
+ * linhas legadas (`gerado`) e passa a incluir também o P&G+ Volume — por isso soma as duas
+ * fontes por rede, como o restante do dashboard já faz em `computeKpis`.
+ */
+export function computeInvestmentConcentration(
+  monthRows: Row[],
+  pgMais: PgMaisRow[] = [],
+  months: string[] = [],
+): ConcentrationStats {
+  const map = new Map<string, number>();
+  for (const r of monthRows) {
+    map.set(r.rede, (map.get(r.rede) ?? 0) + r.gerado);
+  }
+  const allowedRedes = new Set(monthRows.map((r) => r.rede));
+  const monthSet = new Set(months);
+  for (const r of pgMais) {
+    if (!/p&g\+\s*volume/i.test(r.tipo)) continue;
+    if (!monthSet.has(r.data)) continue;
+    if (!allowedRedes.has(r.rede)) continue;
+    map.set(r.rede, (map.get(r.rede) ?? 0) + r.gerado);
+  }
+  const sorted = [...map.values()].filter((v) => v > 0).sort((a, b) => b - a);
+  const totalRedes = sorted.length;
+  const totalGerado = sorted.reduce((a, b) => a + b, 0);
+  if (totalRedes === 0 || totalGerado <= 0) {
+    return { totalRedes: 0, totalGerado: 0, top5Pct: 0, next5Pct: 0, restPct: 0, redesFor80Pct: 0 };
+  }
+  const sum = (arr: number[]) => arr.reduce((a, b) => a + b, 0);
+  const top5 = sum(sorted.slice(0, 5));
+  const next5 = sum(sorted.slice(5, 10));
+  const rest = totalGerado - top5 - next5;
+  let cum = 0;
+  let redesFor80Pct = 0;
+  for (const v of sorted) {
+    cum += v;
+    redesFor80Pct++;
+    if (cum >= totalGerado * 0.8) break;
+  }
+  return {
+    totalRedes,
+    totalGerado,
+    top5Pct: top5 / totalGerado,
+    next5Pct: next5 / totalGerado,
+    restPct: rest / totalGerado,
+    redesFor80Pct,
+  };
 }
 
 export type CanalMixBar = { canal: string; pct: number };

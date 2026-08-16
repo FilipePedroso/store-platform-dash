@@ -14,6 +14,9 @@ import {
   Receipt,
   BarChart3,
   TrendingUp,
+  TrendingDown,
+  KeyRound,
+  PieChart,
   Star,
   ChevronDown,
   ChevronRight,
@@ -40,6 +43,7 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -73,10 +77,13 @@ import {
   computePgVolumeInvestByBrand,
   computePgVolumeTable,
   computeRanking,
+  computeTopMovers,
+  computeInvestmentConcentration,
   fmtBRL,
   fmtMonth,
   fmtPct,
   latestMonth,
+  previousMonth,
   reduceAtingimento,
   reduceRedesOk,
   reduceSumFaturamento,
@@ -88,6 +95,8 @@ import {
   isChaveRegime,
   type Filters,
   type RankRow,
+  type TopMoverRow,
+  type ConcentrationStats,
   type PgVolumeBrand,
   type PgVolumeInvestBrand,
   type PgVolumeTable,
@@ -117,6 +126,8 @@ const RED = "#E24B4A";
 const LIGHT_BLUE = "#B5D4F4";
 const PINK = "#D5548A";
 const PALETTE = [GREEN, PURPLE, ORANGE, BLUE, RED, LIGHT_BLUE, "#5DCAA5", "#F1B257"];
+/** Alcance máximo de AGs faltantes para uma rede entrar no card "Quick wins". */
+const QUICK_WIN_MAX_GAP = 10;
 
 /** Remove o mês mais recente de uma série mensal (usado pelo toggle "Mostrar mês recente"). */
 function trimLatestMonth<
@@ -140,6 +151,46 @@ function colorForChave(chave: number): string {
   return chave >= 2 ? GREEN : chave >= 1 ? ORANGE : RED;
 }
 
+/**
+ * Mede a altura renderizada de um elemento via ResizeObserver — usado para fazer um card
+ * (ex.: Quick wins) acompanhar a altura de um irmão cujo conteúdo é imprevisível, algo que
+ * o CSS Grid sozinho não resolve quando esse irmão tem uma área com scroll (overflow:auto
+ * não limita o tamanho intrínseco usado no cálculo da linha do grid).
+ */
+function useMeasuredHeight<T extends HTMLElement>(): [(node: T | null) => void, number | null] {
+  const [height, setHeight] = useState<number | null>(null);
+  const roRef = useRef<ResizeObserver | null>(null);
+  // Callback ref: o React garante chamá-lo de forma síncrona com o nó real do DOM
+  // assim que ele monta/desmonta — evita a corrida de timing de ler `ref.current`
+  // separadamente num useEffect/useLayoutEffect.
+  const setRef = useCallback((node: T | null) => {
+    roRef.current?.disconnect();
+    roRef.current = null;
+    if (!node) return;
+    setHeight(node.getBoundingClientRect().height);
+    const ro = new ResizeObserver((entries) => {
+      const h = entries[0]?.contentRect.height;
+      if (h != null) setHeight(h);
+    });
+    ro.observe(node);
+    roRef.current = ro;
+  }, []);
+  return [setRef, height];
+}
+
+/** true a partir do breakpoint `lg` do Tailwind (1024px), onde os cards ficam lado a lado. */
+function useIsLgUp(): boolean {
+  const [isLgUp, setIsLgUp] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    setIsLgUp(mq.matches);
+    const onChange = (e: MediaQueryListEvent) => setIsLgUp(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return isLgUp;
+}
+
 export function Dashboard() {
   const [allRows, setAllRows] = useState<Row[]>([]);
   const [allAgRows, setAllAgRows] = useState<AgRow[]>([]);
@@ -153,6 +204,10 @@ export function Dashboard() {
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [showLatestMonth, setShowLatestMonth] = useState(true);
   const [pgPlusEnabled, setPgPlusEnabled] = useState(true);
+  // Toggles independentes do "P&G+" dos Indicadores principais — cada card decide por si só
+  // se soma o P&G+ Volume ao investimento legado.
+  const [concentrationPgEnabled, setConcentrationPgEnabled] = useState(false);
+  const [topMoversPgEnabled, setTopMoversPgEnabled] = useState(false);
 
   const refresh = async () => {
     const { rows, agRows, estrutura, iniciativas, estruturaGrupos, skuRows, chaves, pgMais, meta } =
@@ -272,6 +327,43 @@ export function Dashboard() {
     () => computeRanking(effectiveMonthRows, chaves, 9999),
     [effectiveMonthRows, chaves],
   );
+  const prevEffectiveMonth = useMemo(
+    () => (effectiveMonth ? previousMonth(rows, effectiveMonth) : null),
+    [rows, effectiveMonth],
+  );
+  const topMovers = useMemo(
+    () =>
+      computeTopMovers(
+        baseRows,
+        effectiveMonth,
+        prevEffectiveMonth,
+        topMoversPgEnabled ? pgMais : [],
+        5,
+      ),
+    [baseRows, effectiveMonth, prevEffectiveMonth, pgMais, topMoversPgEnabled],
+  );
+  const quickWins = useMemo(
+    () =>
+      ranking
+        .map((r) => ({ r, gap: r.chaveRegime ? r.gapProximaChave : r.gapAgs90 }))
+        .filter(({ gap }) => gap >= 1 && gap <= QUICK_WIN_MAX_GAP)
+        .sort((a, b) => a.gap - b.gap || b.r.gerado - a.r.gerado)
+        .map(({ r }) => r),
+    [ranking],
+  );
+  const concentration = useMemo(
+    () =>
+      computeInvestmentConcentration(
+        effectiveMonthRows,
+        concentrationPgEnabled ? pgMais : [],
+        effectiveMonth ? [effectiveMonth] : [],
+      ),
+    [effectiveMonthRows, pgMais, concentrationPgEnabled, effectiveMonth],
+  );
+  // Faz o card "Quick wins" acompanhar a altura de Concentração + Top Crescimentos empilhados
+  // (só faz sentido quando os dois ficam lado a lado, a partir do breakpoint lg).
+  const [concentrationColRef, concentrationColHeight] = useMeasuredHeight<HTMLDivElement>();
+  const isLgUp = useIsLgUp();
   const canalMix = useMemo(() => computeAgsByCanalMix(monthRows), [monthRows]);
   const pgVolumeBrands = useMemo(
     () => computePgVolumeBrands(pgMais, rows, dFilters, selectedMonths),
@@ -852,6 +944,10 @@ export function Dashboard() {
 
 
       {/* Linha inferior */}
+      <SectionLabel>
+        Performance
+        {effectiveMonth ? ` · ${fmtMonth(effectiveMonth)}` : ""}
+      </SectionLabel>
       <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-2.5 mb-3">
         <RankingCard rows={ranking} chaveMode={chaveMode} locked={isAccumulated} />
         <TeamPerformanceCard
@@ -860,6 +956,30 @@ export function Dashboard() {
           filters={dFilters}
           chaveMode={chaveMode}
           locked={isAccumulated}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 mb-3">
+        <div ref={concentrationColRef} className="flex flex-col gap-2.5 self-start">
+          <ConcentrationCard
+            stats={concentration}
+            pgEnabled={concentrationPgEnabled}
+            onPgEnabledChange={setConcentrationPgEnabled}
+          />
+          <TopMoversCard
+            altas={topMovers.altas}
+            quedas={topMovers.quedas}
+            currentMonth={effectiveMonth}
+            prevMonth={prevEffectiveMonth}
+            pgEnabled={topMoversPgEnabled}
+            onPgEnabledChange={setTopMoversPgEnabled}
+          />
+        </div>
+        <QuickWinsCard
+          rows={quickWins}
+          chaveMode={chaveMode}
+          targetMonth={effectiveMonth}
+          heightPx={isLgUp ? concentrationColHeight : null}
         />
       </div>
 
@@ -1256,13 +1376,16 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 function Card({
   children,
   className = "",
+  style,
 }: {
   children: React.ReactNode;
   className?: string;
+  style?: React.CSSProperties;
 }) {
   return (
     <div
       className={`bg-[#1a1a1c] rounded-xl border border-neutral-800/80 p-3.5 ${className}`}
+      style={style}
     >
       {children}
     </div>
@@ -2145,6 +2268,322 @@ function RankingTable({
         </tbody>
       </table>
     </div>
+  );
+}
+
+function MoverBarRow({ item, maxAbs, color }: { item: TopMoverRow; maxAbs: number; color: string }) {
+  const pct = maxAbs > 0 ? Math.max(4, Math.min(100, (Math.abs(item.delta) / maxAbs) * 100)) : 4;
+  return (
+    <div className="flex items-center gap-2">
+      <div className="w-[128px] shrink-0 min-w-0">
+        <div className="text-[11px] text-neutral-200 truncate" title={item.rede}>
+          {item.rede}
+        </div>
+        <div className="text-[9.5px] text-neutral-500 truncate">{item.cluster || "—"}</div>
+      </div>
+      <div className="flex-1 h-[10px] bg-neutral-800 rounded overflow-hidden">
+        <div className="h-full rounded" style={{ width: `${pct}%`, background: color }} />
+      </div>
+      <div
+        className="w-[76px] shrink-0 text-right text-[11px] font-semibold tabular-nums"
+        style={{ color }}
+      >
+        {item.delta >= 0 ? "+" : "−"}
+        {fmtBRL(Math.abs(item.delta))}
+      </div>
+    </div>
+  );
+}
+
+function PgToggle({
+  checked,
+  onCheckedChange,
+}: {
+  checked: boolean;
+  onCheckedChange: (v: boolean) => void;
+}) {
+  return (
+    <label className="flex items-center gap-2 text-[11px] text-neutral-400 cursor-pointer select-none shrink-0">
+      P&amp;G+
+      <Switch
+        checked={checked}
+        onCheckedChange={onCheckedChange}
+        className="shadow-none focus-visible:ring-offset-0 focus-visible:ring-[#378ADD] data-[state=checked]:bg-[#0E2E4D] data-[state=checked]:border-[#378ADD] data-[state=unchecked]:bg-neutral-800 data-[state=unchecked]:border-neutral-700"
+      />
+    </label>
+  );
+}
+
+function TopMoversCard({
+  altas,
+  quedas,
+  currentMonth,
+  prevMonth,
+  pgEnabled,
+  onPgEnabledChange,
+}: {
+  altas: TopMoverRow[];
+  quedas: TopMoverRow[];
+  currentMonth: string | null;
+  prevMonth: string | null;
+  pgEnabled: boolean;
+  onPgEnabledChange: (v: boolean) => void;
+}) {
+  const maxAlta = altas.length > 0 ? altas[0].delta : 0;
+  const maxQueda = quedas.length > 0 ? Math.abs(quedas[0].delta) : 0;
+  const hasData = altas.length > 0 || quedas.length > 0;
+  return (
+    <Card>
+      <div className="flex items-start justify-between gap-2">
+        <CardTitle
+          icon={<TrendingUp size={13} className="text-neutral-400" />}
+          title="Top Crescimentos"
+          sub={
+            currentMonth && prevMonth
+              ? `Investimento gerado · ${fmtMonth(prevMonth)} → ${fmtMonth(currentMonth)}`
+              : "Investimento gerado vs. mês anterior"
+          }
+        />
+        <PgToggle checked={pgEnabled} onCheckedChange={onPgEnabledChange} />
+      </div>
+      {!hasData ? (
+        <Empty />
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
+          <div>
+            <div
+              className="text-[10px] font-semibold tracking-wide uppercase mb-2 flex items-center gap-1"
+              style={{ color: GREEN }}
+            >
+              <TrendingUp size={11} /> Maiores altas
+            </div>
+            {altas.length === 0 ? (
+              <div className="text-[10.5px] text-neutral-500">Sem altas no período</div>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                {altas.map((item) => (
+                  <MoverBarRow key={item.rede} item={item} maxAbs={maxAlta} color={GREEN} />
+                ))}
+              </div>
+            )}
+          </div>
+          <div>
+            <div
+              className="text-[10px] font-semibold tracking-wide uppercase mb-2 flex items-center gap-1"
+              style={{ color: RED }}
+            >
+              <TrendingDown size={11} /> Maiores quedas
+            </div>
+            {quedas.length === 0 ? (
+              <div className="text-[10.5px] text-neutral-500">Sem quedas no período</div>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                {quedas.map((item) => (
+                  <MoverBarRow key={item.rede} item={item} maxAbs={maxQueda} color={RED} />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function QuickWinRow({ r }: { r: RankRow }) {
+  const gap = gapOf(r);
+  return (
+    <div className="flex items-center justify-between gap-2 bg-[#141417] border border-neutral-800/70 rounded-md px-2.5 py-1.5">
+      <div className="min-w-0">
+        <div className="text-[11px] text-neutral-200 truncate" title={r.rede}>
+          {r.rede}
+        </div>
+        <div className="text-[9.5px] text-neutral-500 truncate">
+          {r.cluster || "—"} · {r.canal || "—"}
+        </div>
+      </div>
+      <div className="flex items-center gap-1.5 shrink-0">
+        <span
+          className="text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap"
+          style={{ background: "#262629", color: "#c9c9cf" }}
+        >
+          {gap} {gap === 1 ? "AG" : "AGs"}
+        </span>
+        <span
+          className="text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap"
+          style={{ background: "#3D2A10", color: ORANGE }}
+        >
+          {r.chaveRegime
+            ? `Chave ${r.chave ?? 0} → ${r.proximaChaveNivel}`
+            : `${Math.round(r.sortimento * 100)}% → 90%`}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function gapOf(r: RankRow): number {
+  return r.chaveRegime ? r.gapProximaChave : r.gapAgs90;
+}
+
+function QuickWinsCard({
+  rows,
+  chaveMode,
+  targetMonth,
+  heightPx,
+}: {
+  rows: RankRow[];
+  chaveMode: boolean;
+  targetMonth: string | null;
+  /** Altura (px) medida no card vizinho (Concentração + Top Crescimentos), para acompanhá-la. */
+  heightPx: number | null;
+}) {
+  const [maxGap, setMaxGap] = useState(5);
+  const metaLabel = chaveMode ? "da próxima chave" : "dos 90% de sortimento";
+  const visibleRows = useMemo(() => rows.filter((r) => gapOf(r) <= maxGap), [rows, maxGap]);
+
+  const metaFor = (r: RankRow) =>
+    r.chaveRegime
+      ? `Chave ${r.chave ?? 0} -> ${r.proximaChaveNivel}`
+      : `${Math.round(r.sortimento * 100)}% -> 90%`;
+
+  const handleDownloadCsv = () => {
+    const headers = ["Rede", "Cluster", "Canal", "AGs faltantes", chaveMode ? "Chave" : "% Sortimento"];
+    const escape = (v: string | number) => {
+      const s = String(v ?? "");
+      return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const lines = [headers.join(";")];
+    visibleRows.forEach((r) => {
+      lines.push([r.rede, r.cluster, r.canal, gapOf(r), metaFor(r)].map(escape).join(";"));
+    });
+    const csv = "﻿" + lines.join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `quick-wins-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+  const handleDownloadPdf = () => {
+    const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
+    doc.setFontSize(14);
+    doc.text("Quick wins", 40, 40);
+    const body = visibleRows.map((r) => [r.rede, r.cluster, r.canal, gapOf(r), metaFor(r)]);
+    autoTable(doc, {
+      startY: 60,
+      head: [["Rede", "Cluster", "Canal", "AGs faltantes", chaveMode ? "Chave" : "Sortimento"]],
+      body,
+      styles: { fontSize: 9, cellPadding: 4 },
+      headStyles: { fillColor: [38, 38, 40], textColor: 255 },
+      alternateRowStyles: { fillColor: [245, 245, 245] },
+    });
+    doc.save(`quick-wins-${new Date().toISOString().slice(0, 10)}.pdf`);
+  };
+
+  return (
+    <Card
+      className={cn("flex flex-col", heightPx == null && "max-h-[420px]")}
+      style={heightPx != null ? { height: heightPx } : undefined}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <CardTitle
+          icon={<KeyRound size={13} className="text-neutral-400" />}
+          title="Quick wins"
+          sub={
+            targetMonth
+              ? `Redes a até ${maxGap} AGs ${metaLabel} · ${fmtMonth(targetMonth)}`
+              : `Redes a até ${maxGap} AGs ${metaLabel}`
+          }
+        />
+        <ExtractDropdown onCsv={handleDownloadCsv} onPdf={handleDownloadPdf} disabled={visibleRows.length === 0} />
+      </div>
+      <div className="mb-3 w-1/2 min-w-[140px]" style={{ "--primary": GREEN } as React.CSSProperties}>
+        <Slider
+          min={1}
+          max={QUICK_WIN_MAX_GAP}
+          step={1}
+          value={[maxGap]}
+          onValueChange={(v) => setMaxGap(v[0])}
+        />
+        <div className="flex items-center justify-between text-[10px] text-neutral-500 mt-1.5">
+          <span>1 AG</span>
+          <span>{QUICK_WIN_MAX_GAP} AGs</span>
+        </div>
+      </div>
+      {visibleRows.length === 0 ? (
+        <div className="flex-1 flex items-center justify-center">
+          <Empty />
+        </div>
+      ) : (
+        <div
+          className="flex-1 min-h-0 overflow-y-auto pr-1 flex flex-col gap-1.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-neutral-600"
+          style={{ scrollbarWidth: "thin", scrollbarColor: "#404040 transparent" }}
+        >
+          {visibleRows.map((r) => (
+            <QuickWinRow key={r.rede} r={r} />
+          ))}
+        </div>
+      )}
+      <div className="text-[10.5px] text-neutral-500 text-right mt-2 pt-2 border-t border-neutral-800/70 shrink-0">
+        {visibleRows.length} {visibleRows.length === 1 ? "rede" : "redes"}
+      </div>
+    </Card>
+  );
+}
+
+function ConcentrationCard({
+  stats,
+  pgEnabled,
+  onPgEnabledChange,
+}: {
+  stats: ConcentrationStats;
+  pgEnabled: boolean;
+  onPgEnabledChange: (v: boolean) => void;
+}) {
+  const hasData = stats.totalRedes > 0;
+  const NEXT5_BLUE = "#6fb1e8";
+  const REST_GRAY = "#3a3a3f";
+  return (
+    <Card>
+      <div className="flex items-start justify-between gap-2">
+        <CardTitle
+          icon={<PieChart size={13} className="text-neutral-400" />}
+          title="Concentração de investimento"
+          sub="Quanto do resultado depende de poucas redes grandes"
+        />
+        <PgToggle checked={pgEnabled} onCheckedChange={onPgEnabledChange} />
+      </div>
+      {!hasData ? (
+        <Empty />
+      ) : (
+        <>
+          <div className="flex h-[22px] rounded-md overflow-hidden bg-neutral-800">
+            <div style={{ width: `${stats.top5Pct * 100}%`, background: BLUE }} />
+            <div style={{ width: `${stats.next5Pct * 100}%`, background: NEXT5_BLUE }} />
+            <div style={{ width: `${stats.restPct * 100}%`, background: REST_GRAY }} />
+          </div>
+          <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-2.5">
+            <LegendDot color={BLUE} label={`Top 5 redes — ${fmtPct(stats.top5Pct, 1)}`} />
+            <LegendDot color={NEXT5_BLUE} label={`6ª–10ª — ${fmtPct(stats.next5Pct, 1)}`} />
+            <LegendDot
+              color={REST_GRAY}
+              label={`Demais ${Math.max(0, stats.totalRedes - 10)} redes — ${fmtPct(stats.restPct, 1)}`}
+            />
+          </div>
+          <div className="mt-3 bg-[#141417] border border-neutral-800/70 rounded-md px-3 py-2 text-[11.5px] text-neutral-300">
+            <span className="font-semibold text-neutral-100">
+              {stats.redesFor80Pct} de {stats.totalRedes} redes
+            </span>{" "}
+            ({fmtPct(stats.redesFor80Pct / stats.totalRedes, 0)}) concentram 80% de todo o investimento
+            gerado no período.
+          </div>
+        </>
+      )}
+    </Card>
   );
 }
 
