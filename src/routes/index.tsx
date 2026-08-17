@@ -369,15 +369,21 @@ export function Dashboard() {
   // Lista de redes do card "Concentração de investimento": ao expandir no desktop, a coluna
   // (Concentração + Top Crescimentos) não deve crescer — em vez disso, Top Crescimentos encolhe
   // pra abrir espaço e ganha scroll interno. No mobile, expande livremente e empurra o conteúdo.
+  //
+  // A redistribuição NÃO é calculada quadro a quadro via JS/ResizeObserver (isso ficava
+  // travado: cada disparo do observer durante a transição CSS do card de cima re-renderizava e
+  // reiniciava a transição de altura do card de baixo, brigando com ela a cada frame). Em vez
+  // disso, travamos a altura da COLUNA (o wrapper) num valor fixo com overflow:hidden, e
+  // deixamos o próprio motor de flexbox do navegador (Top Crescimentos como `flex-1`)
+  // redistribuir o espaço a cada frame nativamente — zero JS rodando durante a animação.
   const CONCENTRATION_TRANSITION_MS = 300;
   const [concentrationExpanded, setConcentrationExpanded] = useState(false);
-  const [concentrationCardRef, concentrationCardHeight] = useMeasuredHeight<HTMLDivElement>();
   const [baselineColHeight, setBaselineColHeight] = useState<number | null>(null);
-  // "Settled" = nem expandido, nem em transição de recolhimento. Mantido falso por mais um
-  // pouco após o clique de recolher (mesma duração da animação CSS do card) pra segurar o
-  // travamento da altura até a transição terminar — do contrário a fórmula abaixo viraria
-  // circular assim que a coluna volta a espelhar sua própria altura ainda "espremida",
-  // deixando o Top Crescimentos preso no tamanho pequeno em vez de crescer de volta.
+  // "Settled" = nem expandido, nem ainda terminando de recolher. Mantido falso por mais um
+  // pouco após o clique de recolher (mesma duração da transição CSS) pra manter a coluna
+  // travada até a animação terminar — soltar cedo faria o Top Crescimentos "pular" de volta
+  // ao tamanho natural instantaneamente, em vez de crescer em conjunto com o encolhimento do
+  // card de cima.
   const [concentrationSettled, setConcentrationSettled] = useState(true);
   useEffect(() => {
     if (concentrationExpanded) {
@@ -392,14 +398,7 @@ export function Dashboard() {
       setBaselineColHeight(concentrationColHeight);
     }
   }, [concentrationColHeight, concentrationSettled]);
-  const TOPMOVERS_MIN_HEIGHT = 160;
-  const COL_GAP_PX = 10; // gap-2.5
-  const topMoversHeightPx = useMemo(() => {
-    if (!isLgUp || concentrationSettled || baselineColHeight == null || concentrationCardHeight == null) {
-      return null;
-    }
-    return Math.max(TOPMOVERS_MIN_HEIGHT, baselineColHeight - concentrationCardHeight - COL_GAP_PX);
-  }, [isLgUp, concentrationSettled, baselineColHeight, concentrationCardHeight]);
+  const concentrationLocked = isLgUp && !concentrationSettled && baselineColHeight != null;
   const canalMix = useMemo(() => computeAgsByCanalMix(monthRows), [monthRows]);
   const pgVolumeBrands = useMemo(
     () => computePgVolumeBrands(pgMais, rows, dFilters, selectedMonths),
@@ -996,9 +995,12 @@ export function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 mb-3">
-        <div ref={concentrationColRef} className="flex flex-col gap-2.5 self-start">
+        <div
+          ref={concentrationColRef}
+          className="flex flex-col gap-2.5 self-start"
+          style={concentrationLocked ? { height: baselineColHeight ?? undefined, overflow: "hidden" } : undefined}
+        >
           <ConcentrationCard
-            containerRef={concentrationCardRef}
             stats={concentration}
             pgEnabled={concentrationPgEnabled}
             onPgEnabledChange={setConcentrationPgEnabled}
@@ -1012,7 +1014,7 @@ export function Dashboard() {
             prevMonth={prevEffectiveMonth}
             pgEnabled={topMoversPgEnabled}
             onPgEnabledChange={setTopMoversPgEnabled}
-            heightPx={topMoversHeightPx}
+            constrained={concentrationLocked}
           />
         </div>
         <QuickWinsCard
@@ -2384,7 +2386,7 @@ function TopMoversCard({
   prevMonth,
   pgEnabled,
   onPgEnabledChange,
-  heightPx,
+  constrained,
 }: {
   altas: TopMoverRow[];
   quedas: TopMoverRow[];
@@ -2392,21 +2394,16 @@ function TopMoversCard({
   prevMonth: string | null;
   pgEnabled: boolean;
   onPgEnabledChange: (v: boolean) => void;
-  /** Altura (px) forçada quando o card "Concentração de investimento" (vizinho acima) está
-   * expandido no desktop — encolhe pra abrir espaço, e o conteúdo vira scrollável. */
-  heightPx?: number | null;
+  /** Quando true, o card "Concentração de investimento" (vizinho acima) está com a coluna
+   * travada — este card vira `flex-1` pra dividir o espaço fixo com ele nativamente (via
+   * flexbox do navegador, sem JS por quadro) e seu conteúdo ganha scroll interno. */
+  constrained?: boolean;
 }) {
   const maxAlta = altas.length > 0 ? altas[0].delta : 0;
   const maxQueda = quedas.length > 0 ? Math.abs(quedas[0].delta) : 0;
   const hasData = altas.length > 0 || quedas.length > 0;
   return (
-    <Card
-      className={cn(
-        "flex flex-col",
-        heightPx != null && "overflow-hidden transition-[height] duration-300 ease-in-out",
-      )}
-      style={heightPx != null ? { height: heightPx } : undefined}
-    >
+    <Card className={cn("flex flex-col", constrained && "flex-1 min-h-0 overflow-hidden")}>
       <div className="flex items-start justify-between gap-2 shrink-0">
         <CardTitle
           icon={<TrendingUp size={13} className="text-neutral-400" />}
@@ -2425,10 +2422,10 @@ function TopMoversCard({
         <div
           className={cn(
             "grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3",
-            heightPx != null &&
+            constrained &&
               "flex-1 min-h-0 overflow-y-auto pr-1 content-start [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-neutral-600",
           )}
-          style={heightPx != null ? { scrollbarWidth: "thin", scrollbarColor: "#404040 transparent" } : undefined}
+          style={constrained ? { scrollbarWidth: "thin", scrollbarColor: "#404040 transparent" } : undefined}
         >
           <div>
             <div
@@ -2621,22 +2618,19 @@ function ConcentrationCard({
   onPgEnabledChange,
   expanded,
   onExpandedChange,
-  containerRef,
 }: {
   stats: ConcentrationStats;
   pgEnabled: boolean;
   onPgEnabledChange: (v: boolean) => void;
   expanded: boolean;
   onExpandedChange: (v: boolean) => void;
-  containerRef?: (node: HTMLDivElement | null) => void;
 }) {
   const hasData = stats.totalRedes > 0;
   const NEXT5_BLUE = "#6fb1e8";
   const REST_GRAY = "#3a3a3f";
   return (
-    <div ref={containerRef}>
-      <Card>
-        <div className="flex items-start justify-between gap-2">
+    <Card className="shrink-0">
+      <div className="flex items-start justify-between gap-2">
           <CardTitle
             icon={<PieChart size={13} className="text-neutral-400" />}
             title="Concentração de investimento"
@@ -2718,7 +2712,6 @@ function ConcentrationCard({
           </>
         )}
       </Card>
-    </div>
   );
 }
 
