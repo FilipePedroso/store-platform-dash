@@ -445,6 +445,8 @@ export function computeTopMovers(
   return { altas, quedas };
 }
 
+export type ConcentrationRede = { rede: string; gerado: number; pct: number };
+
 export type ConcentrationStats = {
   totalRedes: number;
   totalGerado: number;
@@ -452,6 +454,8 @@ export type ConcentrationStats = {
   next5Pct: number; // 6ª–10ª
   restPct: number;
   redesFor80Pct: number;
+  /** Top 10 redes por investimento gerado (Top 5 + 6ª–10ª), maior primeiro. */
+  topRedes: ConcentrationRede[];
 };
 
 /**
@@ -477,23 +481,34 @@ export function computeInvestmentConcentration(
     if (!allowedRedes.has(r.rede)) continue;
     map.set(r.rede, (map.get(r.rede) ?? 0) + r.gerado);
   }
-  const sorted = [...map.values()].filter((v) => v > 0).sort((a, b) => b - a);
+  const sorted = [...map.entries()].filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
   const totalRedes = sorted.length;
-  const totalGerado = sorted.reduce((a, b) => a + b, 0);
+  const totalGerado = sorted.reduce((a, [, v]) => a + v, 0);
   if (totalRedes === 0 || totalGerado <= 0) {
-    return { totalRedes: 0, totalGerado: 0, top5Pct: 0, next5Pct: 0, restPct: 0, redesFor80Pct: 0 };
+    return {
+      totalRedes: 0,
+      totalGerado: 0,
+      top5Pct: 0,
+      next5Pct: 0,
+      restPct: 0,
+      redesFor80Pct: 0,
+      topRedes: [],
+    };
   }
-  const sum = (arr: number[]) => arr.reduce((a, b) => a + b, 0);
+  const sum = (arr: [string, number][]) => arr.reduce((a, [, v]) => a + v, 0);
   const top5 = sum(sorted.slice(0, 5));
   const next5 = sum(sorted.slice(5, 10));
   const rest = totalGerado - top5 - next5;
   let cum = 0;
   let redesFor80Pct = 0;
-  for (const v of sorted) {
+  for (const [, v] of sorted) {
     cum += v;
     redesFor80Pct++;
     if (cum >= totalGerado * 0.8) break;
   }
+  const topRedes: ConcentrationRede[] = sorted
+    .slice(0, 10)
+    .map(([rede, gerado]) => ({ rede, gerado, pct: gerado / totalGerado }));
   return {
     totalRedes,
     totalGerado,
@@ -501,6 +516,7 @@ export function computeInvestmentConcentration(
     next5Pct: next5 / totalGerado,
     restPct: rest / totalGerado,
     redesFor80Pct,
+    topRedes,
   };
 }
 

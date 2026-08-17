@@ -97,6 +97,7 @@ import {
   type RankRow,
   type TopMoverRow,
   type ConcentrationStats,
+  type ConcentrationRede,
   type PgVolumeBrand,
   type PgVolumeInvestBrand,
   type PgVolumeTable,
@@ -364,6 +365,41 @@ export function Dashboard() {
   // (só faz sentido quando os dois ficam lado a lado, a partir do breakpoint lg).
   const [concentrationColRef, concentrationColHeight] = useMeasuredHeight<HTMLDivElement>();
   const isLgUp = useIsLgUp();
+
+  // Lista de redes do card "Concentração de investimento": ao expandir no desktop, a coluna
+  // (Concentração + Top Crescimentos) não deve crescer — em vez disso, Top Crescimentos encolhe
+  // pra abrir espaço e ganha scroll interno. No mobile, expande livremente e empurra o conteúdo.
+  const CONCENTRATION_TRANSITION_MS = 300;
+  const [concentrationExpanded, setConcentrationExpanded] = useState(false);
+  const [concentrationCardRef, concentrationCardHeight] = useMeasuredHeight<HTMLDivElement>();
+  const [baselineColHeight, setBaselineColHeight] = useState<number | null>(null);
+  // "Settled" = nem expandido, nem em transição de recolhimento. Mantido falso por mais um
+  // pouco após o clique de recolher (mesma duração da animação CSS do card) pra segurar o
+  // travamento da altura até a transição terminar — do contrário a fórmula abaixo viraria
+  // circular assim que a coluna volta a espelhar sua própria altura ainda "espremida",
+  // deixando o Top Crescimentos preso no tamanho pequeno em vez de crescer de volta.
+  const [concentrationSettled, setConcentrationSettled] = useState(true);
+  useEffect(() => {
+    if (concentrationExpanded) {
+      setConcentrationSettled(false);
+      return;
+    }
+    const t = setTimeout(() => setConcentrationSettled(true), CONCENTRATION_TRANSITION_MS + 20);
+    return () => clearTimeout(t);
+  }, [concentrationExpanded]);
+  useEffect(() => {
+    if (concentrationSettled && concentrationColHeight != null) {
+      setBaselineColHeight(concentrationColHeight);
+    }
+  }, [concentrationColHeight, concentrationSettled]);
+  const TOPMOVERS_MIN_HEIGHT = 160;
+  const COL_GAP_PX = 10; // gap-2.5
+  const topMoversHeightPx = useMemo(() => {
+    if (!isLgUp || concentrationSettled || baselineColHeight == null || concentrationCardHeight == null) {
+      return null;
+    }
+    return Math.max(TOPMOVERS_MIN_HEIGHT, baselineColHeight - concentrationCardHeight - COL_GAP_PX);
+  }, [isLgUp, concentrationSettled, baselineColHeight, concentrationCardHeight]);
   const canalMix = useMemo(() => computeAgsByCanalMix(monthRows), [monthRows]);
   const pgVolumeBrands = useMemo(
     () => computePgVolumeBrands(pgMais, rows, dFilters, selectedMonths),
@@ -962,9 +998,12 @@ export function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 mb-3">
         <div ref={concentrationColRef} className="flex flex-col gap-2.5 self-start">
           <ConcentrationCard
+            containerRef={concentrationCardRef}
             stats={concentration}
             pgEnabled={concentrationPgEnabled}
             onPgEnabledChange={setConcentrationPgEnabled}
+            expanded={concentrationExpanded}
+            onExpandedChange={setConcentrationExpanded}
           />
           <TopMoversCard
             altas={topMovers.altas}
@@ -973,6 +1012,7 @@ export function Dashboard() {
             prevMonth={prevEffectiveMonth}
             pgEnabled={topMoversPgEnabled}
             onPgEnabledChange={setTopMoversPgEnabled}
+            heightPx={topMoversHeightPx}
           />
         </div>
         <QuickWinsCard
@@ -2344,6 +2384,7 @@ function TopMoversCard({
   prevMonth,
   pgEnabled,
   onPgEnabledChange,
+  heightPx,
 }: {
   altas: TopMoverRow[];
   quedas: TopMoverRow[];
@@ -2351,13 +2392,22 @@ function TopMoversCard({
   prevMonth: string | null;
   pgEnabled: boolean;
   onPgEnabledChange: (v: boolean) => void;
+  /** Altura (px) forçada quando o card "Concentração de investimento" (vizinho acima) está
+   * expandido no desktop — encolhe pra abrir espaço, e o conteúdo vira scrollável. */
+  heightPx?: number | null;
 }) {
   const maxAlta = altas.length > 0 ? altas[0].delta : 0;
   const maxQueda = quedas.length > 0 ? Math.abs(quedas[0].delta) : 0;
   const hasData = altas.length > 0 || quedas.length > 0;
   return (
-    <Card>
-      <div className="flex items-start justify-between gap-2">
+    <Card
+      className={cn(
+        "flex flex-col",
+        heightPx != null && "overflow-hidden transition-[height] duration-300 ease-in-out",
+      )}
+      style={heightPx != null ? { height: heightPx } : undefined}
+    >
+      <div className="flex items-start justify-between gap-2 shrink-0">
         <CardTitle
           icon={<TrendingUp size={13} className="text-neutral-400" />}
           title="Top Crescimentos"
@@ -2372,7 +2422,14 @@ function TopMoversCard({
       {!hasData ? (
         <Empty />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
+        <div
+          className={cn(
+            "grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3",
+            heightPx != null &&
+              "flex-1 min-h-0 overflow-y-auto pr-1 content-start [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-neutral-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-neutral-600",
+          )}
+          style={heightPx != null ? { scrollbarWidth: "thin", scrollbarColor: "#404040 transparent" } : undefined}
+        >
           <div>
             <div
               className="text-[10px] font-semibold tracking-wide uppercase mb-2 flex items-center gap-1"
@@ -2562,51 +2619,129 @@ function ConcentrationCard({
   stats,
   pgEnabled,
   onPgEnabledChange,
+  expanded,
+  onExpandedChange,
+  containerRef,
 }: {
   stats: ConcentrationStats;
   pgEnabled: boolean;
   onPgEnabledChange: (v: boolean) => void;
+  expanded: boolean;
+  onExpandedChange: (v: boolean) => void;
+  containerRef?: (node: HTMLDivElement | null) => void;
 }) {
   const hasData = stats.totalRedes > 0;
   const NEXT5_BLUE = "#6fb1e8";
   const REST_GRAY = "#3a3a3f";
   return (
-    <Card>
-      <div className="flex items-start justify-between gap-2">
-        <CardTitle
-          icon={<PieChart size={13} className="text-neutral-400" />}
-          title="Concentração de investimento"
-          sub="Quanto do resultado depende de poucas redes grandes"
-        />
-        <PgToggle checked={pgEnabled} onCheckedChange={onPgEnabledChange} />
-      </div>
-      {!hasData ? (
-        <Empty />
-      ) : (
-        <>
-          <div className="flex h-[22px] rounded-md overflow-hidden bg-neutral-800">
-            <div style={{ width: `${stats.top5Pct * 100}%`, background: BLUE }} />
-            <div style={{ width: `${stats.next5Pct * 100}%`, background: NEXT5_BLUE }} />
-            <div style={{ width: `${stats.restPct * 100}%`, background: REST_GRAY }} />
+    <div ref={containerRef}>
+      <Card>
+        <div className="flex items-start justify-between gap-2">
+          <CardTitle
+            icon={<PieChart size={13} className="text-neutral-400" />}
+            title="Concentração de investimento"
+            sub="Quanto do resultado depende de poucas redes grandes"
+          />
+          <div className="flex items-center gap-1.5 shrink-0">
+            <PgToggle checked={pgEnabled} onCheckedChange={onPgEnabledChange} />
+            <button
+              type="button"
+              disabled={!hasData}
+              onClick={() => onExpandedChange(!expanded)}
+              aria-expanded={expanded}
+              aria-label={expanded ? "Recolher redes" : "Expandir redes"}
+              title={expanded ? "Recolher redes" : "Ver redes por trás dos percentuais"}
+              className="inline-flex items-center justify-center h-7 w-7 rounded-md border border-neutral-700/80 bg-neutral-800/60 text-neutral-200 hover:bg-neutral-700/60 hover:text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <ChevronDown size={14} className={cn("transition-transform", expanded && "rotate-180")} />
+            </button>
           </div>
-          <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-2.5">
-            <LegendDot color={BLUE} label={`Top 5 redes — ${fmtPct(stats.top5Pct, 1)}`} />
-            <LegendDot color={NEXT5_BLUE} label={`6ª–10ª — ${fmtPct(stats.next5Pct, 1)}`} />
-            <LegendDot
-              color={REST_GRAY}
-              label={`Demais ${Math.max(0, stats.totalRedes - 10)} redes — ${fmtPct(stats.restPct, 1)}`}
-            />
-          </div>
-          <div className="mt-3 bg-[#141417] border border-neutral-800/70 rounded-md px-3 py-2 text-[11.5px] text-neutral-300">
-            <span className="font-semibold text-neutral-100">
-              {stats.redesFor80Pct} de {stats.totalRedes} redes
-            </span>{" "}
-            ({fmtPct(stats.redesFor80Pct / stats.totalRedes, 0)}) concentram 80% de todo o investimento
-            gerado no período.
-          </div>
-        </>
-      )}
-    </Card>
+        </div>
+        {!hasData ? (
+          <Empty />
+        ) : (
+          <>
+            <div className="flex h-[22px] rounded-md overflow-hidden bg-neutral-800">
+              <div style={{ width: `${stats.top5Pct * 100}%`, background: BLUE }} />
+              <div style={{ width: `${stats.next5Pct * 100}%`, background: NEXT5_BLUE }} />
+              <div style={{ width: `${stats.restPct * 100}%`, background: REST_GRAY }} />
+            </div>
+            <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-2.5">
+              <LegendDot color={BLUE} label={`Top 5 redes — ${fmtPct(stats.top5Pct, 1)}`} />
+              <LegendDot color={NEXT5_BLUE} label={`6ª–10ª — ${fmtPct(stats.next5Pct, 1)}`} />
+              <LegendDot
+                color={REST_GRAY}
+                label={`Demais ${Math.max(0, stats.totalRedes - 10)} redes — ${fmtPct(stats.restPct, 1)}`}
+              />
+            </div>
+            <div className="mt-3 bg-[#141417] border border-neutral-800/70 rounded-md px-3 py-2 text-[11.5px] text-neutral-300">
+              <span className="font-semibold text-neutral-100">
+                {stats.redesFor80Pct} de {stats.totalRedes} redes
+              </span>{" "}
+              ({fmtPct(stats.redesFor80Pct / stats.totalRedes, 0)}) concentram 80% de todo o investimento
+              gerado no período.
+            </div>
+            <div
+              className={cn(
+                "grid transition-[grid-template-rows] duration-300 ease-in-out",
+                expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+              )}
+            >
+              <div className="overflow-hidden">
+                <div
+                  className={cn(
+                    "mt-3 pt-3 border-t border-neutral-800/70 transition-opacity duration-300",
+                    expanded ? "opacity-100 delay-100" : "opacity-0",
+                  )}
+                >
+                  <div className="text-[10px] text-neutral-500 uppercase tracking-wide mb-1.5">Top 5 redes</div>
+                  <div className="flex flex-col gap-1">
+                    {stats.topRedes.slice(0, 5).map((r, i) => (
+                      <ConcentrationRedeRow key={r.rede} rank={i + 1} rede={r} color={BLUE} />
+                    ))}
+                  </div>
+                  {stats.topRedes.length > 5 && (
+                    <>
+                      <div className="text-[10px] text-neutral-500 uppercase tracking-wide mt-3 mb-1.5">
+                        6ª–10ª
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        {stats.topRedes.slice(5, 10).map((r, i) => (
+                          <ConcentrationRedeRow key={r.rede} rank={i + 6} rede={r} color={NEXT5_BLUE} />
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+function ConcentrationRedeRow({
+  rank,
+  rede,
+  color,
+}: {
+  rank: number;
+  rede: ConcentrationRede;
+  color: string;
+}) {
+  return (
+    <div className="flex items-center gap-2 text-[11px]">
+      <span className="text-neutral-500 w-4 shrink-0 tabular-nums">{rank}</span>
+      <span className="text-neutral-200 truncate flex-1 min-w-0" title={rede.rede}>
+        {rede.rede}
+      </span>
+      <span className="text-neutral-400 tabular-nums shrink-0">{fmtBRL(rede.gerado)}</span>
+      <span className="font-semibold tabular-nums shrink-0 w-12 text-right" style={{ color }}>
+        {fmtPct(rede.pct, 1)}
+      </span>
+    </div>
   );
 }
 
