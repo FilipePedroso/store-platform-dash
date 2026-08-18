@@ -1889,7 +1889,7 @@ function PgVolumeRingCard({
           )}
         </div>
         <span className="text-[10px] text-neutral-500 shrink-0 text-right truncate max-w-[55%]" title={singleRede ?? undefined}>
-          {singleRede ?? "Filtre sua rede para visualizar as unidades"}
+          {singleRede ?? (kind === "mix" ? "Filtre sua rede para visualizar os AGs" : "Filtre sua rede para visualizar as unidades")}
         </span>
       </div>
       {brands.length === 0 ? (
