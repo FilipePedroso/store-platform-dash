@@ -77,6 +77,7 @@ import {
   computePgVolumeInvestByBrand,
   computePgVolumeTable,
   computePgMixBrands,
+  computePgMixInvestByBrand,
   computePgMixTable,
   pgCellAtingiu,
   computeRanking,
@@ -420,11 +421,16 @@ export function Dashboard() {
     () => computePgMixBrands(pgMais, rows, dFilters, selectedMonths),
     [pgMais, rows, dFilters, selectedMonths],
   );
+  const pgMixInvest = useMemo(
+    () => computePgMixInvestByBrand(pgMais, rows, dFilters, selectedMonths),
+    [pgMais, rows, dFilters, selectedMonths],
+  );
   const pgMixTable = useMemo(
     () => computePgMixTable(pgMais, rows, dFilters, selectedMonths),
     [pgMais, rows, dFilters, selectedMonths],
   );
   const pgBrandsActive = pgView === "mix" ? pgMixBrands : pgVolumeBrands;
+  const pgInvestActive = pgView === "mix" ? pgMixInvest : pgVolumeInvest;
   const pgTableActive = pgView === "mix" ? pgMixTable : pgVolumeTable;
   // Com uma única rede filtrada, o card "Atingimento por marca" troca o % de redes
   // (binário: bateu ou não) pela relação real Meta x Realizado dessa rede.
@@ -864,16 +870,13 @@ export function Dashboard() {
         <PgViewToggle value={pgView} onChange={setPgView} />
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 mb-3">
-        {pgView === "volume" && (
-          <PgVolumeInvestCard brands={pgVolumeInvest} distribuidores={dFilters.distribuidor} />
-        )}
+        <PgVolumeInvestCard kind={pgView} brands={pgInvestActive} distribuidores={dFilters.distribuidor} />
         <PgVolumeRingCard
           kind={pgView}
           brands={pgBrandsActive}
           singleRedeCells={pgSingleRedeCells}
           singleRede={dFilters.rede.length === 1 ? dFilters.rede[0] : null}
           distribuidores={dFilters.distribuidor}
-          className={pgView === "mix" ? "lg:col-span-2" : undefined}
         />
       </div>
 
@@ -1761,9 +1764,11 @@ function pgColorFor(pct: number): string {
 }
 
 function PgVolumeInvestCard({
+  kind,
   brands,
   distribuidores,
 }: {
+  kind: "volume" | "mix";
   brands: PgVolumeInvestBrand[];
   distribuidores?: string[];
 }) {
@@ -1778,7 +1783,7 @@ function PgVolumeInvestCard({
       <div className="flex items-center justify-between gap-2 mb-3">
         <div className="text-[12px] font-medium text-neutral-100 flex items-center gap-1.5 flex-wrap">
           <LayoutGrid size={13} style={{ color: PINK }} />
-          P&amp;G+ Volume · Investimento por marca
+          P&amp;G+ {kind === "mix" ? "Mix" : "Volume"} · Investimento por marca
           {distribuidores && distribuidores.length > 0 && (
             <span
               className="text-[10px] font-medium px-1.5 py-0.5 rounded"
@@ -1952,17 +1957,14 @@ function PgVolumeRingCard({
 function PgVolumeSummaryCard({ table, kind }: { table: PgVolumeTable; kind: "volume" | "mix" }) {
   const [mode, setMode] = useState<"unidades" | "investimento">("unidades");
   const pgLabel = kind === "mix" ? "P&G+ Mix" : "P&G+ Volume";
-  // O P&G+ Mix não tem investimento (potencial/gerado sempre 0 na fonte) — a mecânica
-  // só existe em unidades (meta/realizado/gap), então o toggle fica travado em "unidades".
-  const effectiveMode = kind === "mix" ? "unidades" : mode;
   const fmtInt = (n: number) => Math.round(n).toLocaleString("pt-BR");
   const fmtBRNum = (n: number) =>
     n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const subCols = effectiveMode === "unidades" ? ["Meta", "Realizado", "Gap"] : ["Potencial", "Gerado"];
+  const subCols = mode === "unidades" ? ["Meta", "Realizado", "Gap"] : ["Potencial", "Gerado"];
 
   const cellValues = (cell: PgVolumeCell | undefined, forCsv: boolean): (string | number)[] => {
     if (!cell) return subCols.map(() => (forCsv ? "" : "—"));
-    if (effectiveMode === "unidades") {
+    if (mode === "unidades") {
       return forCsv
         ? [cell.meta, cell.realizado, cell.gap]
         : [fmtInt(cell.meta), fmtInt(cell.realizado), fmtInt(cell.gap)];
@@ -2028,42 +2030,40 @@ function PgVolumeSummaryCard({ table, kind }: { table: PgVolumeTable; kind: "vol
           icon={<Table2 size={13} className="text-neutral-400" />}
           title="Resumo Redes"
           sub={
-            effectiveMode === "unidades"
+            mode === "unidades"
               ? `Meta, realizado e gap por mecânica (${pgLabel})`
               : `Potencial de investimento e investimento gerado por mecânica (${pgLabel})`
           }
         />
         <div className="flex items-center gap-1.5 shrink-0">
-          {kind === "volume" && (
-            <div className="inline-flex rounded-full border border-neutral-800 overflow-hidden text-[11px]">
-              <button
-                type="button"
-                onClick={() => setMode("unidades")}
-                className={`px-3 py-1 transition-colors ${
-                  mode === "unidades"
-                    ? "bg-[#0E2E4D] text-[#8BBEEC] font-medium"
-                    : "bg-[#1a1a1c] text-neutral-400 hover:text-neutral-200"
-                }`}
-              >
-                Unidades
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode("investimento")}
-                className={`px-3 py-1 border-l border-neutral-800 transition-colors ${
-                  mode === "investimento"
-                    ? "bg-[#0E2E4D] text-[#8BBEEC] font-medium"
-                    : "bg-[#1a1a1c] text-neutral-400 hover:text-neutral-200"
-                }`}
-              >
-                Investimento
-              </button>
-            </div>
-          )}
+          <div className="inline-flex rounded-full border border-neutral-800 overflow-hidden text-[11px]">
+            <button
+              type="button"
+              onClick={() => setMode("unidades")}
+              className={`px-3 py-1 transition-colors ${
+                mode === "unidades"
+                  ? "bg-[#0E2E4D] text-[#8BBEEC] font-medium"
+                  : "bg-[#1a1a1c] text-neutral-400 hover:text-neutral-200"
+              }`}
+            >
+              Unidades
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("investimento")}
+              className={`px-3 py-1 border-l border-neutral-800 transition-colors ${
+                mode === "investimento"
+                  ? "bg-[#0E2E4D] text-[#8BBEEC] font-medium"
+                  : "bg-[#1a1a1c] text-neutral-400 hover:text-neutral-200"
+              }`}
+            >
+              Investimento
+            </button>
+          </div>
           <ExtractDropdown onCsv={handleDownloadCsv} onPdf={handleDownloadPdf} disabled={table.rows.length === 0} />
         </div>
       </div>
-      <PgVolumeSummaryTable table={table} mode={effectiveMode} kind={kind} />
+      <PgVolumeSummaryTable table={table} mode={mode} kind={kind} />
     </Card>
   );
 }

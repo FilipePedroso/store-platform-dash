@@ -763,7 +763,25 @@ export function computePgMixBrands(
   return [...map.values()].sort((a, b) => b.ok / Math.max(1, b.total) - a.ok / Math.max(1, a.total));
 }
 
-/** Tabela "Resumo Redes" do P&G+ Mix — mesmo formato de computePgVolumeTable (potencial/gerado não se aplicam, ficam 0). */
+/** Investimento gerado vs potencial por marca do P&G+ Mix (mesmo agrupamento de computePgMixBrands). */
+export function computePgMixInvestByBrand(
+  pgMais: PgMaisRow[],
+  rows: Row[],
+  f: Filters,
+  months: string[],
+): PgVolumeInvestBrand[] {
+  const map = new Map<string, PgVolumeInvestBrand>();
+  for (const r of filterPgMixRows(pgMais, rows, f, months)) {
+    const label = pgMixBrandLabel(r.tipo);
+    const cur = map.get(label) ?? { label, gerado: 0, potencial: 0 };
+    cur.gerado += r.gerado;
+    cur.potencial += r.potencial;
+    map.set(label, cur);
+  }
+  return [...map.values()].sort((a, b) => b.gerado / Math.max(1, b.potencial) - a.gerado / Math.max(1, a.potencial));
+}
+
+/** Tabela "Resumo Redes" do P&G+ Mix — mesmo formato de computePgVolumeTable. */
 export function computePgMixTable(
   pgMais: PgMaisRow[],
   rows: Row[],
