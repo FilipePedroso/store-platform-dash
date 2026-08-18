@@ -2037,7 +2037,7 @@ function PgVolumeSummaryCard({
       <div className="flex items-start justify-between gap-2">
         <CardTitle
           icon={<Table2 size={13} className="text-neutral-400" />}
-          title="Resumo Redes"
+          title="Resumo P&G+"
           sub={
             mode === "unidades"
               ? `Meta, realizado e gap por mecânica (${pgLabel})`
