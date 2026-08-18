@@ -141,7 +141,10 @@ export type Kpis = {
   agsDeltaPP: number | null;
 };
 
-/** Soma potencial/gerado das linhas "P&G+ Volume" para as redes já presentes em `baseRows`
+/** Casa qualquer linha do P&G+ (Volume ou Mix) — usado nos totais agregados que somam as duas mecânicas. */
+const PG_INVEST_TIPO_RE = /p&g\+\s*(volume|mix)/i;
+
+/** Soma potencial/gerado das linhas de P&G+ (Volume + Mix) para as redes já presentes em `baseRows`
  * (ou seja, respeitando os filtros de cluster/canal/rede/distribuidor já aplicados) e no(s)
  * mês(es) informado(s). */
 function sumPgVolumeInvest(
@@ -154,7 +157,7 @@ function sumPgVolumeInvest(
   let potencial = 0;
   let gerado = 0;
   for (const r of pgMais) {
-    if (!/p&g\+\s*volume/i.test(r.tipo)) continue;
+    if (!PG_INVEST_TIPO_RE.test(r.tipo)) continue;
     if (!monthSet.has(r.data)) continue;
     if (!allowedRedes.has(r.rede)) continue;
     potencial += r.potencial;
@@ -394,9 +397,9 @@ export type TopMoverRow = {
 
 /**
  * Redes com maior alta/queda de investimento gerado no mês vigente vs. o mês anterior.
- * Assim como em `computeInvestmentConcentration`, soma o P&G+ Volume ao `gerado` legado
- * por rede — a partir da virada de contrato (ago/2026), o campo legado sozinho fica quase
- * todo zerado.
+ * Assim como em `computeInvestmentConcentration`, soma o P&G+ (Volume + Mix) ao `gerado`
+ * legado por rede — a partir da virada de contrato (ago/2026), o campo legado sozinho fica
+ * quase todo zerado.
  */
 export function computeTopMovers(
   baseRows: Row[],
@@ -420,7 +423,7 @@ export function computeTopMovers(
     prevMap.set(r.rede, (prevMap.get(r.rede) ?? 0) + r.gerado);
   }
   for (const r of pgMais) {
-    if (!/p&g\+\s*volume/i.test(r.tipo)) continue;
+    if (!PG_INVEST_TIPO_RE.test(r.tipo)) continue;
     if (!allowedRedes.has(r.rede)) continue;
     if (r.data === currentMonth) {
       const cur = curMap.get(r.rede);
@@ -461,8 +464,8 @@ export type ConcentrationStats = {
 /**
  * Quanto do investimento gerado total está concentrado nas maiores redes (curva de Pareto).
  * A partir da virada de contrato (ago/2026), o investimento por rede deixa de vir só das
- * linhas legadas (`gerado`) e passa a incluir também o P&G+ Volume — por isso soma as duas
- * fontes por rede, como o restante do dashboard já faz em `computeKpis`.
+ * linhas legadas (`gerado`) e passa a incluir também o P&G+ (Volume + Mix) — por isso soma
+ * as três fontes por rede, como o restante do dashboard já faz em `computeKpis`.
  */
 export function computeInvestmentConcentration(
   monthRows: Row[],
@@ -476,7 +479,7 @@ export function computeInvestmentConcentration(
   const allowedRedes = new Set(monthRows.map((r) => r.rede));
   const monthSet = new Set(months);
   for (const r of pgMais) {
-    if (!/p&g\+\s*volume/i.test(r.tipo)) continue;
+    if (!PG_INVEST_TIPO_RE.test(r.tipo)) continue;
     if (!monthSet.has(r.data)) continue;
     if (!allowedRedes.has(r.rede)) continue;
     map.set(r.rede, (map.get(r.rede) ?? 0) + r.gerado);
