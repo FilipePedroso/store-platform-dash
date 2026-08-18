@@ -1077,7 +1077,7 @@ export function Dashboard() {
 
       </div>
 
-      <PgVolumeSummaryCard table={pgTableActive} kind={pgView} />
+      <PgVolumeSummaryCard volumeTable={pgVolumeTable} mixTable={pgMixTable} />
 
     </div>
   );
@@ -1954,7 +1954,16 @@ function PgVolumeRingCard({
   );
 }
 
-function PgVolumeSummaryCard({ table, kind }: { table: PgVolumeTable; kind: "volume" | "mix" }) {
+function PgVolumeSummaryCard({
+  volumeTable,
+  mixTable,
+}: {
+  volumeTable: PgVolumeTable;
+  mixTable: PgVolumeTable;
+}) {
+  // Dropdown independente do da seção acima — não segue o pgView do card de Investimento/Atingimento.
+  const [kind, setKind] = useState<"volume" | "mix">("volume");
+  const table = kind === "mix" ? mixTable : volumeTable;
   const [mode, setMode] = useState<"unidades" | "investimento">("unidades");
   const pgLabel = kind === "mix" ? "P&G+ Mix" : "P&G+ Volume";
   const fmtInt = (n: number) => Math.round(n).toLocaleString("pt-BR");
@@ -2036,6 +2045,7 @@ function PgVolumeSummaryCard({ table, kind }: { table: PgVolumeTable; kind: "vol
           }
         />
         <div className="flex items-center gap-1.5 shrink-0">
+          <PgViewToggle value={kind} onChange={setKind} />
           <div className="inline-flex rounded-full border border-neutral-800 overflow-hidden text-[11px]">
             <button
               type="button"
