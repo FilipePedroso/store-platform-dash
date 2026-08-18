@@ -705,3 +705,96 @@ export function computePgVolumeTable(
     .sort((a, b) => a.rede.localeCompare(b.rede, "pt-BR"));
   return { brands, rows: tableRows };
 }
+
+/**
+ * P&G+ Mix: mesma fonte/estrutura do P&G+ Volume (Rede + Data cruzados com o dataset
+ * principal para os filtros de cluster/canal/distribuidor), mas com uma mecânica de
+ * "atingiu" diferente — não é realizado >= meta, e sim a relação realizado/meta bater
+ * um percentual mínimo que varia por marca/categoria (AGs): >= 75% para Pampers e
+ * >= 85% para Gillette.
+ */
+function filterPgMixRows(pgMais: PgMaisRow[], rows: Row[], f: Filters, months: string[]): PgMaisRow[] {
+  const info = new Map<string, { cluster: string; canal: string; distribuidor: string; mes: string }>();
+  for (const r of rows) {
+    const cur = info.get(r.rede);
+    if (!cur || r.mes > cur.mes) {
+      info.set(r.rede, { cluster: r.cluster, canal: r.canal, distribuidor: r.distribuidor, mes: r.mes });
+    }
+  }
+  const monthSet = new Set(months);
+  return pgMais.filter((r) => {
+    if (!/p&g\+\s*mix/i.test(r.tipo)) return false;
+    if (!monthSet.has(r.data)) return false;
+    if (!inList(r.rede, f.rede)) return false;
+    const inf = info.get(r.rede);
+    if (!inf) return false;
+    if (!inList(inf.cluster, f.cluster)) return false;
+    if (!inList(inf.canal, f.canal)) return false;
+    if (!inList(inf.distribuidor, f.distribuidor)) return false;
+    return true;
+  });
+}
+
+const pgMixBrandLabel = (tipo: string) => tipo.replace(/^p&g\+\s*mix\s*/i, "").trim();
+
+/** Percentual mínimo de realizado/meta para a rede ser considerada "atingiu" no P&G+ Mix, por marca. */
+export function pgMixThreshold(label: string): number {
+  if (/pampers/i.test(label)) return 0.75;
+  if (/gillette/i.test(label)) return 0.85;
+  return 1;
+}
+
+/** "Atingiu" = realizado/meta >= threshold da marca (75% Pampers, 85% Gillette). */
+export function computePgMixBrands(
+  pgMais: PgMaisRow[],
+  rows: Row[],
+  f: Filters,
+  months: string[],
+): PgVolumeBrand[] {
+  const map = new Map<string, PgVolumeBrand>();
+  for (const r of filterPgMixRows(pgMais, rows, f, months)) {
+    const label = pgMixBrandLabel(r.tipo);
+    const cur = map.get(label) ?? { label, ok: 0, total: 0 };
+    cur.total += 1;
+    const ratio = r.meta > 0 ? r.realizado / r.meta : 1;
+    if (ratio >= pgMixThreshold(label)) cur.ok += 1;
+    map.set(label, cur);
+  }
+  return [...map.values()].sort((a, b) => b.ok / Math.max(1, b.total) - a.ok / Math.max(1, a.total));
+}
+
+/** Tabela "Resumo Redes" do P&G+ Mix — mesmo formato de computePgVolumeTable (potencial/gerado não se aplicam, ficam 0). */
+export function computePgMixTable(
+  pgMais: PgMaisRow[],
+  rows: Row[],
+  f: Filters,
+  months: string[],
+): PgVolumeTable {
+  const brandSet = new Set<string>();
+  const byRede = new Map<string, Record<string, PgVolumeCell>>();
+  for (const r of filterPgMixRows(pgMais, rows, f, months)) {
+    const label = pgMixBrandLabel(r.tipo);
+    brandSet.add(label);
+    const cells = byRede.get(r.rede) ?? {};
+    const cell = cells[label] ?? { meta: 0, realizado: 0, gap: 0, potencial: 0, gerado: 0 };
+    cell.meta += r.meta;
+    cell.realizado += r.realizado;
+    cell.gap = Math.max(0, cell.meta - cell.realizado);
+    cell.potencial += r.potencial;
+    cell.gerado += r.gerado;
+    cells[label] = cell;
+    byRede.set(r.rede, cells);
+  }
+  const brands = [...brandSet].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const tableRows = [...byRede.entries()]
+    .map(([rede, cells]) => ({ rede, cells }))
+    .sort((a, b) => a.rede.localeCompare(b.rede, "pt-BR"));
+  return { brands, rows: tableRows };
+}
+
+/** Se uma célula do P&G+ (Volume ou Mix) conta como "atingida" pela mecânica da rede. */
+export function pgCellAtingiu(kind: "volume" | "mix", brand: string, cell: PgVolumeCell): boolean {
+  if (cell.meta <= 0) return true;
+  const threshold = kind === "mix" ? pgMixThreshold(brand) : 1;
+  return cell.realizado / cell.meta >= threshold;
+}
