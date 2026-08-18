@@ -858,7 +858,7 @@ export function Dashboard() {
       </div>
 
       {/* P&G+ */}
-      <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+      <div className="flex items-center gap-3 flex-wrap mb-2">
         <div className="text-[11px] font-medium text-neutral-400 tracking-wider uppercase">
           P&G+
           {isAccumulated
