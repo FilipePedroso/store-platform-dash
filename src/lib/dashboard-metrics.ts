@@ -294,6 +294,8 @@ export function computeRanking(
   monthRows: Row[],
   chaves: ChaveRow[],
   topN = 5,
+  pgMais: PgMaisRow[] = [],
+  months: string[] = [],
 ): RankRow[] {
   const chavesMap = new Map<string, ChaveRow>();
   for (const c of chaves) chavesMap.set(`${c.cluster}|${c.canal}`, c);
@@ -340,6 +342,17 @@ export function computeRanking(
         sortimento: r.sortimento,
       });
     }
+  }
+  // A partir da virada de contrato (ago/2026), o investimento por rede passa a incluir
+  // também o P&G+ (Volume + Mix), assim como computeKpis/computeInvestmentConcentration.
+  const monthSet = new Set(months);
+  for (const r of pgMais) {
+    if (!PG_INVEST_TIPO_RE.test(r.tipo)) continue;
+    if (!monthSet.has(r.data)) continue;
+    const cur = map.get(r.rede);
+    if (!cur) continue;
+    cur.gerado += r.gerado;
+    cur.potencial += r.potencial;
   }
   return [...map.values()]
     .map((v) => {

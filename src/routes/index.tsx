@@ -213,6 +213,7 @@ export function Dashboard() {
   // se soma o P&G+ Volume ao investimento legado.
   const [concentrationPgEnabled, setConcentrationPgEnabled] = useState(false);
   const [topMoversPgEnabled, setTopMoversPgEnabled] = useState(false);
+  const [rankingPgEnabled, setRankingPgEnabled] = useState(false);
 
   const refresh = async () => {
     const { rows, agRows, estrutura, iniciativas, estruturaGrupos, skuRows, chaves, pgMais, meta } =
@@ -329,8 +330,15 @@ export function Dashboard() {
   }, [effectiveMonthRows]);
   const evolution = useMemo(() => computeEvolution(baseRows), [baseRows]);
   const ranking = useMemo(
-    () => computeRanking(effectiveMonthRows, chaves, 9999),
-    [effectiveMonthRows, chaves],
+    () =>
+      computeRanking(
+        effectiveMonthRows,
+        chaves,
+        9999,
+        rankingPgEnabled ? pgMais : [],
+        effectiveMonth ? [effectiveMonth] : [],
+      ),
+    [effectiveMonthRows, chaves, pgMais, rankingPgEnabled, effectiveMonth],
   );
   const prevEffectiveMonth = useMemo(
     () => (effectiveMonth ? previousMonth(rows, effectiveMonth) : null),
@@ -1008,7 +1016,13 @@ export function Dashboard() {
         {effectiveMonth ? ` · ${fmtMonth(effectiveMonth)}` : ""}
       </SectionLabel>
       <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-2.5 mb-3">
-        <RankingCard rows={ranking} chaveMode={chaveMode} locked={isAccumulated} />
+        <RankingCard
+          rows={ranking}
+          chaveMode={chaveMode}
+          locked={isAccumulated}
+          pgEnabled={rankingPgEnabled}
+          onPgEnabledChange={setRankingPgEnabled}
+        />
         <TeamPerformanceCard
           monthRows={effectiveMonthRows}
           estrutura={estrutura}
@@ -2892,10 +2906,14 @@ function RankingCard({
   rows,
   chaveMode = false,
   locked = false,
+  pgEnabled,
+  onPgEnabledChange,
 }: {
   rows: RankRow[];
   chaveMode?: boolean;
   locked?: boolean;
+  pgEnabled: boolean;
+  onPgEnabledChange: (v: boolean) => void;
 }) {
   const fmtInt = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
   const fmtBRNum = (n: number) =>
@@ -2953,6 +2971,7 @@ function RankingCard({
             sub="Top redes por sortimento"
           />
           <div className="flex items-center gap-1.5 shrink-0">
+            <PgToggle checked={pgEnabled} onCheckedChange={onPgEnabledChange} />
             <button
               type="button"
               disabled={rows.length === 0}
@@ -2997,6 +3016,7 @@ function RankingCard({
                 Ranking de redes
               </DialogTitle>
               <div className="flex items-center gap-1.5 sm:gap-2">
+                <PgToggle checked={pgEnabled} onCheckedChange={onPgEnabledChange} />
                 <ExtractDropdown onCsv={handleDownloadCsv} onPdf={handleDownloadPdf} disabled={rows.length === 0} />
                 <button
                   type="button"
