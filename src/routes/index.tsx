@@ -73,6 +73,9 @@ import {
   computeEvolution,
   computeKpis,
   computeMonthlySeries,
+  computePgMonthlySeries,
+  addMonthlySeries,
+  ratioMonthlySeries,
   computePgVolumeBrands,
   computePgVolumeInvestByBrand,
   computePgVolumeTable,
@@ -210,10 +213,12 @@ export function Dashboard() {
   const [showLatestMonth, setShowLatestMonth] = useState(true);
   const [pgPlusEnabled, setPgPlusEnabled] = useState(true);
   // Toggles independentes do "P&G+" dos Indicadores principais — cada card decide por si só
-  // se soma o P&G+ Volume ao investimento legado.
+  // se soma o P&G+ (todas as mecânicas: Volume, Mix, o que vier depois) ao investimento legado.
   const [concentrationPgEnabled, setConcentrationPgEnabled] = useState(false);
   const [topMoversPgEnabled, setTopMoversPgEnabled] = useState(false);
   const [rankingPgEnabled, setRankingPgEnabled] = useState(false);
+  const [investHistPgEnabled, setInvestHistPgEnabled] = useState(true);
+  const [atingimentoHistPgEnabled, setAtingimentoHistPgEnabled] = useState(true);
 
   const refresh = async () => {
     const { rows, agRows, estrutura, iniciativas, estruturaGrupos, skuRows, chaves, pgMais, meta } =
@@ -667,6 +672,28 @@ export function Dashboard() {
     [histFaturamento, showLatestMonth],
   );
 
+  // P&G+ (todas as mecânicas) somado aos históricos legados de gerado/potencial — cada card
+  // decide por si só, via seu próprio toggle "P&G+", se soma essa parte ou não.
+  const pgMonthly = useMemo(
+    () => computePgMonthlySeries(pgMais, baseRows, histGeradoView.months),
+    [pgMais, baseRows, histGeradoView.months],
+  );
+  const histGeradoViewFinal = useMemo(
+    () => (investHistPgEnabled ? addMonthlySeries(histGeradoView, pgMonthly.gerado) : histGeradoView),
+    [histGeradoView, pgMonthly, investHistPgEnabled],
+  );
+  const histPotencialViewFinal = useMemo(
+    () => (investHistPgEnabled ? addMonthlySeries(histPotencialView, pgMonthly.potencial) : histPotencialView),
+    [histPotencialView, pgMonthly, investHistPgEnabled],
+  );
+  const histAtingimentoViewFinal = useMemo(() => {
+    const gerado = atingimentoHistPgEnabled ? addMonthlySeries(histGeradoView, pgMonthly.gerado) : histGeradoView;
+    const potencial = atingimentoHistPgEnabled
+      ? addMonthlySeries(histPotencialView, pgMonthly.potencial)
+      : histPotencialView;
+    return { months: histAtingimentoView.months, ...ratioMonthlySeries(gerado, potencial) };
+  }, [histGeradoView, histPotencialView, histAtingimentoView.months, pgMonthly, atingimentoHistPgEnabled]);
+
 
   // Filter options — each filter adapts to the other selected filters
   const clusterOpts = useMemo(() => optionsFor(rows, dFilters, "cluster"), [rows, dFilters]);
@@ -912,14 +939,15 @@ export function Dashboard() {
           sub="Valores acumulados mensais (R$)"
           color={GREEN}
           months={histGeradoView.months}
-          total={histGeradoView.total}
-          groups={histGeradoView.groups}
-          extra={{ name: "Potencial", values: histPotencialView.total, color: LIGHT_BLUE, dashed: true }}
+          total={histGeradoViewFinal.total}
+          groups={histGeradoViewFinal.groups}
+          extra={{ name: "Potencial", values: histPotencialViewFinal.total, color: LIGHT_BLUE, dashed: true }}
           yFormat={(n) => fmtBRL(n)}
           pointFormat={(n) => fmtBRL(n)}
           badgeBg="#11402F"
           badgeFg="#7DE5BD"
           distribuidores={dFilters.distribuidor}
+          pgToggle={{ checked: investHistPgEnabled, onCheckedChange: setInvestHistPgEnabled }}
         />
         {(() => {
           const singleRede = dFilters.rede.length === 1 ? dFilters.rede[0] : null;
@@ -981,9 +1009,9 @@ export function Dashboard() {
           title="% Atingimento da verba"
           sub="Investimento gerado / Potencial (%)"
           color={ORANGE}
-          months={histAtingimentoView.months}
-          total={histAtingimentoView.total}
-          groups={histAtingimentoView.groups}
+          months={histAtingimentoViewFinal.months}
+          total={histAtingimentoViewFinal.total}
+          groups={histAtingimentoViewFinal.groups}
           yFormat={(n) => fmtPct(n, 0)}
           pointFormat={(n) => fmtPct(n, 1)}
           reference={{ value: 0.85, label: "Meta 85%" }}
@@ -992,6 +1020,7 @@ export function Dashboard() {
           badgeBg="#3D2A10"
           badgeFg="#F1B257"
           distribuidores={dFilters.distribuidor}
+          pgToggle={{ checked: atingimentoHistPgEnabled, onCheckedChange: setAtingimentoHistPgEnabled }}
         />
         <LineHistoryCard
           icon={<Receipt size={13} style={{ color: PURPLE }} />}
@@ -3931,6 +3960,9 @@ type LineHistoryProps = {
     threshold: number;
     activeColor: string;
   };
+  /** Quando presente, mostra o toggle "P&G+" no header do card (mesmo componente usado nos
+   * outros cards com essa opção) — liga/desliga somar o P&G+ (todas as mecânicas) aos valores. */
+  pgToggle?: { checked: boolean; onCheckedChange: (v: boolean) => void };
 };
 
 function ModeToggle({
@@ -4093,6 +4125,7 @@ function LineHistoryCard(p: LineHistoryProps) {
           <div className="text-[11px] text-neutral-400 mt-0.5">{p.sub}</div>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
+          {p.pgToggle && <PgToggle checked={p.pgToggle.checked} onCheckedChange={p.pgToggle.onCheckedChange} />}
           <ModeToggle mode={mode} setMode={setMode} hasGroups={p.groups.length > 0} />
           {variant === "card" ? (
             <button

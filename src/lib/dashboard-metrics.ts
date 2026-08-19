@@ -141,8 +141,13 @@ export type Kpis = {
   agsDeltaPP: number | null;
 };
 
-/** Casa qualquer linha do P&G+ (Volume ou Mix) — usado nos totais agregados que somam as duas mecânicas. */
-const PG_INVEST_TIPO_RE = /p&g\+\s*(volume|mix)/i;
+/**
+ * Casa qualquer linha do P&G+, de qualquer mecânica (Volume, Mix ou o que vier depois) — todo
+ * "tipo" na aba P&G+ começa com "P&G+ <mecânica> <marca>", então o prefixo sozinho já cobre
+ * mecânicas futuras sem precisar tocar neste regex de novo. Usado nos totais agregados que
+ * somam todas as mecânicas do P&G+ juntas.
+ */
+const PG_INVEST_TIPO_RE = /^p&g\+/i;
 
 /** Soma potencial/gerado das linhas de P&G+ (Volume + Mix) para as redes já presentes em `baseRows`
  * (ou seja, respeitando os filtros de cluster/canal/rede/distribuidor já aplicados) e no(s)
@@ -607,6 +612,76 @@ export const reduceAtingimento = (rows: Row[]) => {
   const g = rows.reduce((a, r) => a + r.gerado, 0);
   return p > 0 ? g / p : 0;
 };
+
+/**
+ * Soma mensal de gerado/potencial do P&G+ (Volume + Mix + qualquer mecânica futura que
+ * bata no prefixo "P&G+"), total e por cluster — para somar aos históricos legados de
+ * `computeMonthlySeries` quando o toggle "P&G+" dos cards de histórico está ligado. Mapeia
+ * cada rede ao cluster pela ocorrência mais recente em `baseRows` (mesma abordagem de
+ * `sumPgVolumeInvest`), o que também restringe a soma às redes já dentro do escopo dos
+ * filtros aplicados a `baseRows`.
+ */
+export function computePgMonthlySeries(
+  pgMais: PgMaisRow[],
+  baseRows: Row[],
+  months: string[],
+): { gerado: SeriesWithGroups; potencial: SeriesWithGroups } {
+  const redeCluster = new Map<string, { cluster: string; mes: string }>();
+  for (const r of baseRows) {
+    const cur = redeCluster.get(r.rede);
+    if (!cur || r.mes > cur.mes) redeCluster.set(r.rede, { cluster: r.cluster, mes: r.mes });
+  }
+  const clusterNames = uniqueSorted(baseRows, "cluster");
+  const monthIdx = new Map(months.map((m, i) => [m, i]));
+  const geradoTotal = months.map(() => 0);
+  const potencialTotal = months.map(() => 0);
+  const geradoByCluster = new Map<string, number[]>(clusterNames.map((n) => [n, months.map(() => 0)]));
+  const potencialByCluster = new Map<string, number[]>(clusterNames.map((n) => [n, months.map(() => 0)]));
+  for (const r of pgMais) {
+    if (!PG_INVEST_TIPO_RE.test(r.tipo)) continue;
+    const idx = monthIdx.get(r.data);
+    if (idx === undefined) continue;
+    const info = redeCluster.get(r.rede);
+    if (!info) continue; // rede fora do escopo atual de baseRows (filtros já aplicados)
+    geradoTotal[idx] += r.gerado;
+    potencialTotal[idx] += r.potencial;
+    geradoByCluster.get(info.cluster)![idx] += r.gerado;
+    potencialByCluster.get(info.cluster)![idx] += r.potencial;
+  }
+  return {
+    gerado: { total: geradoTotal, groups: clusterNames.map((name) => ({ name, values: geradoByCluster.get(name)! })) },
+    potencial: {
+      total: potencialTotal,
+      groups: clusterNames.map((name) => ({ name, values: potencialByCluster.get(name)! })),
+    },
+  };
+}
+
+export type SeriesWithGroups = { total: number[]; groups: { name: string; values: number[] }[] };
+
+/** Soma duas séries mensais (total e por grupo) ponto a ponto — usado para somar o P&G+ aos históricos legados. */
+export function addMonthlySeries(a: SeriesWithGroups, b: SeriesWithGroups): SeriesWithGroups {
+  return {
+    total: a.total.map((v, i) => v + (b.total[i] ?? 0)),
+    groups: a.groups.map((g) => ({
+      name: g.name,
+      values: g.values.map((v, i) => v + (b.groups.find((bg) => bg.name === g.name)?.values[i] ?? 0)),
+    })),
+  };
+}
+
+/** Razão numerador/denominador ponto a ponto (0 quando o denominador é <= 0) — usado para recalcular
+ * "% Atingimento da verba" a partir das séries de gerado/potencial já somadas com o P&G+. */
+export function ratioMonthlySeries(num: SeriesWithGroups, den: SeriesWithGroups): SeriesWithGroups {
+  const ratio = (n: number, d: number) => (d > 0 ? n / d : 0);
+  return {
+    total: num.total.map((v, i) => ratio(v, den.total[i] ?? 0)),
+    groups: num.groups.map((g) => {
+      const d = den.groups.find((dg) => dg.name === g.name);
+      return { name: g.name, values: g.values.map((v, i) => ratio(v, d?.values[i] ?? 0)) };
+    }),
+  };
+}
 
 export type PgVolumeBrand = { label: string; ok: number; total: number };
 export type PgVolumeInvestBrand = { label: string; gerado: number; potencial: number };
